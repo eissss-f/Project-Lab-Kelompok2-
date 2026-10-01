@@ -18,4 +18,5 @@ Anggota Kelompok:
      <video controls src="Recording-2026-10-01-101345.mp4" title="Title"></video>
 2. Tugas Anggota Kelompok
    - Accept Member
-   - Clone Project
+   Adam Fadli - 2488010028 : ![alt text](image-1.png)
+   - Clone Project 
