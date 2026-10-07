@@ -20,4 +20,4 @@ Anggota Kelompok:
    - Accept Member
    Adam Fadli - 2488010028 = ![alt text](image-1.png)
    Maddinatul Dzahra -2488010058 = ![alt text](image-2.png)
-   - Clone Project 
+   - Chantika Maharani - 2488010080 = ![alt text](image-3.png)
