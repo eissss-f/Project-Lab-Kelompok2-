@@ -21,3 +21,4 @@ Anggota Kelompok:
    Adam Fadli - 2488010028 = ![alt text](image-1.png)
    Maddinatul Dzahra -2488010058 = ![alt text](image-2.png)
    - Chantika Maharani - 2488010080 = ![alt text](image-3.png)
+   - Lailatul Qodariah - 2488010006 = <img width="1580" height="721" alt="image" src="https://github.com/user-attachments/assets/da9cb2e6-f75b-4e3d-8a6c-3e5fd65ed13b" />
