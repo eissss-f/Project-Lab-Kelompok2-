@@ -16,6 +16,7 @@ judul: "ra.scrafts_id: Aplikasi Pemesanan dan Katalog Digital Buket Berbasis Mob
 
 - Adam Fadli: Infrastruktur Database & Otentikasi Pengguna
   Bertanggung jawab dalam perancangan struktur basis data utama sistem serta pengembangan seluruh modul Otentikasi Pengguna. Tugas mencakup pembuatan fitur Registrasi & Login Pelanggan menggunakan email atau nomor telepon, fitur Login Admin untuk hak akses owner, serta pengelolaan sesi profil dan logout.
+  ![Tampilan Infrastruktur Database dan Otentikasi Pengguna](image-4.png)
 
 - Maddinatul Dzahra Aulia G.: Katalog Digital Sisi Pelanggan
   Bertanggung jawab dalam pengembangan antarmuka utama pengguna dan Katalog Digital. Tugas mencakup penyajian daftar koleksi buket ra.scrafts_id lengkap dengan foto, deskripsi, dan harga, penyediaan fitur pencarian dan filter kategori produk (buket bunga, uang, snack), serta informasi detail produk dan ketersediaan stok.
