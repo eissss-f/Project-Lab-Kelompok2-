@@ -26,6 +26,7 @@ judul: "ra.scrafts_id: Aplikasi Pemesanan dan Katalog Digital Buket Berbasis Mob
 
 - Chantika Maharani: Manajemen Pesanan Sisi Admin
   Bertanggung jawab atas pengelolaan modul Order Management untuk sisi owner. Tugas mencakup pemantauan seluruh pesanan masuk dari pelanggan, proses pengecekan dan verifikasi foto bukti pembayaran transfer manual, serta pembaruan status pengerjaan pesanan secara real-time.
+  ![Tampilan manajemen pesanan sisi admin](image-6.png)
 
 - Euis Fahira Y: Manajemen Katalog & Laporan Penjualan Sisi Admin
   Bertanggung jawab atas pengelolaan operasional toko dan rekapitulasi data pada dashboard admin. Tugas mencakup fitur Manajemen Katalog atau CRUD produk (tambah, ubah, hapus, dan pembaruan stok/varian buket) serta penyajian Laporan Penjualan Ringkas berupa rekapitulasi total pesanan dan pendapatan bulanan toko.
