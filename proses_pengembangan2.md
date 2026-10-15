@@ -20,11 +20,13 @@ judul: "ra.scrafts_id: Aplikasi Pemesanan dan Katalog Digital Buket Berbasis Mob
 
 - Maddinatul Dzahra Aulia G.: Katalog Digital Sisi Pelanggan
   Bertanggung jawab dalam pengembangan antarmuka utama pengguna dan Katalog Digital. Tugas mencakup penyajian daftar koleksi buket ra.scrafts_id lengkap dengan foto, deskripsi, dan harga, penyediaan fitur pencarian dan filter kategori produk (buket bunga, uang, snack), serta informasi detail produk dan ketersediaan stok.
-  <img width="1101" height="346" alt="image" src="https://github.com/user-attachments/assets/c5207e2a-3196-49d6-bf3f-34da97234f11" />
+  <img width="693" height="716" alt="image" src="https://github.com/user-attachments/assets/ec69a607-98d3-4e8f-bc76-301789f8b724" />
+
 
 - Lailatul Qodariah: Pemesanan & Riwayat Transaksi Pelanggan
   Bertanggung jawab atas seluruh alur transaksi In-App Checkout Form dan riwayat pesanan pelanggan. Tugas mencakup pengisian detail kustomisasi produk (pita, wrapping, catatan), teks kartu ucapan, informasi transfer manual, upload bukti pembayaran, hingga pemantauan riwayat dan status pesanan real-time (Pending, Diproses, Dalam Pengerjaan, Dikirim/Selesai).
-  ![Tampilan Pemesanan & Riwayat Transaksi Pelanggan](image-7.png)
+  <img width="1096" height="338" alt="image" src="https://github.com/user-attachments/assets/eb31fa74-d615-4a45-81a2-836034e1cda0" />
+
 
 - Chantika Maharani: Manajemen Pesanan Sisi Admin
   Bertanggung jawab atas pengelolaan modul Order Management untuk sisi owner. Tugas mencakup pemantauan seluruh pesanan masuk dari pelanggan, proses pengecekan dan verifikasi foto bukti pembayaran transfer manual, serta pembaruan status pengerjaan pesanan secara real-time.
