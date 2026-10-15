@@ -24,6 +24,7 @@ judul: "ra.scrafts_id: Aplikasi Pemesanan dan Katalog Digital Buket Berbasis Mob
 
 - Lailatul Qodariah: Pemesanan & Riwayat Transaksi Pelanggan
   Bertanggung jawab atas seluruh alur transaksi In-App Checkout Form dan riwayat pesanan pelanggan. Tugas mencakup pengisian detail kustomisasi produk (pita, wrapping, catatan), teks kartu ucapan, informasi transfer manual, upload bukti pembayaran, hingga pemantauan riwayat dan status pesanan real-time (Pending, Diproses, Dalam Pengerjaan, Dikirim/Selesai).
+  ![Tampilan Pemesanan & Riwayat Transaksi Pelanggan](image-7.png)
 
 - Chantika Maharani: Manajemen Pesanan Sisi Admin
   Bertanggung jawab atas pengelolaan modul Order Management untuk sisi owner. Tugas mencakup pemantauan seluruh pesanan masuk dari pelanggan, proses pengecekan dan verifikasi foto bukti pembayaran transfer manual, serta pembaruan status pengerjaan pesanan secara real-time.
