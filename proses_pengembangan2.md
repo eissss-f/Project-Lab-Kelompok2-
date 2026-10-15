@@ -20,6 +20,7 @@ judul: "ra.scrafts_id: Aplikasi Pemesanan dan Katalog Digital Buket Berbasis Mob
 
 - Maddinatul Dzahra Aulia G.: Katalog Digital Sisi Pelanggan
   Bertanggung jawab dalam pengembangan antarmuka utama pengguna dan Katalog Digital. Tugas mencakup penyajian daftar koleksi buket ra.scrafts_id lengkap dengan foto, deskripsi, dan harga, penyediaan fitur pencarian dan filter kategori produk (buket bunga, uang, snack), serta informasi detail produk dan ketersediaan stok.
+  ![Tampilan Katalog Digital Sisi Pelanggan](image-7.jpeg)
 
 - Lailatul Qodariah: Pemesanan & Riwayat Transaksi Pelanggan
   Bertanggung jawab atas seluruh alur transaksi In-App Checkout Form dan riwayat pesanan pelanggan. Tugas mencakup pengisian detail kustomisasi produk (pita, wrapping, catatan), teks kartu ucapan, informasi transfer manual, upload bukti pembayaran, hingga pemantauan riwayat dan status pesanan real-time (Pending, Diproses, Dalam Pengerjaan, Dikirim/Selesai).
