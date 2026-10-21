@@ -21,6 +21,7 @@ interface SummaryItem {
   title: string;
   desc: string;
   icon: IoniconsName;
+  route: string;
 }
 
 interface OrderItem {
@@ -38,11 +39,12 @@ export default function AdminDashboardScreen() {
   const router = useRouter();
   const [showAllOrders, setShowAllOrders] = useState<boolean>(false);
 
+  // Kartu Ringkasan yang terhubung ke masing-masing halaman admin
   const summaryItems: SummaryItem[] = [
-    { value: "48", title: "Jumlah Produk", desc: "Buket & hadiah aktif", icon: "cube-outline" },
-    { value: "12", title: "Pesanan Masuk", desc: "+3 pesanan hari ini", icon: "bag-outline" },
-    { value: "05", title: "Menunggu Verifikasi", desc: "Perlu cek pembayaran", icon: "receipt-outline" },
-    { value: "07", title: "Siap Diambil", desc: "Siap membawa senyum", icon: "gift-outline" },
+    { value: "48", title: "Jumlah Produk", desc: "Buket & hadiah aktif", icon: "cube-outline", route: "/produk_admin" },
+    { value: "12", title: "Pesanan Masuk", desc: "+3 pesanan hari ini", icon: "bag-outline", route: "/kelola_pesanan_admin" },
+    { value: "05", title: "Menunggu Verifikasi", desc: "Perlu cek pembayaran", icon: "receipt-outline", route: "/verifikasi_admin" },
+    { value: "07", title: "Siap Diambil", desc: "Siap membawa senyum", icon: "gift-outline", route: "/status_admin" },
   ];
 
   const orderItems: OrderItem[] = [
@@ -86,9 +88,12 @@ export default function AdminDashboardScreen() {
       <View style={styles.headerContainer}>
         <View style={styles.brandAndAccount}>
           <Text style={styles.appTitle}>ra_scrafts.id Admin</Text>
-          <View style={styles.adminProfile}>
+          <TouchableOpacity 
+            style={styles.adminProfile}
+            onPress={() => router.push('/profil_admin' as any)}
+          >
             <Ionicons name="person-outline" size={18} color={COLORS.primary} />
-          </View>
+          </TouchableOpacity>
         </View>
         <View style={styles.headerDivider} />
       </View>
@@ -112,11 +117,15 @@ export default function AdminDashboardScreen() {
               <Text style={styles.reportingDate}>Minggu, 18 Okt 2026</Text>
             </View>
 
-            {/* Metrics Grid */}
+            {/* Metrics Grid yang Bisa Dipencet */}
             <View style={styles.metricsGrid}>
               <View style={styles.metricRow}>
                 {summaryItems.slice(0, 2).map((item, index) => (
-                  <View key={index} style={styles.summaryCard}>
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.summaryCard}
+                    onPress={() => router.push(item.route as any)}
+                  >
                     <View style={styles.valueAndIcon}>
                       <Text style={styles.metricValue}>{item.value}</Text>
                       <View style={styles.metricSymbol}>
@@ -127,13 +136,17 @@ export default function AdminDashboardScreen() {
                       <Text style={styles.metricLabel}>{item.title}</Text>
                       <Text style={styles.metricContext}>{item.desc}</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
 
               <View style={styles.metricRow}>
                 {summaryItems.slice(2, 4).map((item, index) => (
-                  <View key={index} style={styles.summaryCard}>
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.summaryCard}
+                    onPress={() => router.push(item.route as any)}
+                  >
                     <View style={styles.valueAndIcon}>
                       <Text style={styles.metricValue}>{item.value}</Text>
                       <View style={styles.metricSymbol}>
@@ -144,7 +157,7 @@ export default function AdminDashboardScreen() {
                       <Text style={styles.metricLabel}>{item.title}</Text>
                       <Text style={styles.metricContext}>{item.desc}</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             </View>
@@ -155,7 +168,7 @@ export default function AdminDashboardScreen() {
         <View style={styles.recentOrdersSection}>
           <View style={styles.sectionHeading}>
             <Text style={styles.sectionTitle}>Pesanan Terbaru</Text>
-            <TouchableOpacity onPress={() => setShowAllOrders(!showAllOrders)} style={styles.allOrdersBtn}>
+            <TouchableOpacity onPress={() => router.push('/kelola_pesanan_admin' as any)} style={styles.allOrdersBtn}>
               <Text style={styles.viewAllText}>{showAllOrders ? "Tutup" : "Lihat semua"}</Text>
               <Ionicons name="arrow-forward" size={12} color={COLORS.primary} />
             </TouchableOpacity>
@@ -164,7 +177,10 @@ export default function AdminDashboardScreen() {
           <View style={styles.orderList}>
             {visibleOrders.map((order) => (
               <View key={order.id} style={styles.orderCard}>
-                <View style={styles.orderDetails}>
+                <TouchableOpacity 
+                  style={styles.orderDetails}
+                  onPress={() => router.push('/kelola_pesanan_admin' as any)}
+                >
                   <Image source={{ uri: order.photo }} style={styles.bouquetPhoto} />
                   <View style={styles.customerAndBouquet}>
                     <View style={styles.customerHeading}>
@@ -178,12 +194,15 @@ export default function AdminDashboardScreen() {
                         <Ionicons name="calendar-outline" size={11} color={COLORS.textMuted} />
                         <Text style={styles.pickupTime}>{order.date}</Text>
                       </View>
-                      <View style={[styles.orderStatus, { backgroundColor: order.statusBg }]}>
+                      <TouchableOpacity 
+                        style={[styles.orderStatus, { backgroundColor: order.statusBg }]}
+                        onPress={() => router.push('/status_admin' as any)}
+                      >
                         <Text style={[styles.statusLabel, { color: order.statusColor }]}>{order.status}</Text>
-                      </View>
+                      </TouchableOpacity>
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               </View>
             ))}
           </View>
@@ -193,22 +212,25 @@ export default function AdminDashboardScreen() {
       {/* BOTTOM NAVIGATION BAR */}
       <View style={styles.bottomNavigation}>
         <View style={styles.navigationItems}>
-          <View style={styles.activeNavItem}>
+          <TouchableOpacity 
+            style={styles.activeNavItem}
+            onPress={() => router.push('/index_admin' as any)}
+          >
             <Ionicons name="grid-outline" size={18} color={COLORS.primary} />
             <Text style={styles.activeNavLabel}>Beranda</Text>
-          </View>
+          </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/pesanan' as any)}>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/kelola_pesanan_admin' as any)}>
             <Ionicons name="bag-outline" size={19} color={COLORS.textMuted} />
             <Text style={styles.navLabel}>Pesanan</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/produk' as any)}>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/produk_admin' as any)}>
             <MaterialCommunityIcons name="flower-outline" size={19} color={COLORS.textMuted} />
             <Text style={styles.navLabel}>Produk</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/akun' as any)}>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/profil_admin' as any)}>
             <Ionicons name="person-outline" size={19} color={COLORS.textMuted} />
             <Text style={styles.navLabel}>Akun</Text>
           </TouchableOpacity>

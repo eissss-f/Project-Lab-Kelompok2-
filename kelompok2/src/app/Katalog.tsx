@@ -9,6 +9,7 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -31,9 +32,7 @@ interface Product {
   imageUrl: string;
 }
 
-// Foto sudah diganti dengan gambar buket/kado yang sesuai
 const ALL_PRODUCTS: Product[] = [
-  // Foto 1-3: Buket Bunga
   {
     id: 1,
     name: 'Buket Matahari Ceria',
@@ -41,7 +40,6 @@ const ALL_PRODUCTS: Product[] = [
     category: 'Bunga',
     imageUrl: 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=600&q=80',
   },
-    
   {
     id: 2,
     name: 'Buket Bunga Pink',
@@ -49,68 +47,61 @@ const ALL_PRODUCTS: Product[] = [
     category: 'Bunga',
     imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
   },
-    
   {
     id: 3,
     name: 'Buket Daisy Putih',
     price: 'Rp 150.000',
     category: 'Bunga',
-    imageUrl: ''
+    imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
   },
-
-  // Foto 4-5: Buket Uang
   {
     id: 4,
     name: 'Buket Uang Biru Elegan',
     price: 'Rp 350.000',
     category: 'Uang',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 5,
     name: 'Buket Uang & Mawar Pink',
     price: 'Rp 500.000',
     category: 'Uang',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
   },
-
-  // Foto 6-7: Buket Snack
   {
     id: 6,
     name: 'Buket Snack Sweet Pink',
     price: 'Rp 120.000',
     category: 'Snack',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 7,
     name: 'Buket Cokelat Premium',
     price: 'Rp 185.000',
     category: 'Snack',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
   },
-
-  // Foto 8-9: Buket Boneka
   {
     id: 8,
     name: 'Buket Boneka Loopy Pink',
     price: 'Rp 210.000',
     category: 'Boneka',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 9,
     name: 'Buket Boneka LinaBell',
     price: 'Rp 225.000',
     category: 'Boneka',
-    imageUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
   },
 ];
 
 const CATEGORIES = ['Semua', 'Bunga', 'Uang', 'Snack', 'Boneka'];
 
 export default function Katalog() {
-  const router = useRouter(); // Fitur navigasi dari Expo Router
+  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -124,18 +115,13 @@ export default function Katalog() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF8F0" />
 
-      {/* Header & Status Bar */}
-      <View style={styles.statusBar}>
-        <Text style={styles.statusTime}>9:41</Text>
-        <View style={styles.deviceStatus}>
-          <Signal size={14} color="#A83F68" strokeWidth={2.5} />
-          <Wifi size={14} color="#A83F68" strokeWidth={2.5} />
-          <Battery size={18} color="#A83F68" strokeWidth={2.5} />
-        </View>
-      </View>
       <View style={styles.storeHeader}>
         <Text style={styles.brandTitle}>ra_scrafts.id</Text>
-        <TouchableOpacity style={styles.cartButton}>
+        {/* Tombol Ikon Keranjang di Header dihubungkan ke halaman keranjang */}
+        <TouchableOpacity 
+          style={styles.cartButton}
+          onPress={() => router.push('/keranjang')}
+        >
           <ShoppingCart size={20} color="#A83F68" strokeWidth={1.8} />
         </TouchableOpacity>
       </View>
@@ -180,38 +166,74 @@ export default function Katalog() {
         </ScrollView>
 
         {/* Grid Produk */}
-        <View style={styles.productGrid}>
-          {filteredProducts.map((product) => (
-            <TouchableOpacity
-              key={product.id}
-              style={styles.productCard}
-              // Mengirim data produk yang diklik ke halaman DetailProduk
-              onPress={() => router.push({
-                pathname: '/DetailProduk',
-                params: { name: product.name, price: product.price, imageUrl: product.imageUrl }
-              })}
-            >
-              <Image source={{ uri: product.imageUrl }} style={styles.productImage} resizeMode="cover" />
-              <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
-              <Text style={styles.productPrice}>{product.price}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+       
+<FlatList
+  data={filteredProducts}
+  keyExtractor={(item) => item.id.toString()}
+  numColumns={2}
+  columnWrapperStyle={styles.productRow}
+  scrollEnabled={false}
+  renderItem={({ item }) => (
+    <TouchableOpacity
+      style={styles.productCard}
+      onPress={() =>
+        router.push({
+          pathname: '/DetailProduk',
+          params: {
+            name: item.name,
+            price: item.price,
+            imageUrl: item.imageUrl,
+          },
+        })
+      }
+    >
+      <Image
+        source={{ uri: item.imageUrl }}
+        style={styles.productImage}
+        resizeMode="cover"
+      />
+      <Text style={styles.productName} numberOfLines={2}>
+        {item.name}
+      </Text>
+      <Text style={styles.productPrice}>{item.price}</Text>
+    </TouchableOpacity>
+  )}
+  ListEmptyComponent={
+    <Text style={styles.boutiqueNote}>
+      Produk tidak ditemukan.
+    </Text>
+  }
+/>
+
         <Text style={styles.boutiqueNote}>Dirangkai dengan hati, diberikan dengan cinta.</Text>
       </ScrollView>
 
-      {/* Bottom Nav */}
+      {/* Bottom Nav yang Responsif dan Terhubung */}
       <View style={styles.bottomNavContainer}>
         <View style={styles.navTabs}>
-          <TouchableOpacity style={styles.tabActive}>
+          {/* Menu Produk (Aktif saat ini) */}
+          <TouchableOpacity 
+            style={styles.tabActive}
+            onPress={() => router.push('/Katalog')}
+          >
             <Store size={21} color="#A83F68" strokeWidth={1.8} />
             <Text style={styles.tabLabelActive}>Produk</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tabInactive}>
+
+          {/* Menu Pesanan dihubungkan ke halaman pesanan */}
+          <TouchableOpacity 
+            style={styles.tabInactive}
+            onPress={() => router.push('/pesanan')}
+          >
             <ShoppingBag size={21} color="#999999" strokeWidth={1.8} />
             <Text style={styles.tabLabelInactive}>Pesanan</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tabInactive}>
+
+          {/* Menu Profil dihubungkan ke halaman profil */}
+          <TouchableOpacity 
+            style={styles.tabInactive}
+            onPress={() => router.push('/profil')}
+          >
             <User size={21} color="#999999" strokeWidth={1.8} />
             <Text style={styles.tabLabelInactive}>Profil</Text>
           </TouchableOpacity>
@@ -222,7 +244,6 @@ export default function Katalog() {
   );
 }
 
-// Stylesheet tetap sama seperti sebelumnya
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF8F0' },
   statusBar: { height: 44, paddingHorizontal: 24, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -242,8 +263,16 @@ const styles = StyleSheet.create({
   categoryChipActive: { backgroundColor: '#E8A6BD' },
   categoryText: { fontSize: 12, color: '#A83F68' },
   categoryTextActive: { fontWeight: '600' },
-  productGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 14 },
-  productCard: { width: '48%', height: 214 },
+  
+productRow: {
+  justifyContent: 'space-between',
+  marginBottom: 14,
+},
+
+productCard: {
+  width: '48%',
+  height: 214,
+},
   productImage: { width: '100%', height: 154, borderRadius: 14, backgroundColor: '#EBCBD3' },
   productName: { fontWeight: '500', fontSize: 12, color: '#A83F68', marginTop: 4 },
   productPrice: { fontWeight: '600', fontSize: 12, color: '#A83F68' },

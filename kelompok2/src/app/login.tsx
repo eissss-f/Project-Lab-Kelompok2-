@@ -19,7 +19,8 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
-    router.replace('/' as any);
+    // Diarahkan langsung ke halaman Katalog setelah tombol Masuk ditekan
+    router.replace('/Katalog');
   };
 
   return (
