@@ -1,6 +1,6 @@
-import { Redirect } from 'expo-router';
+import React from 'react';
+import Katalog from './Katalog'; // Sesuaikan path jika lokasi filenya berbeda
 
 export default function Index() {
-  // Mengarahkan tampilan awal aplikasi langsung ke landingpage.tsx
-  return <Redirect href="/landingpage" />;
+  return <Katalog />;
 }
