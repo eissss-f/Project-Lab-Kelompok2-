@@ -15,13 +15,13 @@ export default function LandingPageScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity 
-        style={styles.content} 
-        activeOpacity={1} 
+      <TouchableOpacity
+        style={styles.content}
+        activeOpacity={1}
         onPress={() => router.replace('/login')}
       >
-        <Image 
-          source={require('../../assets/images/logo_racrafts.jpg.jpeg')} 
+        <Image
+          source={require('../../assets/images/logo_racrafts.jpg.jpeg')}
           style={styles.logoImage}
           resizeMode="contain"
         />
