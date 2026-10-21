@@ -9,6 +9,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Store, ShoppingBag, User } from 'lucide-react-native';
 
 const colors = {
   background: '#FFF8F0',
@@ -84,6 +86,7 @@ const filters = ['Semua', 'Aktif', 'Selesai'] as const;
 type Filter = (typeof filters)[number];
 
 export default function PesananScreen() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<Filter>('Semua');
   const counts = useMemo(
     () => ({
@@ -140,6 +143,39 @@ export default function PesananScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Bottom Nav yang Responsif dan Terhubung */}
+      <View style={styles.bottomNavContainer}>
+        <View style={styles.navTabs}>
+          {/* Menu Produk / Katalog */}
+          <Pressable 
+            style={styles.tabInactive}
+            onPress={() => router.push('/Katalog')}
+          >
+            <Store size={21} color="#999999" strokeWidth={1.8} />
+            <Text style={styles.tabLabelInactive}>Produk</Text>
+          </Pressable>
+
+          {/* Menu Pesanan (Aktif saat ini) */}
+          <Pressable 
+            style={styles.tabActive}
+            onPress={() => router.push('/pesanan')}
+          >
+            <ShoppingBag size={21} color={colors.berry} strokeWidth={1.8} />
+            <Text style={styles.tabLabelActive}>Pesanan</Text>
+          </Pressable>
+
+          {/* Menu Profil */}
+          <Pressable 
+            style={styles.tabInactive}
+            onPress={() => router.push('/profil')}
+          >
+            <User size={21} color="#999999" strokeWidth={1.8} />
+            <Text style={styles.tabLabelInactive}>Profil</Text>
+          </Pressable>
+        </View>
+        <View style={styles.homeIndicator} />
+      </View>
     </SafeAreaView>
   );
 }
@@ -224,7 +260,7 @@ function StatusRow({ label, status, filled = false }: { label: string; status: s
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   scrollView: { flex: 1 },
-  content: { paddingHorizontal: 23, paddingTop: 18, paddingBottom: 120 },
+  content: { paddingHorizontal: 23, paddingTop: 18, paddingBottom: 100 },
   heading: {
     color: colors.berry,
     fontFamily: 'serif',
@@ -298,4 +334,24 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', padding: 36, gap: 8 },
   emptyTitle: { color: colors.berry, fontSize: 16, fontWeight: '700' },
   emptyCopy: { color: colors.muted, fontSize: 12, textAlign: 'center' },
+  // Style untuk Bottom Navigation
+  bottomNavContainer: { 
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 84, 
+    borderTopWidth: 1, 
+    borderTopColor: '#F1D2DC', 
+    backgroundColor: '#FFF8F0', 
+    alignItems: 'center', 
+    paddingTop: 8, 
+    paddingHorizontal: 20 
+  },
+  navTabs: { flexDirection: 'row', width: '100%', height: 48, gap: 16 },
+  tabActive: { flex: 1, height: 48, backgroundColor: '#FFF0F6', borderRadius: 4, justifyContent: 'center', alignItems: 'center', gap: 3 },
+  tabInactive: { flex: 1, height: 48, justifyContent: 'center', alignItems: 'center', gap: 3 },
+  tabLabelActive: { fontSize: 10, color: colors.berry, fontWeight: '600' },
+  tabLabelInactive: { fontSize: 10, color: '#999999' },
+  homeIndicator: { width: 120, height: 4, backgroundColor: colors.berry, borderRadius: 2, marginTop: 12 },
 });

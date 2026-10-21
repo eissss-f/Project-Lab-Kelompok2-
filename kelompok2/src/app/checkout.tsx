@@ -118,51 +118,16 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
             height: '100vh',
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: '#FFFDF9',
+            backgroundColor: '#FFF8F0',
             fontFamily: "'Poppins', sans-serif",
             boxSizing: 'border-box',
             overflow: 'hidden',
             position: 'relative',
-            boxShadow: '0 0 25px rgba(160, 55, 94, 0.08)'
+            boxShadow: '0 0 25px rgba(168, 63, 104, 0.08)'
         }}>
 
-            {/* iOS Status Bar */}
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '8px 24px 0 24px',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#9E3A5E',
-                backgroundColor: '#FFFDF9',
-                flexShrink: 0
-            }}>
-                <span>9:41</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* Signal */}
-                    <svg width="14" height="12" viewBox="0 0 16 12" fill="#9E3A5E">
-                        <rect x="0" y="8" width="2.5" height="4" rx="0.6" />
-                        <rect x="4" y="6" width="2.5" height="6" rx="0.6" />
-                        <rect x="8" y="3" width="2.5" height="9" rx="0.6" />
-                        <rect x="12" y="0" width="2.5" height="12" rx="0.6" />
-                    </svg>
-                    {/* Wifi */}
-                    <svg width="14" height="12" viewBox="0 0 24 24" fill="none" stroke="#9E3A5E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
-                        <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
-                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-                        <line x1="12" y1="20" x2="12.01" y2="20"></line>
-                    </svg>
-                    {/* Battery */}
-                    <svg width="18" height="12" viewBox="0 0 24 14" fill="none" stroke="#9E3A5E" strokeWidth="1.8">
-                        <rect x="1" y="1" width="18" height="12" rx="3" />
-                        <rect x="3" y="3" width="10" height="8" rx="1.5" fill="#9E3A5E" />
-                        <path d="M21 5v4" strokeLinecap="round" />
-                    </svg>
-                </div>
-            </div>
-
+            
+        
             {/* Header */}
             <div style={{
                 position: 'relative',
@@ -170,8 +135,8 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                 flexDirection: 'column',
                 alignItems: 'center',
                 padding: '12px 16px 12px 16px',
-                borderBottom: '1px solid #F5E5EB',
-                backgroundColor: '#FFFDF9',
+                borderBottom: '1px solid #EED7D8',
+                backgroundColor: '#FFF8F0',
                 flexShrink: 0
             }}>
                 <button
@@ -184,8 +149,8 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                         height: '36px',
                         borderRadius: '50%',
                         border: '1px solid #E8A6BD',
-                        backgroundColor: '#FFFDF9',
-                        color: '#9E3A5E',
+                        backgroundColor: '#FFF8F0',
+                        color: '#A83F68',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -201,13 +166,13 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     fontSize: '25px',
                     fontFamily: "'Playfair Display', serif",
                     fontWeight: 600,
-                    color: '#9E3A5E',
+                    color: '#A83F68',
                     margin: 0,
                     letterSpacing: '-0.3px'
                 }}>
                     Checkout
                 </h1>
-                <span style={{ fontSize: '12px', color: '#9E3A5E', opacity: 0.85, marginTop: '2px' }}>
+                <span style={{ fontSize: '12px', color: '#A83F68', opacity: 0.85, marginTop: '2px' }}>
                     ra_scrafts.id
                 </span>
             </div>
@@ -228,23 +193,23 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     backgroundColor: '#FFFFFF',
                     padding: '16px',
                     borderRadius: '20px',
-                    border: '1px solid #EED4DC',
-                    boxShadow: '0 2px 6px rgba(158, 58, 94, 0.03)'
+                    border: '1px solid #E8A6BD',
+                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
                 }}>
                     <h2 style={{
                         fontSize: '16px',
                         fontFamily: "'Playfair Display', serif",
                         fontWeight: 600,
-                        color: '#9E3A5E',
+                        color: '#A83F68',
                         margin: '0 0 8px 0'
                     }}>
                         Data Pemesan
                     </h2>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', color: '#9E3A5E', opacity: 0.8 }}>Nama Pemesan</span>
+                        <span style={{ fontSize: '11px', color: '#A83F68', opacity: 0.8 }}>Nama Pemesan</span>
                         <span style={{
-                            backgroundColor: '#DF8CA0',
-                            color: '#FFFFFF',
+                            backgroundColor: '#E8A6BD',
+                            color: '#FFF8F0',
                             padding: '2px 8px',
                             borderRadius: '10px',
                             fontSize: '10px',
@@ -253,11 +218,11 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                             Dari akun
                         </span>
                     </div>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#9E3A5E', margin: '3px 0 8px 0' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#A83F68', margin: '3px 0 8px 0' }}>
                         Ayu Maharani
                     </p>
-                    <span style={{ fontSize: '11px', color: '#9E3A5E', display: 'block', opacity: 0.8 }}>No. HP</span>
-                    <p style={{ fontSize: '13px', fontWeight: 500, color: '#9E3A5E', margin: '3px 0 0 0' }}>
+                    <span style={{ fontSize: '11px', color: '#A83F68', display: 'block', opacity: 0.8 }}>No. HP</span>
+                    <p style={{ fontSize: '13px', fontWeight: 500, color: '#A83F68', margin: '3px 0 0 0' }}>
                         +62 812 3456 7890
                     </p>
                 </div>
@@ -267,14 +232,14 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     backgroundColor: '#FFFFFF',
                     padding: '16px',
                     borderRadius: '20px',
-                    border: '1px solid #EED4DC',
-                    boxShadow: '0 2px 6px rgba(158, 58, 94, 0.03)'
+                    border: '1px solid #E8A6BD',
+                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
                 }}>
                     <h2 style={{
                         fontSize: '16px',
                         fontFamily: "'Playfair Display', serif",
                         fontWeight: 600,
-                        color: '#9E3A5E',
+                        color: '#A83F68',
                         margin: '0 0 12px 0'
                     }}>
                         Ringkasan Pesanan
@@ -290,7 +255,8 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                         height: '48px',
                                         objectFit: 'cover',
                                         borderRadius: '10px',
-                                        flexShrink: 0
+                                        flexShrink: 0,
+                                        backgroundColor: '#F7E6E6'
                                     }}
                                 />
                                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -298,7 +264,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                         fontSize: '13px',
                                         fontFamily: "'Playfair Display', serif",
                                         fontWeight: 600,
-                                        color: '#9E3A5E',
+                                        color: '#A83F68',
                                         margin: 0,
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
@@ -306,14 +272,14 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                     }}>
                                         {item.name}
                                     </h3>
-                                    <p style={{ fontSize: '10px', color: '#9E3A5E', margin: '2px 0 0 0', opacity: 0.8 }}>
+                                    <p style={{ fontSize: '10px', color: '#A83F68', margin: '2px 0 0 0', opacity: 0.8 }}>
                                         {item.variant}
                                     </p>
-                                    <p style={{ fontSize: '11px', color: '#9E3A5E', margin: '2px 0 0 0' }}>
+                                    <p style={{ fontSize: '11px', color: '#A83F68', margin: '2px 0 0 0' }}>
                                         {item.qty}x · Rp {item.price.toLocaleString('id-ID')}
                                     </p>
                                 </div>
-                                <span style={{ fontSize: '12px', fontWeight: 600, color: '#9E3A5E', flexShrink: 0 }}>
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: '#A83F68', flexShrink: 0 }}>
                                     Rp {(item.price * item.qty).toLocaleString('id-ID')}
                                 </span>
                             </div>
@@ -321,17 +287,17 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     </div>
 
                     <div style={{
-                        borderTop: '1px solid #F5E5EB',
+                        borderTop: '1px solid #EED7D8',
                         marginTop: '12px',
                         paddingTop: '10px',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center'
                     }}>
-                        <span style={{ fontSize: '11px', color: '#9E3A5E', opacity: 0.8 }}>
+                        <span style={{ fontSize: '11px', color: '#A83F68', opacity: 0.8 }}>
                             Total {totalBouquets} buket
                         </span>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#9E3A5E' }}>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#A83F68' }}>
                             Rp {totalPrice.toLocaleString('id-ID')}
                         </span>
                     </div>
@@ -342,26 +308,26 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     backgroundColor: '#FFFFFF',
                     padding: '16px',
                     borderRadius: '20px',
-                    border: '1px solid #EED4DC',
-                    boxShadow: '0 2px 6px rgba(158, 58, 94, 0.03)'
+                    border: '1px solid #E8A6BD',
+                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
                 }}>
                     <h2 style={{
                         fontSize: '16px',
                         fontFamily: "'Playfair Display', serif",
                         fontWeight: 600,
-                        color: '#9E3A5E',
+                        color: '#A83F68',
                         margin: '0 0 8px 0'
                     }}>
                         Kartu Ucapan
                     </h2>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', color: '#9E3A5E', opacity: 0.85 }}>Tambah Kartu Ucapan</span>
+                        <span style={{ fontSize: '12px', color: '#A83F68', opacity: 0.85 }}>Tambah Kartu Ucapan</span>
                         <button
                             onClick={() => setIsCardActive(!isCardActive)}
                             style={{
                                 border: 'none',
-                                backgroundColor: isCardActive ? '#DF8CA0' : '#E0E0E0',
-                                color: '#FFFFFF',
+                                backgroundColor: isCardActive ? '#A83F68' : '#D0C2C7',
+                                color: '#FFF8F0',
                                 padding: '3px 12px',
                                 borderRadius: '12px',
                                 fontSize: '10px',
@@ -377,7 +343,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     {isCardActive && (
                         <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div>
-                                <label style={{ fontSize: '10px', color: '#9E3A5E', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
+                                <label style={{ fontSize: '10px', color: '#A83F68', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
                                     Nama Penerima
                                 </label>
                                 <input
@@ -390,9 +356,9 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                         padding: '8px 12px',
                                         fontSize: '11px',
                                         borderRadius: '10px',
-                                        border: '1px solid #EED4DC',
-                                        backgroundColor: '#FFFDF9',
-                                        color: '#9E3A5E',
+                                        border: '1px solid #E8A6BD',
+                                        backgroundColor: '#FFF8F0',
+                                        color: '#A83F68',
                                         boxSizing: 'border-box',
                                         outline: 'none',
                                         fontFamily: "'Poppins', sans-serif"
@@ -400,7 +366,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                 />
                             </div>
                             <div>
-                                <label style={{ fontSize: '10px', color: '#9E3A5E', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
+                                <label style={{ fontSize: '10px', color: '#A83F68', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
                                     Pesan Ucapan
                                 </label>
                                 <textarea
@@ -413,9 +379,9 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                         padding: '8px 12px',
                                         fontSize: '11px',
                                         borderRadius: '10px',
-                                        border: '1px solid #EED4DC',
-                                        backgroundColor: '#FFFDF9',
-                                        color: '#9E3A5E',
+                                        border: '1px solid #E8A6BD',
+                                        backgroundColor: '#FFF8F0',
+                                        color: '#A83F68',
                                         resize: 'none',
                                         boxSizing: 'border-box',
                                         outline: 'none',
@@ -432,52 +398,52 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     backgroundColor: '#FFFFFF',
                     padding: '16px',
                     borderRadius: '20px',
-                    border: '1px solid #EED4DC',
-                    boxShadow: '0 2px 6px rgba(158, 58, 94, 0.03)'
+                    border: '1px solid #E8A6BD',
+                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
                 }}>
                     <h2 style={{
                         fontSize: '16px',
                         fontFamily: "'Playfair Display', serif",
                         fontWeight: 600,
-                        color: '#9E3A5E',
+                        color: '#A83F68',
                         margin: '0 0 10px 0'
                     }}>
                         Jadwal Pengambilan di Toko
                     </h2>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                         <div>
-                            <label style={{ fontSize: '10px', color: '#9E3A5E', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
+                            <label style={{ fontSize: '10px', color: '#A83F68', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
                                 Tanggal Pengambilan
                             </label>
                             <div style={{
-                                border: '1px solid #EED4DC',
+                                border: '1px solid #E8A6BD',
                                 padding: '8px 10px',
                                 borderRadius: '10px',
                                 fontSize: '10px',
-                                color: '#9E3A5E',
+                                color: '#A83F68',
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
-                                backgroundColor: '#FFFDF9'
+                                backgroundColor: '#FFF8F0'
                             }}>
                                 <span style={{ fontWeight: 500 }}>{pickupDate}</span>
                                 <span style={{ fontSize: '12px' }}>📅</span>
                             </div>
                         </div>
                         <div>
-                            <label style={{ fontSize: '10px', color: '#9E3A5E', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
+                            <label style={{ fontSize: '10px', color: '#A83F68', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
                                 Jam Pengambilan
                             </label>
                             <div style={{
-                                border: '1px solid #EED4DC',
+                                border: '1px solid #E8A6BD',
                                 padding: '8px 10px',
                                 borderRadius: '10px',
                                 fontSize: '10px',
-                                color: '#9E3A5E',
+                                color: '#A83F68',
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
-                                backgroundColor: '#FFFDF9'
+                                backgroundColor: '#FFF8F0'
                             }}>
                                 <span style={{ fontWeight: 500 }}>{pickupTime}</span>
                                 <span style={{ fontSize: '12px' }}>⏰</span>
@@ -491,14 +457,14 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     backgroundColor: '#FFFFFF',
                     padding: '16px',
                     borderRadius: '20px',
-                    border: '1px solid #EED4DC',
-                    boxShadow: '0 2px 6px rgba(158, 58, 94, 0.03)'
+                    border: '1px solid #E8A6BD',
+                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
                 }}>
                     <h2 style={{
                         fontSize: '16px',
                         fontFamily: "'Playfair Display', serif",
                         fontWeight: 600,
-                        color: '#9E3A5E',
+                        color: '#A83F68',
                         margin: '0 0 10px 0'
                     }}>
                         Metode Pembayaran (Transfer Manual)
@@ -516,8 +482,8 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                         gap: '10px',
                                         padding: '10px 14px',
                                         borderRadius: '12px',
-                                        border: isSelected ? '1px solid #DF8CA0' : '1px solid #EED4DC',
-                                        backgroundColor: isSelected ? '#FFF0F4' : '#FFFFFF',
+                                        border: isSelected ? '1px solid #A83F68' : '1px solid #E8A6BD',
+                                        backgroundColor: isSelected ? '#F7E6E6' : '#FFFFFF',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s ease'
                                     }}
@@ -526,7 +492,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                         width: '16px',
                                         height: '16px',
                                         borderRadius: '50%',
-                                        border: isSelected ? '2px solid #9E3A5E' : '2px solid #C4B5BC',
+                                        border: isSelected ? '2px solid #A83F68' : '2px solid #C4B5BC',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -538,11 +504,11 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                                 width: '8px',
                                                 height: '8px',
                                                 borderRadius: '50%',
-                                                backgroundColor: '#9E3A5E'
+                                                backgroundColor: '#A83F68'
                                             }} />
                                         )}
                                     </div>
-                                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#9E3A5E' }}>
+                                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#A83F68' }}>
                                         {method}
                                     </span>
                                 </div>
@@ -552,19 +518,19 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
 
                     {/* Nomor Tujuan */}
                     <div style={{ marginTop: '12px' }}>
-                        <span style={{ fontSize: '11px', color: '#9E3A5E', display: 'block', marginBottom: '4px', opacity: 0.8 }}>
+                        <span style={{ fontSize: '11px', color: '#A83F68', display: 'block', marginBottom: '4px', opacity: 0.8 }}>
                             Nomor tujuan
                         </span>
                         <div style={{
-                            border: '1px solid #EED4DC',
+                            border: '1px solid #E8A6BD',
                             padding: '10px 14px',
                             borderRadius: '12px',
-                            backgroundColor: '#FFFDF9'
+                            backgroundColor: '#FFF8F0'
                         }}>
-                            <span style={{ fontWeight: 600, color: '#9E3A5E', fontSize: '13px', display: 'block' }}>
+                            <span style={{ fontWeight: 600, color: '#A83F68', fontSize: '13px', display: 'block' }}>
                                 08xx xxxx xxxx
                             </span>
-                            <span style={{ fontSize: '10px', color: '#9E3A5E', opacity: 0.75, display: 'block', marginTop: '2px' }}>
+                            <span style={{ fontSize: '10px', color: '#A83F68', opacity: 0.75, display: 'block', marginTop: '2px' }}>
                                 Nomor tujuan akan diisi admin
                             </span>
                         </div>
@@ -576,20 +542,20 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     backgroundColor: '#FFFFFF',
                     padding: '16px',
                     borderRadius: '20px',
-                    border: '1px solid #EED4DC',
-                    boxShadow: '0 2px 6px rgba(158, 58, 94, 0.03)'
+                    border: '1px solid #E8A6BD',
+                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
                 }}>
                     <h2 style={{
                         fontSize: '16px',
                         fontFamily: "'Playfair Display', serif",
                         fontWeight: 600,
-                        color: '#9E3A5E',
+                        color: '#A83F68',
                         margin: '0 0 10px 0'
                     }}>
                         Unggah Bukti Pembayaran
                     </h2>
                     <div style={{
-                        border: '1.5px dashed #DF8CA0',
+                        border: '1.5px dashed #A83F68',
                         padding: '16px',
                         borderRadius: '16px',
                         textAlign: 'center',
@@ -600,14 +566,14 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                             width: '38px',
                             height: '38px',
                             borderRadius: '50%',
-                            backgroundColor: '#FFF0F4',
+                            backgroundColor: '#F7E6E6',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             margin: '0 auto 8px auto',
-                            color: '#9E3A5E'
+                            color: '#A83F68'
                         }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9E3A5E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A83F68" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                 <polyline points="17 8 12 3 7 8"></polyline>
                                 <line x1="12" y1="3" x2="12" y2="15"></line>
@@ -617,14 +583,14 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                         {/* File Choose Button */}
                         <label style={{
                             display: 'inline-block',
-                            backgroundColor: '#9E3A5E',
-                            color: '#FFFFFF',
+                            backgroundColor: '#A83F68',
+                            color: '#FFF8F0',
                             fontSize: '11px',
                             fontWeight: 600,
                             padding: '7px 20px',
                             borderRadius: '10px',
                             cursor: 'pointer',
-                            boxShadow: '0 2px 6px rgba(158, 58, 94, 0.2)'
+                            boxShadow: '0 2px 6px rgba(168, 63, 104, 0.2)'
                         }}>
                             Pilih Gambar
                             <input
@@ -637,10 +603,10 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
 
                         {/* Preview / Status Box */}
                         <div style={{
-                            border: '1px dashed #DF8CA0',
+                            border: '1px dashed #E8A6BD',
                             borderRadius: '12px',
                             padding: '12px',
-                            backgroundColor: '#FFF7F9',
+                            backgroundColor: '#F7E6E6',
                             marginTop: '12px',
                             minHeight: '65px',
                             display: 'flex',
@@ -655,7 +621,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                         alt="Bukti Transfer"
                                         style={{ maxHeight: '90px', maxWidth: '100%', borderRadius: '8px', objectFit: 'contain' }}
                                     />
-                                    <span style={{ fontSize: '10px', color: '#9E3A5E', fontWeight: 600 }}>
+                                    <span style={{ fontSize: '10px', color: '#A83F68', fontWeight: 600 }}>
                                         {selectedFile?.name}
                                     </span>
                                     <button
@@ -673,13 +639,13 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                     </button>
                                 </div>
                             ) : (
-                                <span style={{ fontSize: '11px', color: '#9E3A5E', opacity: 0.6 }}>
+                                <span style={{ fontSize: '11px', color: '#A83F68', opacity: 0.6 }}>
                                     Belum ada gambar terpilih
                                 </span>
                             )}
                         </div>
 
-                        <p style={{ fontSize: '10px', color: '#9E3A5E', margin: '8px 0 0 0', opacity: 0.8 }}>
+                        <p style={{ fontSize: '10px', color: '#A83F68', margin: '8px 0 0 0', opacity: 0.8 }}>
                             Pastikan nominal dan bukti transfer terlihat jelas.
                         </p>
                     </div>
@@ -689,8 +655,8 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
 
             {/* Bottom Sticky Footer */}
             <div style={{
-                backgroundColor: '#FFFDF9',
-                borderTop: '1px solid #F5E5EB',
+                backgroundColor: '#FFF8F0',
+                borderTop: '1px solid #EED7D8',
                 padding: '12px 20px',
                 display: 'flex',
                 alignItems: 'center',
@@ -699,10 +665,10 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                 flexShrink: 0
             }}>
                 <div>
-                    <span style={{ fontSize: '10px', color: '#9E3A5E', display: 'block', opacity: 0.85 }}>
+                    <span style={{ fontSize: '10px', color: '#A83F68', display: 'block', opacity: 0.85 }}>
                         Total Pembayaran
                     </span>
-                    <span style={{ fontSize: '18px', fontWeight: 700, color: '#9E3A5E', display: 'block', marginTop: '1px' }}>
+                    <span style={{ fontSize: '18px', fontWeight: 700, color: '#A83F68', display: 'block', marginTop: '1px' }}>
                         Rp {totalPrice.toLocaleString('id-ID')}
                     </span>
                 </div>
@@ -710,15 +676,15 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                 <button
                     onClick={handleSubmitOrder}
                     style={{
-                        backgroundColor: '#9E3A5E',
-                        color: '#FFFFFF',
+                        backgroundColor: '#A83F68',
+                        color: '#FFF8F0',
                         border: 'none',
                         padding: '12px 26px',
                         borderRadius: '14px',
                         fontWeight: 600,
                         fontSize: '13px',
                         cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(158, 58, 94, 0.3)',
+                        boxShadow: '0 4px 12px rgba(168, 63, 104, 0.3)',
                         transition: 'transform 0.1s ease'
                     }}
                 >
@@ -740,22 +706,22 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     backdropFilter: 'blur(3px)'
                 }}>
                     <div style={{
-                        backgroundColor: '#FFFDF9',
+                        backgroundColor: '#FFF8F0',
                         borderRadius: '24px',
                         padding: '24px 20px',
                         width: '100%',
                         maxWidth: '340px',
                         textAlign: 'center',
-                        boxShadow: '0 10px 30px rgba(160, 55, 94, 0.25)',
-                        border: '1px solid #EED4DC',
+                        boxShadow: '0 10px 30px rgba(168, 63, 104, 0.25)',
+                        border: '1px solid #E8A6BD',
                         boxSizing: 'border-box'
                     }}>
                         <div style={{
                             width: '56px',
                             height: '56px',
                             borderRadius: '50%',
-                            backgroundColor: '#FFF0F4',
-                            border: '2px solid #DF8CA0',
+                            backgroundColor: '#F7E6E6',
+                            border: '2px solid #E8A6BD',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -768,7 +734,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                             fontFamily: "'Playfair Display', serif",
                             fontSize: '20px',
                             fontWeight: 700,
-                            color: '#9E3A5E',
+                            color: '#A83F68',
                             margin: 0
                         }}>
                             Pesanan Berhasil!
@@ -776,7 +742,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                         <p style={{
                             fontSize: '12px',
                             fontWeight: 600,
-                            color: '#DF8CA0',
+                            color: '#A83F68',
                             marginTop: '4px',
                             marginBottom: '10px'
                         }}>
@@ -784,7 +750,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                         </p>
                         <p style={{
                             fontSize: '12px',
-                            color: '#49343C',
+                            color: '#A83F68',
                             lineHeight: 1.5,
                             margin: '0 0 18px 0',
                             opacity: 0.85
@@ -803,8 +769,8 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                     }
                                 }}
                                 style={{
-                                    backgroundColor: '#9E3A5E',
-                                    color: '#FFFFFF',
+                                    backgroundColor: '#A83F68',
+                                    color: '#FFF8F0',
                                     border: 'none',
                                     padding: '11px',
                                     borderRadius: '12px',
@@ -826,8 +792,8 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                 }}
                                 style={{
                                     backgroundColor: 'transparent',
-                                    color: '#9E3A5E',
-                                    border: '1px solid #EED4DC',
+                                    color: '#A83F68',
+                                    border: '1px solid #E8A6BD',
                                     padding: '10px',
                                     borderRadius: '12px',
                                     fontWeight: 600,

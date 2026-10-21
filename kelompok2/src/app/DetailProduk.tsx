@@ -18,9 +18,6 @@ import {
   Store,
   ShoppingBag,
   User,
-  Signal,
-  Wifi,
-  Battery,
 } from 'lucide-react-native';
 
 export default function DetailProduk() {
@@ -41,22 +38,16 @@ export default function DetailProduk() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF8F0" />
 
-      <View style={styles.statusBar}>
-        <Text style={styles.statusTime}>9:41</Text>
-        <View style={styles.deviceStatus}>
-          <Signal size={14} color="#A83F68" strokeWidth={2.5} />
-          <Wifi size={14} color="#A83F68" strokeWidth={2.5} />
-          <Battery size={18} color="#A83F68" strokeWidth={2.5} />
-        </View>
-      </View>
-
+      {/* Header Detail Produk */}
       <View style={styles.detailHeader}>
         {/* Tombol Kembali (Back) */}
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.replace('/')}>
-            <ArrowLeft size={20} color="#A83F68" />
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+          <ArrowLeft size={20} color="#A83F68" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Detail Produk</Text>
-        <TouchableOpacity style={styles.iconBtn}>
+        
+        {/* Ikon Keranjang Header terhubung ke halaman keranjang */}
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/keranjang')}>
           <ShoppingCart size={20} color="#A83F68" />
         </TouchableOpacity>
       </View>
@@ -82,6 +73,7 @@ export default function DetailProduk() {
           Dirangkai dengan cinta dan balutan elegan untuk menyatakan momen istimewamu bersama orang tersayang.
         </Text>
 
+        {/* Ukuran */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>Ukuran</Text>
           <View style={styles.sizeGroup}>
@@ -100,6 +92,7 @@ export default function DetailProduk() {
           </View>
         </View>
 
+        {/* Jumlah */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>Jumlah</Text>
           <View style={styles.stepperContainer}>
@@ -113,27 +106,50 @@ export default function DetailProduk() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.cartOutlineBtn}>
+        {/* Tombol Masukkan ke Keranjang -> Diarahkan ke halaman /keranjang */}
+        <TouchableOpacity 
+          style={styles.cartOutlineBtn}
+          onPress={() => router.push('/keranjang')}
+        >
           <ShoppingCart size={16} color="#A83F68" />
           <Text style={styles.cartOutlineText}>Masukkan ke Keranjang</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.buySolidBtn}>
+        {/* Tombol Pesan Sekarang -> Diarahkan ke halaman /checkout */}
+        <TouchableOpacity 
+          style={styles.buySolidBtn}
+          onPress={() => router.push('/checkout')}
+        >
           <Text style={styles.buySolidText}>Pesan Sekarang</Text>
         </TouchableOpacity>
       </ScrollView>
 
+      {/* Bottom Navigation */}
       <View style={styles.bottomNavContainer}>
         <View style={styles.navTabs}>
-          <TouchableOpacity style={styles.tabActive}>
+          {/* Menu Produk / Katalog */}
+          <TouchableOpacity 
+            style={styles.tabActive}
+            onPress={() => router.push('/Katalog')}
+          >
             <Store size={21} color="#A83F68" strokeWidth={1.8} />
             <Text style={styles.tabLabelActive}>Produk</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tabInactive}>
+
+          {/* Menu Pesanan */}
+          <TouchableOpacity 
+            style={styles.tabInactive}
+            onPress={() => router.push('/pesanan')}
+          >
             <ShoppingBag size={21} color="#999999" strokeWidth={1.8} />
             <Text style={styles.tabLabelInactive}>Pesanan</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tabInactive}>
+
+          {/* Menu Profil */}
+          <TouchableOpacity 
+            style={styles.tabInactive}
+            onPress={() => router.push('/profil')}
+          >
             <User size={21} color="#999999" strokeWidth={1.8} />
             <Text style={styles.tabLabelInactive}>Profil</Text>
           </TouchableOpacity>
@@ -144,12 +160,8 @@ export default function DetailProduk() {
   );
 }
 
-// Stylesheet tetap sama seperti sebelumnya
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF8F0' },
-  statusBar: { height: 44, paddingHorizontal: 24, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statusTime: { fontWeight: '600', fontSize: 14, color: '#A83F68' },
-  deviceStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   detailHeader: { height: 50, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   iconBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontWeight: '600', fontSize: 16, color: '#A83F68' },
@@ -179,7 +191,7 @@ const styles = StyleSheet.create({
   navTabs: { flexDirection: 'row', width: '100%', height: 48, gap: 16 },
   tabActive: { flex: 1, height: 48, backgroundColor: '#FFF0F6', borderRadius: 4, justifyContent: 'center', alignItems: 'center', gap: 3 },
   tabInactive: { flex: 1, height: 48, justifyContent: 'center', alignItems: 'center', gap: 3 },
-  tabLabelActive: { fontSize: 10, color: '#A83F68' },
+  tabLabelActive: { fontSize: 10, color: '#A83F68', fontWeight: '600' },
   tabLabelInactive: { fontSize: 10, color: '#999999' },
   homeIndicator: { width: 120, height: 4, backgroundColor: '#A83F68', borderRadius: 2, marginTop: 12 },
 });

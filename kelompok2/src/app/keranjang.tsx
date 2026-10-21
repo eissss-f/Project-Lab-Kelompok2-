@@ -122,11 +122,11 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
             height: '100vh',
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: '#FFFDF9',
+            backgroundColor: '#FFF8F0',
             fontFamily: "'Poppins', sans-serif",
             boxSizing: 'border-box',
             overflow: 'hidden',
-            boxShadow: '0 0 25px rgba(160, 55, 94, 0.08)'
+            boxShadow: '0 0 25px rgba(168, 63, 104, 0.08)'
         }}>
 
             {/* 1. Header (Top) */}
@@ -136,8 +136,8 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                 flexDirection: 'column',
                 alignItems: 'center',
                 padding: '16px 16px 12px 16px',
-                borderBottom: '1px solid #F5E5EB',
-                backgroundColor: '#FFFDF9',
+                borderBottom: '1px solid #EED7D8',
+                backgroundColor: '#FFF8F0',
                 flexShrink: 0
             }}>
                 <button
@@ -150,8 +150,8 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                         height: '36px',
                         borderRadius: '50%',
                         border: '1px solid #E8A6BD',
-                        backgroundColor: '#FFFDF9',
-                        color: '#9E3A5E',
+                        backgroundColor: '#FFF8F0',
+                        color: '#A83F68',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -167,13 +167,13 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                     fontSize: '25px',
                     fontFamily: "'Playfair Display', serif",
                     fontWeight: 600,
-                    color: '#9E3A5E',
+                    color: '#A83F68',
                     margin: 0,
                     letterSpacing: '-0.3px'
                 }}>
                     Keranjang Saya
                 </h1>
-                <span style={{ fontSize: '12px', color: '#9E3A5E', opacity: 0.85, marginTop: '2px' }}>
+                <span style={{ fontSize: '12px', color: '#A83F68', opacity: 0.85, marginTop: '2px' }}>
                     ra_scrafts.id
                 </span>
             </div>
@@ -195,7 +195,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                         width: '20px',
                         height: '20px',
                         borderRadius: '6px',
-                        backgroundColor: isAllSelected ? '#DF8CA0' : '#FFFFFF',
+                        backgroundColor: isAllSelected ? '#A83F68' : '#FFFFFF',
                         border: isAllSelected ? 'none' : '1.5px solid #E8A6BD',
                         display: 'flex',
                         alignItems: 'center',
@@ -206,14 +206,14 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                         boxSizing: 'border-box'
                     }}>
                         {isAllSelected && (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFF8F0" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="20 6 9 17 4 12"></polyline>
                             </svg>
                         )}
                     </div>
-                    <span style={{ fontWeight: 500, color: '#9E3A5E', fontSize: '13px' }}>Pilih Semua</span>
+                    <span style={{ fontWeight: 500, color: '#A83F68', fontSize: '13px' }}>Pilih Semua</span>
                 </div>
-                <span style={{ fontSize: '12px', color: '#9E3A5E', opacity: 0.85 }}>
+                <span style={{ fontSize: '12px', color: '#A83F68', opacity: 0.85 }}>
                     {totalItemsSelected} produk dipilih
                 </span>
             </div>
@@ -231,10 +231,10 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                     <div style={{
                         padding: '40px 20px',
                         textAlign: 'center',
-                        color: '#9E3A5E',
+                        color: '#A83F68',
                         backgroundColor: '#FFFFFF',
                         borderRadius: '20px',
-                        border: '1px solid #EED4DC',
+                        border: '1px solid #E8A6BD',
                         marginTop: '20px'
                     }}>
                         <div style={{ fontSize: '36px', marginBottom: '10px' }}>🛒</div>
@@ -244,8 +244,8 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                             onClick={() => router.push('/')}
                             style={{
                                 marginTop: '14px',
-                                backgroundColor: '#9E3A5E',
-                                color: '#FFFFFF',
+                                backgroundColor: '#A83F68',
+                                color: '#FFF8F0',
                                 border: 'none',
                                 padding: '8px 18px',
                                 borderRadius: '12px',
@@ -264,10 +264,10 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                             alignItems: 'center',
                             gap: '12px',
                             padding: '12px 14px',
-                            border: '1px solid #EED4DC',
+                            border: '1px solid #E8A6BD',
                             borderRadius: '20px',
                             backgroundColor: '#FFFFFF',
-                            boxShadow: '0 2px 8px rgba(158, 58, 94, 0.04)',
+                            boxShadow: '0 2px 8px rgba(168, 63, 104, 0.04)',
                             flexShrink: 0,
                             boxSizing: 'border-box'
                         }}>
@@ -278,7 +278,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                     width: '20px',
                                     height: '20px',
                                     borderRadius: '6px',
-                                    backgroundColor: item.selected ? '#DF8CA0' : '#FFFFFF',
+                                    backgroundColor: item.selected ? '#A83F68' : '#FFFFFF',
                                     border: item.selected ? 'none' : '1.5px solid #E8A6BD',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -290,7 +290,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                 }}
                             >
                                 {item.selected && (
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFF8F0" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
                                         <polyline points="20 6 9 17 4 12"></polyline>
                                     </svg>
                                 )}
@@ -305,7 +305,8 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                     height: '92px',
                                     objectFit: 'cover',
                                     borderRadius: '16px',
-                                    flexShrink: 0
+                                    flexShrink: 0,
+                                    backgroundColor: '#F7E6E6'
                                 }}
                             />
 
@@ -315,7 +316,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                     fontSize: '16px',
                                     fontFamily: "'Playfair Display', serif",
                                     fontWeight: 600,
-                                    color: '#9E3A5E',
+                                    color: '#A83F68',
                                     margin: 0,
                                     whiteSpace: 'nowrap',
                                     overflow: 'hidden',
@@ -323,10 +324,10 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                 }}>
                                     {item.name}
                                 </h2>
-                                <p style={{ fontSize: '11px', color: '#9E3A5E', margin: '2px 0 0 0', opacity: 0.8 }}>
+                                <p style={{ fontSize: '11px', color: '#A83F68', margin: '2px 0 0 0', opacity: 0.8 }}>
                                     {item.variant}
                                 </p>
-                                <p style={{ fontSize: '14px', fontWeight: 600, color: '#9E3A5E', margin: '4px 0 0 0' }}>
+                                <p style={{ fontSize: '14px', fontWeight: 600, color: '#A83F68', margin: '4px 0 0 0' }}>
                                     Rp {item.price.toLocaleString('id-ID')}
                                 </p>
 
@@ -348,7 +349,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                                 height: '100%',
                                                 border: 'none',
                                                 background: 'none',
-                                                color: '#9E3A5E',
+                                                color: '#A83F68',
                                                 fontWeight: 700,
                                                 fontSize: '14px',
                                                 cursor: 'pointer',
@@ -365,7 +366,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                             textAlign: 'center',
                                             fontSize: '12px',
                                             fontWeight: 600,
-                                            color: '#9E3A5E'
+                                            color: '#A83F68'
                                         }}>
                                             {item.quantity}
                                         </span>
@@ -375,8 +376,8 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                                 width: '26px',
                                                 height: '100%',
                                                 border: 'none',
-                                                backgroundColor: '#DF8CA0',
-                                                color: '#FFFFFF',
+                                                backgroundColor: '#A83F68',
+                                                color: '#FFF8F0',
                                                 fontWeight: 700,
                                                 fontSize: '14px',
                                                 cursor: 'pointer',
@@ -395,7 +396,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                         style={{
                                             border: 'none',
                                             background: 'none',
-                                            color: '#9E3A5E',
+                                            color: '#A83F68',
                                             cursor: 'pointer',
                                             padding: '4px',
                                             display: 'flex',
@@ -405,7 +406,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                             transition: 'opacity 0.2s'
                                         }}
                                     >
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9E3A5E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A83F68" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M3 6h18"></path>
                                             <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
                                             <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
@@ -422,8 +423,8 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
 
             {/* 4. Bottom Total & Checkout Bar */}
             <div style={{
-                backgroundColor: '#FFFDF9',
-                borderTop: '1px solid #F5E5EB',
+                backgroundColor: '#FFF8F0',
+                borderTop: '1px solid #EED7D8',
                 padding: '12px 20px',
                 display: 'flex',
                 alignItems: 'center',
@@ -432,13 +433,13 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                 flexShrink: 0
             }}>
                 <div>
-                    <span style={{ fontSize: '11px', color: '#9E3A5E', display: 'block', opacity: 0.85 }}>
+                    <span style={{ fontSize: '11px', color: '#A83F68', display: 'block', opacity: 0.85 }}>
                         Total Harga
                     </span>
-                    <span style={{ fontSize: '19px', fontWeight: 700, color: '#9E3A5E', display: 'block', marginTop: '1px' }}>
+                    <span style={{ fontSize: '19px', fontWeight: 700, color: '#A83F68', display: 'block', marginTop: '1px' }}>
                         Rp {totalPrice.toLocaleString('id-ID')}
                     </span>
-                    <span style={{ fontSize: '11px', color: '#9E3A5E', display: 'block', opacity: 0.85, marginTop: '1px' }}>
+                    <span style={{ fontSize: '11px', color: '#A83F68', display: 'block', opacity: 0.85, marginTop: '1px' }}>
                         {totalBouquetsSelected} buket dipilih
                     </span>
                 </div>
@@ -447,8 +448,8 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                     onClick={handleCheckout}
                     disabled={selectedItems.length === 0}
                     style={{
-                        backgroundColor: selectedItems.length > 0 ? '#9E3A5E' : '#C4B5BC',
-                        color: '#FFFFFF',
+                        backgroundColor: selectedItems.length > 0 ? '#A83F68' : '#D0C2C7',
+                        color: '#FFF8F0',
                         border: 'none',
                         padding: '12px 26px',
                         borderRadius: '16px',
@@ -458,7 +459,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
-                        boxShadow: selectedItems.length > 0 ? '0 4px 12px rgba(158, 58, 94, 0.3)' : 'none',
+                        boxShadow: selectedItems.length > 0 ? '0 4px 12px rgba(168, 63, 104, 0.3)' : 'none',
                         transition: 'all 0.2s ease'
                     }}
                 >
@@ -468,8 +469,8 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
 
             {/* 5. Bottom Navigation */}
             <div style={{
-                backgroundColor: '#FFFFFF',
-                borderTop: '1px solid #F5E5EB',
+                backgroundColor: '#FFF8F0',
+                borderTop: '1px solid #EED7D8',
                 padding: '6px 20px 8px 20px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -484,10 +485,10 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                 }}>
                     {/* Tab 1: Produk (Active) */}
                     <button
-                        onClick={() => router.push('/')}
+                        onClick={() => router.push('/Katalog')}
                         style={{
                             border: 'none',
-                            backgroundColor: '#FFF0F4',
+                            backgroundColor: '#FFF0F6',
                             borderRadius: '16px',
                             padding: '6px 22px',
                             display: 'flex',
@@ -497,11 +498,11 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                             gap: '2px'
                         }}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9E3A5E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A83F68" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                             <polyline points="9 22 9 12 15 12 15 22"></polyline>
                         </svg>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#9E3A5E' }}>Produk</span>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#A83F68' }}>Produk</span>
                     </button>
 
                     {/* Tab 2: Pesanan */}
@@ -518,12 +519,12 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                             gap: '2px'
                         }}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8E8287" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999999" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
                             <line x1="3" y1="6" x2="21" y2="6"></line>
                             <path d="M16 10a4 4 0 0 1-8 0"></path>
                         </svg>
-                        <span style={{ fontSize: '11px', fontWeight: 400, color: '#8E8287' }}>Pesanan</span>
+                        <span style={{ fontSize: '11px', fontWeight: 400, color: '#999999' }}>Pesanan</span>
                     </button>
 
                     {/* Tab 3: Profil */}
@@ -540,11 +541,11 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                             gap: '2px'
                         }}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8E8287" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999999" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
-                        <span style={{ fontSize: '11px', fontWeight: 400, color: '#8E8287' }}>Profil</span>
+                        <span style={{ fontSize: '11px', fontWeight: 400, color: '#999999' }}>Profil</span>
                     </button>
                 </div>
 
@@ -552,7 +553,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                 <div style={{
                     width: '124px',
                     height: '4px',
-                    backgroundColor: '#9E3A5E',
+                    backgroundColor: '#A83F68',
                     borderRadius: '100px',
                     marginTop: '6px'
                 }}></div>
