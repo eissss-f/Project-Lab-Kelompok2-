@@ -40,10 +40,11 @@ Pastikan komputermu sudah menginstal:
 
 Clone repositori ini, lalu jalankan perintah berikut di terminal:
 
-```bash
 git clone [https://github.com/eissss-f/Project-Lab-Kelompok2-]
 cd kelompok2
-npx expo start//web
+› Scan the QR code above to open in Expo Go.
+› Metro: exp://10.89.2.213:8081
+› Web: http://localhost:8081
 
 1. halaman login
 <img width="206" height="346" alt="image" src="https://github.com/user-attachments/assets/f4b9a9d8-4eb7-4b01-b0b5-3b236799cbbe" />
@@ -75,3 +76,5 @@ video demo user :
 video demo admin :
 <video controls src="Screen Recording 2026-10-22 081702.mp4" title="Title"></video>
 ```
+foto hasil wawancara :
+![foto wawancara](image-16.png)
