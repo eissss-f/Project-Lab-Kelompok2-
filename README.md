@@ -65,3 +65,7 @@ npx expo start//web
 <img width="170" height="335" alt="image" src="https://github.com/user-attachments/assets/4fb315ae-4fe3-4187-922b-1ad97cbb79b1" />
 <img width="175" height="341" alt="image" src="https://github.com/user-attachments/assets/98c29518-7ad1-4cfc-9326-129ffbfa4d33" />
 
+video demo user : 
+<video controls src="Screen Recording 2026-10-22 081335.mp4" title="Title"></video>
+video demo admin : 
+<video controls src="Screen Recording 2026-10-22 081702.mp4" title="Title"></video>
