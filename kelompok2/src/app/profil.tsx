@@ -23,11 +23,11 @@ const accountMenu: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   detail?: string;
+  route: '/alamat' | '/notifikasi' | '/keamanan-akun';
 }[] = [
-  { icon: 'location-outline', label: 'Alamat tersimpan', detail: '2 alamat' },
-  { icon: 'heart-outline', label: 'Buket favorit', detail: '5 buket' },
-  { icon: 'notifications-outline', label: 'Notifikasi' },
-  { icon: 'shield-checkmark-outline', label: 'Keamanan akun' },
+  { icon: 'location-outline', label: 'Alamat tersimpan', detail: '2 alamat', route: '/alamat' },
+  { icon: 'notifications-outline', label: 'Notifikasi', route: '/notifikasi' },
+  { icon: 'shield-checkmark-outline', label: 'Keamanan akun', route: '/keamanan-akun' },
 ];
 
 export default function ProfilScreen() {
@@ -45,23 +45,14 @@ export default function ProfilScreen() {
             accessibilityRole="button"
             accessibilityLabel="Kembali ke Beranda"
             onPress={() => router.replace('/Katalog')}
-            style={({ pressed }) => [
-              styles.backButton,
-              pressed && styles.pressed,
-            ]}
+            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
-            <Ionicons
-              name="arrow-back-outline"
-              size={24}
-              color={colors.berry}
-            />
+            <Ionicons name="arrow-back-outline" size={24} color={colors.berry} />
           </Pressable>
 
           <View style={styles.headerText}>
             <Text style={styles.heading}>Profil</Text>
-            <Text style={styles.subtitle}>
-              Ruang kecil untuk cerita indahmu.
-            </Text>
+            <Text style={styles.subtitle}>Ruang kecil untuk cerita indahmu.</Text>
           </View>
         </View>
 
@@ -73,9 +64,7 @@ export default function ProfilScreen() {
 
           <View style={styles.accountText}>
             <Text style={styles.name}>Nadia Aulia</Text>
-            <Text style={styles.customerLabel}>
-              Pelanggan ra_scrafts.id
-            </Text>
+            <Text style={styles.customerLabel}>Pelanggan ra_scrafts.id</Text>
           </View>
         </View>
 
@@ -84,16 +73,8 @@ export default function ProfilScreen() {
 
         <View style={styles.contactList}>
           <View style={styles.contactRow}>
-            <Ionicons
-              name="mail-outline"
-              size={22}
-              color={colors.berry}
-            />
-
-            <Text style={styles.contactText}>
-              nadia.aulia@gmail.com
-            </Text>
-
+            <Ionicons name="mail-outline" size={22} color={colors.berry} />
+            <Text style={styles.contactText}>nadia.aulia@gmail.com</Text>
             <Ionicons
               name="checkmark-circle"
               size={19}
@@ -103,102 +84,68 @@ export default function ProfilScreen() {
           </View>
 
           <View style={styles.contactRow}>
-            <Ionicons
-              name="call-outline"
-              size={22}
-              color={colors.berry}
-            />
-
-            <Text style={styles.contactText}>
-              +62 812 3456 7890
-            </Text>
+            <Ionicons name="call-outline" size={22} color={colors.berry} />
+            <Text style={styles.contactText}>+62 812 3456 7890</Text>
           </View>
         </View>
 
         {/* Menu akun */}
         <View style={styles.menuCard}>
           {accountMenu.map((item, index) => (
-            <View
+            <Pressable
               key={item.label}
-              style={[
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+              onPress={() => router.push(item.route)}
+              style={({ pressed }) => [
                 styles.menuRow,
                 index < accountMenu.length - 1 && styles.menuDivider,
+                pressed && styles.pressed,
               ]}
             >
               <View style={styles.menuLeft}>
-                <Ionicons
-                  name={item.icon}
-                  size={21}
-                  color={colors.berry}
-                />
-
-                <Text style={styles.menuLabel}>
-                  {item.label}
-                </Text>
+                <Ionicons name={item.icon} size={21} color={colors.berry} />
+                <Text style={styles.menuLabel}>{item.label}</Text>
               </View>
 
               <View style={styles.menuRight}>
-                {item.detail ? (
-                  <Text style={styles.menuDetail}>
-                    {item.detail}
-                  </Text>
-                ) : null}
-
-                <Ionicons
-                  name="chevron-forward"
-                  size={19}
-                  color={colors.berry}
-                />
+                {item.detail ? <Text style={styles.menuDetail}>{item.detail}</Text> : null}
+                <Ionicons name="chevron-forward" size={19} color={colors.berry} />
               </View>
-            </View>
+            </Pressable>
           ))}
         </View>
 
         {/* Bantuan pelanggan */}
-        <View style={styles.supportCard}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Buka bantuan pelanggan"
+          onPress={() => router.push('/bantuan')}
+          style={({ pressed }) => [
+            styles.supportCard,
+            pressed && styles.pressed,
+          ]}
+        >
           <View style={styles.supportIcon}>
-            <Ionicons
-              name="chatbubble-outline"
-              size={25}
-              color={colors.berry}
-            />
+            <Ionicons name="chatbubble-outline" size={25} color={colors.berry} />
           </View>
 
           <View style={styles.supportCopy}>
-            <Text style={styles.supportTitle}>
-              Ada yang bisa kami bantu?
-            </Text>
-
-            <Text style={styles.supportSub}>
-              Tanya buket atau pesanan via WhatsApp.
-            </Text>
+            <Text style={styles.supportTitle}>Ada yang bisa kami bantu?</Text>
+            <Text style={styles.supportSub}>Tanya buket atau pesanan via WhatsApp.</Text>
           </View>
 
-          <Ionicons
-            name="arrow-forward"
-            size={21}
-            color={colors.berry}
-          />
-        </View>
+          <Ionicons name="arrow-forward" size={21} color={colors.berry} />
+        </Pressable>
 
         {/* Tombol keluar akun */}
         <Pressable
           accessibilityRole="button"
           onPress={() => router.replace('/login')}
-          style={({ pressed }) => [
-            styles.logout,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
         >
-          <Ionicons
-            name="log-out-outline"
-            size={21}
-            color={colors.berry}
-          />
-
-          <Text style={styles.logoutText}>
-            Keluar dari akun
-          </Text>
+          <Ionicons name="log-out-outline" size={21} color={colors.berry} />
+          <Text style={styles.logoutText}>Keluar dari akun</Text>
         </Pressable>
       </ScrollView>
 
@@ -212,15 +159,8 @@ export default function ProfilScreen() {
             accessibilityRole="button"
             accessibilityLabel="Beranda"
           >
-            <Store
-              size={21}
-              color="#999999"
-              strokeWidth={1.8}
-            />
-
-            <Text style={styles.tabLabelInactive}>
-              Produk
-            </Text>
+            <Store size={21} color="#999999" strokeWidth={1.8} />
+            <Text style={styles.tabLabelInactive}>Produk</Text>
           </Pressable>
 
           {/* Pesanan */}
@@ -230,15 +170,8 @@ export default function ProfilScreen() {
             accessibilityRole="button"
             accessibilityLabel="Pesanan"
           >
-            <ShoppingBag
-              size={21}
-              color="#999999"
-              strokeWidth={1.8}
-            />
-
-            <Text style={styles.tabLabelInactive}>
-              Pesanan
-            </Text>
+            <ShoppingBag size={21} color="#999999" strokeWidth={1.8} />
+            <Text style={styles.tabLabelInactive}>Pesanan</Text>
           </Pressable>
 
           {/* Profil aktif */}
@@ -248,15 +181,8 @@ export default function ProfilScreen() {
             accessibilityRole="button"
             accessibilityLabel="Profil"
           >
-            <User
-              size={21}
-              color={colors.berry}
-              strokeWidth={1.8}
-            />
-
-            <Text style={styles.tabLabelActive}>
-              Profil
-            </Text>
+            <User size={21} color={colors.berry} strokeWidth={1.8} />
+            <Text style={styles.tabLabelActive}>Profil</Text>
           </Pressable>
         </View>
 
