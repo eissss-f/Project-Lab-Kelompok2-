@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -8,38 +9,70 @@ import {
   SafeAreaView,
   ScrollView,
   Image,
+  Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
-    // Diarahkan langsung ke halaman Katalog setelah tombol Masuk ditekan
-    router.replace('/Katalog');
+    const emailTrim = email.trim();
+
+    if (!emailTrim || !password) {
+      Alert.alert('Login Gagal', 'Email dan password wajib diisi.');
+      return;
+    }
+
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
+
+    if (!emailValid) {
+      Alert.alert('Login Gagal', 'Masukkan format email yang valid.');
+      return;
+    }
+
+    if (password.length < 8) {
+      Alert.alert('Login Gagal', 'Password minimal 8 karakter.');
+      return;
+    }
+
+    // Langsung masuk katalog tanpa database
+    router.navigate('/Katalog');
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.headerContainer}>
-          <Image 
-            source={require('../../assets/images/logo_racrafts.jpg.jpeg')} 
+          <Image
+            source={require('../../assets/images/logo_racrafts.jpg.jpeg')}
             style={styles.logoImage}
             resizeMode="contain"
           />
+
           <Text style={styles.brandTitle}>ra_scrafts.id</Text>
           <Text style={styles.welcomeTitle}>Selamat Datang</Text>
-          <Text style={styles.welcomeSub}>Login untuk melanjutkan</Text>
+          <Text style={styles.welcomeSub}>
+            Login untuk melanjutkan
+          </Text>
         </View>
 
         <View style={styles.formContainer}>
           <View style={styles.inputWrapper}>
-            <Ionicons name="mail-outline" size={20} color="#A83F68" style={styles.inputIcon} />
+            <Ionicons
+              name="mail-outline"
+              size={20}
+              color="#A83F68"
+              style={styles.inputIcon}
+            />
+
             <TextInput
               style={styles.input}
               placeholder="Email"
@@ -48,11 +81,18 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 
           <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={20} color="#A83F68" style={styles.inputIcon} />
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color="#A83F68"
+              style={styles.inputIcon}
+            />
+
             <TextInput
               style={styles.input}
               placeholder="Password"
@@ -60,8 +100,13 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              autoCapitalize="none"
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              activeOpacity={0.7}
+            >
               <Ionicons
                 name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                 size={20}
@@ -70,13 +115,23 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.button} onPress={handleLogin} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleLogin}
+            activeOpacity={0.8}
+          >
             <Text style={styles.buttonText}>Masuk</Text>
           </TouchableOpacity>
 
           <View style={styles.footerRow}>
-            <Text style={styles.footerText}>Belum punya akun? </Text>
-            <TouchableOpacity onPress={() => router.push('/register')}>
+            <Text style={styles.footerText}>
+              Belum punya akun?{' '}
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => router.push('/register')}
+              activeOpacity={0.7}
+            >
               <Text style={styles.linkText}>Daftar</Text>
             </TouchableOpacity>
           </View>

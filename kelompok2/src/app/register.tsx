@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -8,12 +9,12 @@ import {
   SafeAreaView,
   ScrollView,
   Image,
+  Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
-  const router = useRouter();
   const [namaLengkap, setNamaLengkap] = useState('');
   const [email, setEmail] = useState('');
   const [nomorHp, setNomorHp] = useState('');
@@ -25,38 +26,103 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleRegister = () => {
-    router.replace('/login');
+    const namaTrim = namaLengkap.trim();
+    const emailTrim = email.trim();
+
+    if (!namaTrim || !emailTrim || !password || !confirmPassword) {
+      Alert.alert(
+        'Pendaftaran Gagal',
+        'Nama, email, password, dan konfirmasi password wajib diisi.'
+      );
+      return;
+    }
+
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
+
+    if (!emailValid) {
+      Alert.alert('Pendaftaran Gagal', 'Format email tidak valid.');
+      return;
+    }
+
+    if (password.length < 8) {
+      Alert.alert(
+        'Pendaftaran Gagal',
+        'Password minimal harus 8 karakter.'
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert(
+        'Pendaftaran Gagal',
+        'Password dan konfirmasi password tidak sama.'
+      );
+      return;
+    }
+
+    if (!agree) {
+      Alert.alert(
+        'Pendaftaran Gagal',
+        'Silakan setujui Syarat & Ketentuan terlebih dahulu.'
+      );
+      return;
+    }
+
+    // Langsung masuk katalog tanpa database
+    router.navigate('/Katalog');
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.headerContainer}>
-          <Image 
-            source={require('../../assets/images/logo_racrafts.jpg.jpeg')} 
+          <Image
+            source={require('../../assets/images/logo_racrafts.jpg.jpeg')}
             style={styles.logoImage}
             resizeMode="contain"
           />
+
           <Text style={styles.headerTitle}>Daftar Akun</Text>
-          <Text style={styles.headerSub}>Buat akun untuk mulai berbelanja</Text>
+          <Text style={styles.headerSub}>
+            Buat akun untuk mulai berbelanja
+          </Text>
         </View>
 
         <View style={styles.formContainer}>
           <Text style={styles.label}>Nama Lengkap</Text>
+
           <View style={styles.inputWrapper}>
-            <Ionicons name="person-outline" size={18} color="#A83F68" style={styles.inputIcon} />
+            <Ionicons
+              name="person-outline"
+              size={18}
+              color="#A83F68"
+              style={styles.inputIcon}
+            />
+
             <TextInput
               style={styles.input}
               placeholder="Nama lengkap"
               placeholderTextColor="#C49AAA"
               value={namaLengkap}
               onChangeText={setNamaLengkap}
+              autoCapitalize="words"
             />
           </View>
 
           <Text style={styles.label}>Email</Text>
+
           <View style={styles.inputWrapper}>
-            <Ionicons name="mail-outline" size={18} color="#A83F68" style={styles.inputIcon} />
+            <Ionicons
+              name="mail-outline"
+              size={18}
+              color="#A83F68"
+              style={styles.inputIcon}
+            />
+
             <TextInput
               style={styles.input}
               placeholder="Alamat email"
@@ -65,12 +131,20 @@ export default function RegisterScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 
           <Text style={styles.label}>Nomor HP (opsional)</Text>
+
           <View style={styles.inputWrapper}>
-            <Ionicons name="call-outline" size={18} color="#A83F68" style={styles.inputIcon} />
+            <Ionicons
+              name="call-outline"
+              size={18}
+              color="#A83F68"
+              style={styles.inputIcon}
+            />
+
             <TextInput
               style={styles.input}
               placeholder="Nomor HP"
@@ -82,17 +156,29 @@ export default function RegisterScreen() {
           </View>
 
           <Text style={styles.label}>Password</Text>
+
           <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={18} color="#A83F68" style={styles.inputIcon} />
+            <Ionicons
+              name="lock-closed-outline"
+              size={18}
+              color="#A83F68"
+              style={styles.inputIcon}
+            />
+
             <TextInput
               style={styles.input}
-              placeholder="Password"
+              placeholder="Password minimal 8 karakter"
               placeholderTextColor="#C49AAA"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              autoCapitalize="none"
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              activeOpacity={0.7}
+            >
               <Ionicons
                 name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                 size={18}
@@ -102,8 +188,15 @@ export default function RegisterScreen() {
           </View>
 
           <Text style={styles.label}>Konfirmasi Password</Text>
+
           <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={18} color="#A83F68" style={styles.inputIcon} />
+            <Ionicons
+              name="lock-closed-outline"
+              size={18}
+              color="#A83F68"
+              style={styles.inputIcon}
+            />
+
             <TextInput
               style={styles.input}
               placeholder="Ulangi password"
@@ -111,33 +204,60 @@ export default function RegisterScreen() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirmPassword}
+              autoCapitalize="none"
             />
-            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+
+            <TouchableOpacity
+              onPress={() =>
+                setShowConfirmPassword(!showConfirmPassword)
+              }
+              activeOpacity={0.7}
+            >
               <Ionicons
-                name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
+                name={
+                  showConfirmPassword
+                    ? 'eye-outline'
+                    : 'eye-off-outline'
+                }
                 size={18}
                 color="#A83F68"
               />
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.checkboxRow} onPress={() => setAgree(!agree)}>
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setAgree(!agree)}
+            activeOpacity={0.7}
+          >
             <Ionicons
               name={agree ? 'checkbox-outline' : 'square-outline'}
               size={18}
               color="#A83F68"
             />
+
             <Text style={styles.checkboxText}>
-              Saya setuju dengan <Text style={styles.boldText}>Syarat & Ketentuan</Text>
+              Saya setuju dengan{' '}
+              <Text style={styles.boldText}>
+                Syarat & Ketentuan
+              </Text>
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={handleRegister} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleRegister}
+            activeOpacity={0.8}
+          >
             <Text style={styles.buttonText}>Daftar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.loginLink} onPress={() => router.push('/login')}>
-            <Text style={styles.loginLinkText}>Masuk?</Text>
+          <TouchableOpacity
+            style={styles.loginLink}
+            onPress={() => router.push('/login')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.loginLinkText}>Sudah punya akun? Masuk</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -151,6 +271,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF8F0',
   },
   scrollContainer: {
+    flexGrow: 1,
     paddingHorizontal: 28,
     paddingVertical: 24,
   },
