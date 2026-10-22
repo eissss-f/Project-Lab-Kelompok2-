@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView } from "react-native";
+import React from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, useWindowDimensions } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
@@ -30,7 +30,10 @@ interface OrderItem {
 
 export default function KelolaPesananScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<string>("Kelola Pesanan");
+  const { width } = useWindowDimensions();
+
+  const isSmallScreen = width < 360;
+  const tabFontSize = isSmallScreen ? 9 : 10;
 
   const orders: OrderItem[] = [
     {
@@ -67,9 +70,9 @@ export default function KelolaPesananScreen() {
       <View style={styles.headerContainer}>
         <View style={styles.brandAndAccount}>
           <Text style={styles.appTitle}>ra_scrafts.id Admin</Text>
-          <View style={styles.adminProfile}>
+          <TouchableOpacity style={styles.adminProfile} onPress={() => router.push("/profil_admin" as any)}>
             <Ionicons name="person-outline" size={18} color={COLORS.primary} />
-          </View>
+          </TouchableOpacity>
         </View>
         <View style={styles.headerDivider} />
       </View>
@@ -82,25 +85,20 @@ export default function KelolaPesananScreen() {
           <Text style={styles.pageSubtitle}>Kelola Produk & Pesanan</Text>
         </View>
 
-        {/* Management Tabs */}
+        {/* MANAGEMENT TABS RESPONSIVE */}
         <View style={styles.managementTabs}>
           {[
-            { label: "Kelola\nProduk", route: "/produk" },
-            { label: "Kelola\nPesanan", route: "/pesanan" },
-            { label: "Verifikasi", route: "/verifikasi" },
-            { label: "Update\nStatus", route: "/status" },
+            { label: "Kelola\nProduk", route: "/produk_admin" },
+            { label: "Kelola\nPesanan", route: "/kelola_pesanan_admin" },
+            { label: "Verifikasi", route: "/verifikasi_admin" },
+            { label: "Update\nStatus", route: "/status_admin" },
           ].map((tab) => {
-            const isActive = activeTab === tab.label.replace("\n", " ");
+            const isActive = tab.route === "/kelola_pesanan_admin";
             return (
-              <TouchableOpacity
-                key={tab.route}
-                style={[styles.managementTab, isActive && styles.activeTabBg]}
-                onPress={() => {
-                  setActiveTab(tab.label.replace("\n", " "));
-                  router.push(tab.route as any);
-                }}
-              >
-                <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>{tab.label}</Text>
+              <TouchableOpacity key={tab.route} style={[styles.managementTab, isActive && styles.activeTabBg]} onPress={() => router.push(tab.route as any)}>
+                <Text style={[styles.tabLabel, { fontSize: tabFontSize }, isActive && styles.activeTabLabel]} numberOfLines={2}>
+                  {tab.label}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -152,12 +150,12 @@ export default function KelolaPesananScreen() {
         </View>
       </ScrollView>
 
-      {/* BOTTOM NAVIGATION BAR */}
+      {/* BOTTOM NAVIGATION BAR RESPONSIVE */}
       <View style={styles.bottomNavigation}>
         <View style={styles.navigationItems}>
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/" as any)}>
-            <Ionicons name="grid-outline" size={19} color={COLORS.textMuted} />
-            <Text style={styles.navLabel}>Beranda</Text>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/index_admin" as any)}>
+            <Ionicons name="grid-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
+            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Beranda</Text>
           </TouchableOpacity>
 
           <View style={styles.activeNavigationItem}>
@@ -165,14 +163,14 @@ export default function KelolaPesananScreen() {
             <Text style={styles.activeNavigationLabel}>Pesanan</Text>
           </View>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/produk" as any)}>
-            <MaterialCommunityIcons name="flower-outline" size={19} color={COLORS.textMuted} />
-            <Text style={styles.navLabel}>Produk</Text>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/produk_admin" as any)}>
+            <MaterialCommunityIcons name="flower-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
+            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Produk</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/akun" as any)}>
-            <Ionicons name="person-outline" size={19} color={COLORS.textMuted} />
-            <Text style={styles.navLabel}>Akun</Text>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/profil_admin" as any)}>
+            <Ionicons name="person-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
+            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Akun</Text>
           </TouchableOpacity>
         </View>
 
@@ -185,14 +183,8 @@ export default function KelolaPesananScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bgApp,
-  },
-  headerContainer: {
-    width: "100%",
-    backgroundColor: COLORS.bgApp,
-  },
+  container: { flex: 1, backgroundColor: COLORS.bgApp },
+  headerContainer: { width: "100%", backgroundColor: COLORS.bgApp },
   brandAndAccount: {
     flexDirection: "row",
     alignItems: "center",
@@ -201,7 +193,7 @@ const styles = StyleSheet.create({
     height: 68,
   },
   appTitle: {
-    fontFamily: 'Playfair Display',
+    fontFamily: "Playfair Display",
     fontWeight: "600",
     fontSize: 26,
     color: COLORS.primary,
@@ -219,28 +211,18 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
   },
-  headerDivider: {
-    width: "100%",
-    height: 1,
-    backgroundColor: COLORS.border,
-  },
-  scrollContent: {
-    paddingBottom: 30,
-  },
-  pageIntro: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 3,
-  },
+  headerDivider: { width: "100%", height: 1, backgroundColor: COLORS.border },
+  scrollContent: { paddingBottom: 30 },
+  pageIntro: { paddingHorizontal: 20, paddingVertical: 10, gap: 3 },
   pageTitle: {
-    fontFamily: 'Playfair Display',
+    fontFamily: "Playfair Display",
     fontWeight: "600",
     fontSize: 28,
     lineHeight: 35,
     color: COLORS.primary,
   },
   pageSubtitle: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 11,
     lineHeight: 16,
@@ -253,40 +235,30 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 14,
     gap: 2,
-    height: 58,
+    minHeight: 54,
   },
   managementTab: {
     flex: 1,
-    height: 50,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 10,
     paddingHorizontal: 2,
+    paddingVertical: 6,
   },
-  activeTabBg: {
-    backgroundColor: COLORS.accentPink,
-  },
+  activeTabBg: { backgroundColor: COLORS.accentPink },
   tabLabel: {
-    fontFamily: 'Poppins',
-    fontWeight: '400',
-    fontSize: 11,
-    lineHeight: 15,
-    textAlign: 'center',
-    color: '#986678',
+    fontFamily: "Poppins",
+    fontWeight: "400",
+    lineHeight: 14,
+    textAlign: "center",
+    color: "#986678",
   },
   activeTabLabel: {
-    fontFamily: 'Poppins',
-    fontWeight: '600',
-    fontSize: 11,
-    lineHeight: 15,
-    textAlign: 'center',
+    fontFamily: "Poppins",
+    fontWeight: "600",
     color: COLORS.primary,
   },
-  workspace: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 12,
-  },
+  workspace: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
   sectionHeading: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -294,20 +266,18 @@ const styles = StyleSheet.create({
     height: 28,
   },
   sectionTitle: {
-    fontFamily: 'Playfair Display',
+    fontFamily: "Playfair Display",
     fontWeight: "500",
     fontSize: 20,
     color: COLORS.primary,
   },
   sectionContext: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 11,
     color: COLORS.textMuted,
   },
-  orderList: {
-    gap: 12,
-  },
+  orderList: { gap: 12 },
   orderCard: {
     backgroundColor: COLORS.white,
     padding: 12,
@@ -324,17 +294,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  customerIdentity: {
-    gap: 1,
-  },
+  customerIdentity: { gap: 1 },
   orderNumber: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 10,
     color: COLORS.textMuted,
   },
   customerName: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "600",
     fontSize: 13,
     color: COLORS.textDark,
@@ -345,7 +313,7 @@ const styles = StyleSheet.create({
     borderRadius: 100,
   },
   statusLabel: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "500",
     fontSize: 8,
   },
@@ -354,23 +322,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  bouquetPhotograph: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-  },
-  bouquetDetails: {
-    flex: 1,
-    gap: 3,
-  },
+  bouquetPhotograph: { width: 48, height: 48, borderRadius: 10 },
+  bouquetDetails: { flex: 1, gap: 3 },
   bouquetName: {
-    fontFamily: 'Playfair Display',
+    fontFamily: "Playfair Display",
     fontWeight: "500",
     fontSize: 18,
     color: COLORS.primary,
   },
   quantityPrice: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 11,
     color: COLORS.textMuted,
@@ -380,17 +341,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  pickupDetails: {
-    gap: 1,
-  },
+  pickupDetails: { gap: 1 },
   pickupLabel: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 10,
     color: COLORS.textMuted,
   },
   pickupTime: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "500",
     fontSize: 11,
     color: COLORS.primary,
@@ -402,13 +361,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   greetingLabel: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "600",
     fontSize: 10,
     color: COLORS.primary,
   },
   customGreeting: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 11,
     lineHeight: 15,
@@ -419,7 +378,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     shadowColor: "#71384C",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,
@@ -428,16 +387,17 @@ const styles = StyleSheet.create({
   },
   navigationItems: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
     alignItems: "center",
   },
   navItem: {
     alignItems: "center",
     gap: 3,
     paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   navLabel: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "500",
     fontSize: 9,
     color: COLORS.textMuted,
@@ -452,7 +412,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   activeNavigationLabel: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontWeight: "600",
     fontSize: 12,
     color: COLORS.primary,

@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Modal,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -36,8 +37,11 @@ interface ProductItem {
 
 export default function KelolaProdukScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<string>('Kelola Produk');
+  const { width } = useWindowDimensions();
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
+
+  const isSmallScreen = width < 360;
+  const tabFontSize = isSmallScreen ? 9 : 10;
 
   const [bouquetTitle, setBouquetTitle] = useState<string>('Pink Romance');
   const [bouquetPrice, setBouquetPrice] = useState<string>('Rp185.000');
@@ -94,9 +98,9 @@ export default function KelolaProdukScreen() {
       <View style={styles.headerContainer}>
         <View style={styles.brandAndAccount}>
           <Text style={styles.appTitle}>ra_scrafts.id Admin</Text>
-          <View style={styles.adminProfile}>
+          <TouchableOpacity style={styles.adminProfile} onPress={() => router.push('/profil_admin' as any)}>
             <Ionicons name="person-outline" size={18} color={COLORS.primary} />
-          </View>
+          </TouchableOpacity>
         </View>
         <View style={styles.headerDivider} />
       </View>
@@ -109,25 +113,22 @@ export default function KelolaProdukScreen() {
           <Text style={styles.pageSubtitle}>Kelola Produk & Pesanan</Text>
         </View>
 
-        {/* Management Tabs */}
+        {/* MANAGEMENT TABS RESPONSIVE */}
         <View style={styles.managementTabs}>
           {[
-            { label: 'Kelola\nProduk', route: '/produk' },
-            { label: 'Kelola\nPesanan', route: '/pesanan' },
-            { label: 'Verifikasi', route: '/verifikasi' },
-            { label: 'Update\nStatus', route: '/status' },
+            { label: 'Kelola\nProduk', route: '/produk_admin' },
+            { label: 'Kelola\nPesanan', route: '/kelola_pesanan_admin' },
+            { label: 'Verifikasi', route: '/verifikasi_admin' },
+            { label: 'Update\nStatus', route: '/status_admin' },
           ].map((tab) => {
-            const isActive = activeTab === tab.label.replace('\n', ' ');
+            const isActive = tab.route === '/produk_admin';
             return (
               <TouchableOpacity
                 key={tab.route}
                 style={[styles.managementTab, isActive && styles.activeTabBg]}
-                onPress={() => {
-                  setActiveTab(tab.label.replace('\n', ' '));
-                  router.push(tab.route as any);
-                }}
+                onPress={() => router.push(tab.route as any)}
               >
-                <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>
+                <Text style={[styles.tabLabel, { fontSize: tabFontSize }, isActive && styles.activeTabLabel]} numberOfLines={2}>
                   {tab.label}
                 </Text>
               </TouchableOpacity>
@@ -187,17 +188,17 @@ export default function KelolaProdukScreen() {
         </View>
       </ScrollView>
 
-      {/* BOTTOM NAVIGATION BAR */}
+      {/* BOTTOM NAVIGATION BAR RESPONSIVE */}
       <View style={styles.bottomNavigation}>
         <View style={styles.navigationItems}>
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/' as any)}>
-            <Ionicons name="grid-outline" size={19} color={COLORS.textMuted} />
-            <Text style={styles.navLabel}>Beranda</Text>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/index_admin' as any)}>
+            <Ionicons name="grid-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
+            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Beranda</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/pesanan' as any)}>
-            <Ionicons name="bag-outline" size={19} color={COLORS.textMuted} />
-            <Text style={styles.navLabel}>Pesanan</Text>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/kelola_pesanan_admin' as any)}>
+            <Ionicons name="bag-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
+            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Pesanan</Text>
           </TouchableOpacity>
 
           <View style={styles.activeNavigationItem}>
@@ -205,9 +206,9 @@ export default function KelolaProdukScreen() {
             <Text style={styles.activeNavigationLabel}>Produk</Text>
           </View>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/akun' as any)}>
-            <Ionicons name="person-outline" size={19} color={COLORS.textMuted} />
-            <Text style={styles.navLabel}>Akun</Text>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/profil_admin' as any)}>
+            <Ionicons name="person-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
+            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Akun</Text>
           </TouchableOpacity>
         </View>
 
@@ -395,15 +396,15 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 14,
     gap: 2,
-    height: 58,
+    minHeight: 54,
   },
   managementTab: {
     flex: 1,
-    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 10,
     paddingHorizontal: 2,
+    paddingVertical: 6,
   },
   activeTabBg: {
     backgroundColor: COLORS.accentPink,
@@ -411,17 +412,13 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontFamily: 'Poppins',
     fontWeight: '400',
-    fontSize: 11,
-    lineHeight: 15,
+    lineHeight: 14,
     textAlign: 'center',
     color: '#986678',
   },
   activeTabLabel: {
     fontFamily: 'Poppins',
     fontWeight: '600',
-    fontSize: 11,
-    lineHeight: 15,
-    textAlign: 'center',
     color: COLORS.primary,
   },
   workspace: {
@@ -555,7 +552,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     shadowColor: '#71384C',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,
@@ -564,13 +561,14 @@ const styles = StyleSheet.create({
   },
   navigationItems: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
   },
   navItem: {
     alignItems: 'center',
     gap: 3,
     paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   navLabel: {
     fontFamily: 'Poppins',
