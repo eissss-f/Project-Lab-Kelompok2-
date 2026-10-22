@@ -1,24 +1,26 @@
 # ra_scrafts.id - Admin Mobile App
 
-Aplikasi mobile berbasis **React Native** (Expo) yang dirancang khusus untuk pengelola/admin **ra_scrafts.id** dalam memantau ringkasan toko, mengelola koleksi buket, memproses pesanan masuk, memverifikasi pembayaran, serta memperbarui progres status pesanan secara *real-time* dan responsif di berbagai ukuran layar.
+Aplikasi mobile berbasis **React Native** (Expo) yang dirancang khusus untuk pengelola/admin **ra_scrafts.id** dalam memantau ringkasan toko, mengelola koleksi buket, memproses pesanan masuk, memverifikasi pembayaran, serta memperbarui progres status pesanan secara _real-time_ dan responsif di berbagai ukuran layar.
 
 ---
 
 ## Fitur Utama Admin
-* **Dashboard & Ringkasan Toko (`/index_admin`)**: Memantau metrik utama seperti jumlah produk aktif, pesanan masuk, verifikasi tertunda, dan pesanan siap diambil.
-* **Kelola Pesanan (`/kelola_pesanan_admin`)**: Menampilkan daftar pesanan lengkap dengan detail informasi pelanggan, jadwal pengambilan, hingga pesan kartu ucapan.
-* **Kelola Produk (`/produk_admin`)**: Manajemen katalog buket (tambah, edit, hapus, dan atur stok/harga produk) menggunakan *interactive bottom sheet modal*.
-* **Verifikasi Pembayaran (`/verifikasi_admin`)**: Memeriksa bukti transfer pelanggan dan mengonfirmasi pembayaran dengan cepat.
-* **Update Status Pesanan (`/status_admin`)**: Memperbarui status pengerjaan buket (*Sedang Dibuat*, *Siap Diambil*, hingga *Selesai*).
-* **Profil Admin (`/profil_admin`)**: Informasi akun pengelola toko dan akses cepat ke seluruh menu manajemen.
+
+- **Dashboard & Ringkasan Toko (`/index_admin`)**: Memantau metrik utama seperti jumlah produk aktif, pesanan masuk, verifikasi tertunda, dan pesanan siap diambil.
+- **Kelola Pesanan (`/kelola_pesanan_admin`)**: Menampilkan daftar pesanan lengkap dengan detail informasi pelanggan, jadwal pengambilan, hingga pesan kartu ucapan.
+- **Kelola Produk (`/produk_admin`)**: Manajemen katalog buket (tambah, edit, hapus, dan atur stok/harga produk) menggunakan _interactive bottom sheet modal_.
+- **Verifikasi Pembayaran (`/verifikasi_admin`)**: Memeriksa bukti transfer pelanggan dan mengonfirmasi pembayaran dengan cepat.
+- **Update Status Pesanan (`/status_admin`)**: Memperbarui status pengerjaan buket (_Sedang Dibuat_, _Siap Diambil_, hingga _Selesai_).
+- **Profil Admin (`/profil_admin`)**: Informasi akun pengelola toko dan akses cepat ke seluruh menu manajemen.
 
 ---
 
 ## Tech Stack
-* **Framework:** React Native (dengan Expo & Expo Router)
-* **Bahasa:** TypeScript / JavaScript
-* **Styling:** React Native StyleSheet (dengan dukungan *responsive layout* menggunakan `useWindowDimensions`)
-* **Icons:** `@expo/vector-icons` (Ionicons & MaterialCommunityIcons)
+
+- **Framework:** React Native (dengan Expo & Expo Router)
+- **Bahasa:** TypeScript / JavaScript
+- **Styling:** React Native StyleSheet (dengan dukungan _responsive layout_ menggunakan `useWindowDimensions`)
+- **Icons:** `@expo/vector-icons` (Ionicons & MaterialCommunityIcons)
 
 ---
 
@@ -27,12 +29,15 @@ Aplikasi mobile berbasis **React Native** (Expo) yang dirancang khusus untuk pen
 Ikuti langkah-langkah di bawah ini untuk menjalankan proyek di perangkat lokalmu:
 
 ### 1. Prasyarat
+
 Pastikan komputermu sudah menginstal:
-* [Node.js](https://nodejs.org/) (LTS direkomendasikan)
-* Package manager (`npm` atau `yarn`)
-* Expo Go (di HP kamu) atau emulator Android/iOS
+
+- [Node.js](https://nodejs.org/) (LTS direkomendasikan)
+- Package manager (`npm` atau `yarn`)
+- Expo Go (di HP kamu) atau emulator Android/iOS
 
 ### 2. Instalasi Dependensi
+
 Clone repositori ini, lalu jalankan perintah berikut di terminal:
 
 ```bash
@@ -65,7 +70,8 @@ npx expo start//web
 <img width="170" height="335" alt="image" src="https://github.com/user-attachments/assets/4fb315ae-4fe3-4187-922b-1ad97cbb79b1" />
 <img width="175" height="341" alt="image" src="https://github.com/user-attachments/assets/98c29518-7ad1-4cfc-9326-129ffbfa4d33" />
 
-video demo user : 
+video demo user :
 <video controls src="Screen Recording 2026-10-22 081335.mp4" title="Title"></video>
-video demo admin : 
+video demo admin :
 <video controls src="Screen Recording 2026-10-22 081702.mp4" title="Title"></video>
+```
