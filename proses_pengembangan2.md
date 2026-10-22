@@ -37,6 +37,7 @@ judul: "ra.scrafts_id: Aplikasi Pemesanan dan Katalog Digital Buket Berbasis Mob
 
 - Euis Fahira Y: Manajemen Katalog & Laporan Penjualan Sisi Admin
   Bertanggung jawab atas pengelolaan operasional toko dan rekapitulasi data pada dashboard admin. Tugas mencakup fitur Manajemen Katalog atau CRUD produk (tambah, ubah, hapus, dan pembaruan stok/varian buket) serta penyajian Laporan Penjualan Ringkas berupa rekapitulasi total pesanan dan pendapatan bulanan toko.
-  ![tampilan manajemen katalog/CRUD produk](image-5.png)
+  <img width="687" height="212" alt="image" src="https://github.com/user-attachments/assets/28783b04-6596-4782-becc-e2670b527319" />
+
 
 5. SS minimal sketch up > sudah ada halamannya (member)
