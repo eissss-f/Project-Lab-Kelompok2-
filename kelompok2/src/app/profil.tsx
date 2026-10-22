@@ -1,172 +1,547 @@
-import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import {
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
-  SafeAreaView,
-  ScrollView,
-  Image,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Store, ShoppingBag, User } from 'lucide-react-native';
+
+const colors = {
+  background: '#FFF8F0',
+  berry: '#A83F68',
+  pink: '#E8A6BD',
+  palePink: '#F7E6E6',
+  muted: '#A17B84',
+  line: '#EED7D8',
+};
+
+const accountMenu: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  detail?: string;
+}[] = [
+  { icon: 'location-outline', label: 'Alamat tersimpan', detail: '2 alamat' },
+  { icon: 'heart-outline', label: 'Buket favorit', detail: '5 buket' },
+  { icon: 'notifications-outline', label: 'Notifikasi' },
+  { icon: 'shield-checkmark-outline', label: 'Keamanan akun' },
+];
 
 export default function ProfilScreen() {
   const router = useRouter();
 
-  const handleLogout = () => {
-    router.replace('/login');
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileHeader}>
-          <View style={styles.userInfo}>
-            <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={32} color="#E8A6BD" />
-            </View>
-            <View style={styles.userTextContainer}>
-              <Text style={styles.userName}>Euis Fahira</Text>
-              <Text style={styles.userEmail}>euis@gmail.com</Text>
-            </View>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header Profil dengan tombol kembali */}
+        <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Kembali ke Beranda"
+            onPress={() => router.replace('/Katalog')}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons
+              name="arrow-back-outline"
+              size={24}
+              color={colors.berry}
+            />
+          </Pressable>
+
+          <View style={styles.headerText}>
+            <Text style={styles.heading}>Profil</Text>
+            <Text style={styles.subtitle}>
+              Ruang kecil untuk cerita indahmu.
+            </Text>
           </View>
-          
-          <Image 
-            source={require('../../assets/images/logo_racrafts.jpg.jpeg')} 
-            style={styles.logoImage}
-            resizeMode="contain"
+        </View>
+
+        {/* Informasi akun */}
+        <View style={styles.accountCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>NA</Text>
+          </View>
+
+          <View style={styles.accountText}>
+            <Text style={styles.name}>Nadia Aulia</Text>
+            <Text style={styles.customerLabel}>
+              Pelanggan ra_scrafts.id
+            </Text>
+          </View>
+        </View>
+
+        {/* Informasi kontak */}
+        <Text style={styles.sectionTitle}>INFORMASI AKUN</Text>
+
+        <View style={styles.contactList}>
+          <View style={styles.contactRow}>
+            <Ionicons
+              name="mail-outline"
+              size={22}
+              color={colors.berry}
+            />
+
+            <Text style={styles.contactText}>
+              nadia.aulia@gmail.com
+            </Text>
+
+            <Ionicons
+              name="checkmark-circle"
+              size={19}
+              color={colors.berry}
+              accessibilityLabel="Email terverifikasi"
+            />
+          </View>
+
+          <View style={styles.contactRow}>
+            <Ionicons
+              name="call-outline"
+              size={22}
+              color={colors.berry}
+            />
+
+            <Text style={styles.contactText}>
+              +62 812 3456 7890
+            </Text>
+          </View>
+        </View>
+
+        {/* Menu akun */}
+        <View style={styles.menuCard}>
+          {accountMenu.map((item, index) => (
+            <View
+              key={item.label}
+              style={[
+                styles.menuRow,
+                index < accountMenu.length - 1 && styles.menuDivider,
+              ]}
+            >
+              <View style={styles.menuLeft}>
+                <Ionicons
+                  name={item.icon}
+                  size={21}
+                  color={colors.berry}
+                />
+
+                <Text style={styles.menuLabel}>
+                  {item.label}
+                </Text>
+              </View>
+
+              <View style={styles.menuRight}>
+                {item.detail ? (
+                  <Text style={styles.menuDetail}>
+                    {item.detail}
+                  </Text>
+                ) : null}
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={19}
+                  color={colors.berry}
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Bantuan pelanggan */}
+        <View style={styles.supportCard}>
+          <View style={styles.supportIcon}>
+            <Ionicons
+              name="chatbubble-outline"
+              size={25}
+              color={colors.berry}
+            />
+          </View>
+
+          <View style={styles.supportCopy}>
+            <Text style={styles.supportTitle}>
+              Ada yang bisa kami bantu?
+            </Text>
+
+            <Text style={styles.supportSub}>
+              Tanya buket atau pesanan via WhatsApp.
+            </Text>
+          </View>
+
+          <Ionicons
+            name="arrow-forward"
+            size={21}
+            color={colors.berry}
           />
         </View>
 
-        <View style={styles.menuContainer}>
-          <TouchableOpacity style={styles.menuItem} onPress={() => {}}>
-            <View style={styles.menuLeft}>
-              <Ionicons name="receipt-outline" size={20} color="#A83F68" />
-              <Text style={styles.menuText}>Pesanan Saya</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#A83F68" />
-          </TouchableOpacity>
+        {/* Tombol keluar akun */}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.replace('/login')}
+          style={({ pressed }) => [
+            styles.logout,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={21}
+            color={colors.berry}
+          />
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => {}}>
-            <View style={styles.menuLeft}>
-              <Ionicons name="location-outline" size={20} color="#A83F68" />
-              <Text style={styles.menuText}>Alamat Saya</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#A83F68" />
-          </TouchableOpacity>
+          <Text style={styles.logoutText}>
+            Keluar dari akun
+          </Text>
+        </Pressable>
+      </ScrollView>
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => {}}>
-            <View style={styles.menuLeft}>
-              <Ionicons name="settings-outline" size={20} color="#A83F68" />
-              <Text style={styles.menuText}>Pengaturan Akun</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#A83F68" />
-          </TouchableOpacity>
+      {/* Bottom Navigation */}
+      <View style={styles.bottomNavContainer}>
+        <View style={styles.navTabs}>
+          {/* Beranda / Produk */}
+          <Pressable
+            style={styles.tabInactive}
+            onPress={() => router.replace('/Katalog')}
+            accessibilityRole="button"
+            accessibilityLabel="Beranda"
+          >
+            <Store
+              size={21}
+              color="#999999"
+              strokeWidth={1.8}
+            />
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => {}}>
-            <View style={styles.menuLeft}>
-              <Ionicons name="help-circle-outline" size={20} color="#A83F68" />
-              <Text style={styles.menuText}>Bantuan</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#A83F68" />
-          </TouchableOpacity>
+            <Text style={styles.tabLabelInactive}>
+              Produk
+            </Text>
+          </Pressable>
+
+          {/* Pesanan */}
+          <Pressable
+            style={styles.tabInactive}
+            onPress={() => router.push('/pesanan')}
+            accessibilityRole="button"
+            accessibilityLabel="Pesanan"
+          >
+            <ShoppingBag
+              size={21}
+              color="#999999"
+              strokeWidth={1.8}
+            />
+
+            <Text style={styles.tabLabelInactive}>
+              Pesanan
+            </Text>
+          </Pressable>
+
+          {/* Profil aktif */}
+          <Pressable
+            style={styles.tabActive}
+            onPress={() => router.replace('/profil')}
+            accessibilityRole="button"
+            accessibilityLabel="Profil"
+          >
+            <User
+              size={21}
+              color={colors.berry}
+              strokeWidth={1.8}
+            />
+
+            <Text style={styles.tabLabelActive}>
+              Profil
+            </Text>
+          </Pressable>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={18} color="#FFF8F0" style={{ marginRight: 6 }} />
-          <Text style={styles.logoutText}>Lougut</Text>
-        </TouchableOpacity>
-      </ScrollView>
+        <View style={styles.homeIndicator} />
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
+    backgroundColor: colors.background,
   },
-  scrollContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 18,
+    paddingBottom: 110,
   },
-  profileHeader: {
+
+  // Header Profil
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 28,
-    paddingTop: 8,
+    marginBottom: 21,
   },
-  userInfo: {
-    flexDirection: 'row',
+
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.palePink,
     alignItems: 'center',
-  },
-  avatarPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#F3D2DF',
     justifyContent: 'center',
-    alignItems: 'center',
     marginRight: 12,
   },
-  userTextContainer: {
+
+  headerText: {
+    flex: 1,
+  },
+
+  heading: {
+    color: colors.berry,
+    fontFamily: 'serif',
+    fontSize: 31,
+    fontWeight: '700',
+    lineHeight: 38,
+  },
+
+  subtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    marginTop: 2,
+  },
+
+  // Kartu akun
+  accountCard: {
+    minHeight: 94,
+    borderRadius: 20,
+    backgroundColor: colors.palePink,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+
+  avatar: {
+    height: 64,
+    width: 64,
+    borderRadius: 32,
+    backgroundColor: colors.pink,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  userName: {
-    fontSize: 16,
-    fontFamily: 'Poppins',
+
+  avatarText: {
+    color: colors.background,
+    fontFamily: 'serif',
+    fontSize: 25,
+  },
+
+  accountText: {
+    marginLeft: 14,
+    flex: 1,
+  },
+
+  name: {
+    color: colors.berry,
+    fontFamily: 'serif',
+    fontSize: 21,
     fontWeight: '700',
-    color: '#A83F68',
   },
-  userEmail: {
+
+  customerLabel: {
+    color: colors.muted,
     fontSize: 12,
-    fontFamily: 'Poppins',
-    color: '#A83F68',
-    opacity: 0.6,
+    marginTop: 4,
   },
-  logoImage: {
-    width: 40,
-    height: 50,
+
+  // Informasi kontak
+  sectionTitle: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 8,
   },
-  menuContainer: {
-    backgroundColor: '#FFF8F0',
-    borderRadius: 12,
-    marginBottom: 36,
+
+  contactList: {
+    marginBottom: 14,
   },
-  menuItem: {
+
+  contactRow: {
+    minHeight: 39,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+
+  contactText: {
+    color: colors.berry,
+    fontSize: 15,
+    flex: 1,
+  },
+
+  // Menu akun
+  menuCard: {
+    borderWidth: 1,
+    borderColor: colors.pink,
+    borderRadius: 19,
+    paddingHorizontal: 15,
+    paddingVertical: 2,
+  },
+
+  menuRow: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    borderBottomWidth: 0.6,
-    borderBottomColor: '#E8A6BD',
   },
+
+  menuDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
+
   menuLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
-  menuText: {
-    fontSize: 14,
-    fontFamily: 'Poppins',
-    fontWeight: '500',
-    color: '#A83F68',
-    marginLeft: 12,
+
+  menuLabel: {
+    color: colors.berry,
+    fontSize: 13,
+    fontWeight: '600',
   },
-  logoutButton: {
-    backgroundColor: '#E8A6BD',
-    height: 44,
-    borderRadius: 22,
+
+  menuRight: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  menuDetail: {
+    color: colors.muted,
+    fontSize: 12,
+  },
+
+  // Bantuan pelanggan
+  supportCard: {
+    minHeight: 72,
+    backgroundColor: colors.palePink,
+    borderRadius: 19,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  logoutText: {
-    color: '#FFF8F0',
-    fontSize: 14,
-    fontFamily: 'Poppins',
+
+  supportIcon: {
+    height: 40,
+    width: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.berry,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  supportCopy: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+
+  supportTitle: {
+    color: colors.berry,
+    fontFamily: 'serif',
+    fontSize: 16,
     fontWeight: '700',
+  },
+
+  supportSub: {
+    color: colors.muted,
+    fontSize: 10,
+    marginTop: 3,
+  },
+
+  // Logout
+  logout: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 18,
+    padding: 8,
+  },
+
+  logoutText: {
+    color: colors.berry,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  pressed: {
+    opacity: 0.7,
+  },
+
+  // Bottom Navigation
+  bottomNavContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 84,
+    borderTopWidth: 1,
+    borderTopColor: '#F1D2DC',
+    backgroundColor: '#FFF8F0',
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingHorizontal: 20,
+  },
+
+  navTabs: {
+    flexDirection: 'row',
+    width: '100%',
+    height: 48,
+    gap: 16,
+  },
+
+  tabActive: {
+    flex: 1,
+    height: 48,
+    backgroundColor: '#FFF0F6',
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 3,
+  },
+
+  tabInactive: {
+    flex: 1,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 3,
+  },
+
+  tabLabelActive: {
+    fontSize: 10,
+    color: colors.berry,
+    fontWeight: '600',
+  },
+
+  tabLabelInactive: {
+    fontSize: 10,
+    color: '#999999',
+  },
+
+  homeIndicator: {
+    width: 120,
+    height: 4,
+    backgroundColor: colors.berry,
+    borderRadius: 2,
+    marginTop: 12,
   },
 });
