@@ -26,6 +26,10 @@ judul: "ra.scrafts_id: Aplikasi Pemesanan dan Katalog Digital Buket Berbasis Mob
 - Lailatul Qodariah: Pemesanan & Riwayat Transaksi Pelanggan
   Bertanggung jawab atas seluruh alur transaksi In-App Checkout Form dan riwayat pesanan pelanggan. Tugas mencakup pengisian detail kustomisasi produk (pita, wrapping, catatan), teks kartu ucapan, informasi transfer manual, upload bukti pembayaran, hingga pemantauan riwayat dan status pesanan real-time (Pending, Diproses, Dalam Pengerjaan, Dikirim/Selesai).
   <img width="1096" height="338" alt="image" src="https://github.com/user-attachments/assets/eb31fa74-d615-4a45-81a2-836034e1cda0" />
+  <img width="357" height="785" alt="image" src="https://github.com/user-attachments/assets/7ce333c2-4ca3-47da-9e14-f8ad5f5f62c8" />
+  <img width="367" height="782" alt="image" src="https://github.com/user-attachments/assets/0e9f590f-0c7b-4f59-ab1e-64f46809a6e1" />
+  <img width="357" height="552" alt="image" src="https://github.com/user-attachments/assets/ca8ab185-86e5-4e58-9b93-adc4d6906911" />
+  <img width="365" height="407" alt="image" src="https://github.com/user-attachments/assets/c8df0dda-dd43-44cc-b4db-a9ed6c8ad9b0" />
 
 
 - Chantika Maharani: Manajemen Pesanan Sisi Admin
