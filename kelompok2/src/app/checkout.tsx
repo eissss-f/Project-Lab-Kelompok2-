@@ -126,8 +126,8 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
             boxShadow: '0 0 25px rgba(168, 63, 104, 0.08)'
         }}>
 
-            
-        
+
+
             {/* Header */}
             <div style={{
                 position: 'relative',
@@ -799,15 +799,13 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                     fontWeight: 600,
                                     fontSize: '12px',
                                     cursor: 'pointer'
-                                }}
-                            >
+                                }}>
                                 Kembali ke Beranda
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-
         </div>
     );
 }
