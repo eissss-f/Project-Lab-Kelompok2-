@@ -1,471 +1,357 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useMemo, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Store, ShoppingBag, User } from 'lucide-react-native';
 
-const COLORS = {
-  bgApp: "#FFF8F0",
-  primary: "#A83F68",
-  accentPink: "#E8A6BD",
-  lightPink: "#FBEAF0",
-  border: "#F2E4E5",
-  textDark: "#49343C",
-  textMuted: "#958189",
-  white: "#FFFFFF",
+const colors = {
+  background: '#FFF8F0',
+  berry: '#A83F68',
+  pink: '#E8A6BD',
+  palePink: '#F7E6E6',
+  muted: '#A17B84',
+  line: '#EED7D8',
 };
 
-interface OrderItem {
+type Order = {
   id: string;
-  orderNumber: string;
-  customerName: string;
-  status: string;
-  statusBg: string;
-  statusColor: string;
-  bouquetName: string;
-  quantityPrice: string;
-  pickupTime: string;
-  greetingMessage: string;
-  photo: string;
-}
+  product: string;
+  price: string;
+  pickupDate: string;
+  paymentStatus: string;
+  workStatus: string;
+  note?: string;
+  completed: boolean;
+  highlightPaymentStatus?: boolean;
+  highlightWorkStatus?: boolean;
+  image: number;
+};
 
-export default function KelolaPesananScreen() {
+const orders: Order[] = [
+  {
+    id: 'RA-0012',
+    product: 'Blush Rose Bouquet',
+    price: 'Rp185.000',
+    pickupDate: '24 Okt 2026',
+    paymentStatus: 'Menunggu Pembayaran',
+    workStatus: 'Belum diproses',
+    completed: false,
+    image: 0,
+  },
+  {
+    id: 'RA-0011',
+    product: 'Sweet Peony',
+    price: 'Rp250.000',
+    pickupDate: '23 Okt 2026',
+    paymentStatus: 'Menunggu Verifikasi',
+    workStatus: 'Sedang Dibuat',
+    note: 'DP diterima · pelunasan ditinjau',
+    completed: false,
+    highlightWorkStatus: true,
+    image: 1,
+  },
+  {
+    id: 'RA-0010',
+    product: 'Lili Putih',
+    price: 'Rp210.000',
+    pickupDate: '22 Okt 2026',
+    paymentStatus: 'Sudah Dibayar',
+    workStatus: 'Siap Diambil',
+    completed: false,
+    image: 0,
+  },
+  {
+    id: 'RA-0009',
+    product: 'Buket Mawar Merah',
+    price: 'Rp195.000',
+    pickupDate: '20 Okt 2026',
+    paymentStatus: 'Lunas',
+    workStatus: 'Selesai',
+    completed: true,
+    highlightPaymentStatus: true,
+    highlightWorkStatus: true,
+    image: 0,
+  },
+];
+
+const filters = ['Semua', 'Aktif', 'Selesai'] as const;
+type Filter = (typeof filters)[number];
+
+export default function PesananScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<string>("Kelola Pesanan");
-
-  const orders: OrderItem[] = [
-    {
-      id: "1",
-      orderNumber: "#RS-1048",
-      customerName: "Nadia Putri",
-      status: "Verifikasi",
-      statusBg: "#FFF2DD",
-      statusColor: "#986E2F",
-      bouquetName: "Pink Romance",
-      quantityPrice: "1 buket · Rp185.000",
-      pickupTime: "18 Okt 2026 - 14.00 WIB",
-      greetingMessage: "“Selamat ulang tahun, Mama. Terima kasih untuk cinta yang tak pernah habis. 🤍”",
-      photo: "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
-    },
-    {
-      id: "2",
-      orderNumber: "#RS-1047",
-      customerName: "Alya Rahma",
-      status: "Siap diambil",
-      statusBg: "#EAF1E8",
-      statusColor: "#557153",
-      bouquetName: "Peach Bloom",
-      quantityPrice: "1 buket · Rp165.000",
-      pickupTime: "18 Okt 2026 - 16.30 WIB",
-      greetingMessage: "“Untuk hari istimewamu. Semoga bahagia selalu, sahabat terbaikkul”",
-      photo: "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=300",
-    },
-  ];
+  const [activeFilter, setActiveFilter] = useState<Filter>('Semua');
+  const counts = useMemo(
+    () => ({
+      Semua: orders.length,
+      Aktif: orders.filter((order) => !order.completed).length,
+      Selesai: orders.filter((order) => order.completed).length,
+    }),
+    [],
+  );
+  const visibleOrders = useMemo(
+    () =>
+      orders.filter((order) => {
+        if (activeFilter === 'Aktif') return !order.completed;
+        if (activeFilter === 'Selesai') return order.completed;
+        return true;
+      }),
+    [activeFilter],
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* APP HEADER */}
-      <View style={styles.headerContainer}>
-        <View style={styles.brandAndAccount}>
-          <Text style={styles.appTitle}>ra_scrafts.id Admin</Text>
-          <View style={styles.adminProfile}>
-            <Ionicons name="person-outline" size={18} color={COLORS.primary} />
-          </View>
-        </View>
-        <View style={styles.headerDivider} />
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
+        <Text style={styles.heading}>Pesanan Saya</Text>
+        <Text style={styles.subtitle}>Setiap pesanan, dirangkai dengan hati.</Text>
 
-      {/* SCROLLABLE CONTENT */}
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Page Introduction */}
-        <View style={styles.pageIntro}>
-          <Text style={styles.pageTitle}>Kelola Toko</Text>
-          <Text style={styles.pageSubtitle}>Kelola Produk & Pesanan</Text>
-        </View>
-
-        {/* Management Tabs */}
-        <View style={styles.managementTabs}>
-          {[
-            { label: "Kelola\nProduk", route: "/produk" },
-            { label: "Kelola\nPesanan", route: "/pesanan" },
-            { label: "Verifikasi", route: "/verifikasi" },
-            { label: "Update\nStatus", route: "/status" },
-          ].map((tab) => {
-            const isActive = activeTab === tab.label.replace("\n", " ");
+        <View style={styles.filters}>
+          {filters.map((filter) => {
+            const selected = activeFilter === filter;
             return (
-              <TouchableOpacity
-                key={tab.route}
-                style={[styles.managementTab, isActive && styles.activeTabBg]}
-                onPress={() => {
-                  setActiveTab(tab.label.replace("\n", " "));
-                  router.push(tab.route as any);
-                }}
-              >
-                <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>{tab.label}</Text>
-              </TouchableOpacity>
+              <Pressable
+                key={filter}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setActiveFilter(filter)}
+                style={[styles.filter, selected && styles.filterSelected]}>
+                <Text style={[styles.filterText, selected && styles.filterTextSelected]}>
+                  {filter} ({counts[filter]})
+                </Text>
+              </Pressable>
             );
           })}
         </View>
 
-        {/* Workspace Content */}
-        <View style={styles.workspace}>
-          <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle}>Pesanan masuk</Text>
-            <Text style={styles.sectionContext}>12 pesanan</Text>
+        {visibleOrders.length ? (
+          visibleOrders.map((order) => <OrderCard key={order.id} order={order} />)
+        ) : (
+          <View style={styles.emptyState}>
+            <Ionicons name="flower-outline" size={34} color={colors.pink} />
+            <Text style={styles.emptyTitle}>Belum ada pesanan</Text>
+            <Text style={styles.emptyCopy}>Pesanan dengan status ini akan muncul di sini.</Text>
           </View>
-
-          <View style={styles.orderList}>
-            {orders.map((order) => (
-              <View key={order.id} style={styles.orderCard}>
-                <View style={styles.customerAndStatus}>
-                  <View style={styles.customerIdentity}>
-                    <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-                    <Text style={styles.customerName}>{order.customerName}</Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: order.statusBg }]}>
-                    <Text style={[styles.statusLabel, { color: order.statusColor }]}>{order.status}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.orderedBouquet}>
-                  <Image source={{ uri: order.photo }} style={styles.bouquetPhotograph} />
-                  <View style={styles.bouquetDetails}>
-                    <Text style={styles.bouquetName}>{order.bouquetName}</Text>
-                    <Text style={styles.quantityPrice}>{order.quantityPrice}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.scheduledPickup}>
-                  <Ionicons name="calendar-outline" size={17} color={COLORS.primary} />
-                  <View style={styles.pickupDetails}>
-                    <Text style={styles.pickupLabel}>Jadwal Pengambilan</Text>
-                    <Text style={styles.pickupTime}>{order.pickupTime}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.greetingCardMessage}>
-                  <Text style={styles.greetingLabel}>Pesan Kartu Ucapan</Text>
-                  <Text style={styles.customGreeting}>{order.greetingMessage}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
+        )}
       </ScrollView>
 
-      {/* BOTTOM NAVIGATION BAR */}
-      <View style={styles.bottomNavigation}>
-        <View style={styles.navigationItems}>
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/" as any)}>
-            <Ionicons name="grid-outline" size={19} color={COLORS.textMuted} />
-            <Text style={styles.navLabel}>Beranda</Text>
-          </TouchableOpacity>
+      {/* Bottom Nav yang Responsif dan Terhubung */}
+      <View style={styles.bottomNavContainer}>
+        <View style={styles.navTabs}>
+          {/* Menu Produk / Katalog */}
+          <Pressable 
+            style={styles.tabInactive}
+            onPress={() => router.push('/Katalog')}
+          >
+            <Store size={21} color="#999999" strokeWidth={1.8} />
+            <Text style={styles.tabLabelInactive}>Produk</Text>
+          </Pressable>
 
-          <View style={styles.activeNavigationItem}>
-            <Ionicons name="bag-outline" size={18} color={COLORS.primary} />
-            <Text style={styles.activeNavigationLabel}>Pesanan</Text>
-          </View>
+          {/* Menu Pesanan (Aktif saat ini) */}
+          <Pressable 
+            style={styles.tabActive}
+            onPress={() => router.push('/pesanan')}
+          >
+            <ShoppingBag size={21} color={colors.berry} strokeWidth={1.8} />
+            <Text style={styles.tabLabelActive}>Pesanan</Text>
+          </Pressable>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/produk" as any)}>
-            <MaterialCommunityIcons name="flower-outline" size={19} color={COLORS.textMuted} />
-            <Text style={styles.navLabel}>Produk</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/akun" as any)}>
-            <Ionicons name="person-outline" size={19} color={COLORS.textMuted} />
-            <Text style={styles.navLabel}>Akun</Text>
-          </TouchableOpacity>
+          {/* Menu Profil */}
+          <Pressable 
+            style={styles.tabInactive}
+            onPress={() => router.push('/profil')}
+          >
+            <User size={21} color="#999999" strokeWidth={1.8} />
+            <Text style={styles.tabLabelInactive}>Profil</Text>
+          </Pressable>
         </View>
-
-        <View style={styles.homeIndicatorArea}>
-          <View style={styles.homeIndicator} />
-        </View>
+        <View style={styles.homeIndicator} />
       </View>
     </SafeAreaView>
   );
 }
 
+function OrderCard({ order }: { order: Order }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View style={styles.orderCard}>
+      <View style={styles.orderTop}>
+        <Text style={styles.orderId}>#{order.id}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          onPress={() => setExpanded((value) => !value)}
+          style={styles.detailButton}>
+          <Text style={styles.detailButtonText}>{expanded ? 'Tutup detail' : 'Lihat detail'}</Text>
+          <Ionicons
+            name={expanded ? 'chevron-up' : 'chevron-forward'}
+            size={17}
+            color={colors.berry}
+          />
+        </Pressable>
+      </View>
+
+      <View style={styles.productRow}>
+        <Image
+          source={
+            order.image === 0
+              ? require('../../assets/images/order-photo-1.jpg')
+              : require('../../assets/images/order-photo-2.jpg')
+          }
+          style={styles.productImage}
+          resizeMode="cover"
+          accessibilityLabel={`Foto ${order.product}`}
+        />
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{order.product}</Text>
+          <Text style={styles.price}>{order.price}</Text>
+          <Text style={styles.pickupLabel}>Jadwal ambil</Text>
+          <Text style={styles.pickupDate}>{order.pickupDate}</Text>
+        </View>
+      </View>
+
+      <View style={styles.divider} />
+      <StatusRow
+        label="Pembayaran"
+        status={order.paymentStatus}
+        filled={order.highlightPaymentStatus}
+      />
+      <StatusRow
+        label="Pengerjaan"
+        status={order.workStatus}
+        filled={order.highlightWorkStatus}
+      />
+      {order.note ? <Text style={styles.orderNote}>{order.note}</Text> : null}
+
+      {expanded ? (
+        <View style={styles.detailPanel}>
+          <Text style={styles.detailText}>Nomor pesanan: {order.id}</Text>
+          <Text style={styles.detailText}>
+            {order.completed
+              ? 'Pesanan telah selesai. Terima kasih sudah berbelanja!'
+              : `Pesanan dijadwalkan untuk diambil pada ${order.pickupDate}.`}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function StatusRow({ label, status, filled = false }: { label: string; status: string; filled?: boolean }) {
+  return (
+    <View style={styles.statusRow}>
+      <Text style={styles.statusLabel}>{label}</Text>
+      <View style={[styles.statusBadge, filled && styles.statusBadgeFilled]}>
+        <Text style={[styles.statusText, filled && styles.statusTextFilled]}>{status}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bgApp,
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  scrollView: { flex: 1 },
+  content: { paddingHorizontal: 23, paddingTop: 18, paddingBottom: 100 },
+  heading: {
+    color: colors.berry,
+    fontFamily: 'serif',
+    fontSize: 29,
+    fontWeight: '700',
+    lineHeight: 38,
   },
-  headerContainer: {
-    width: "100%",
-    backgroundColor: COLORS.bgApp,
-  },
-  brandAndAccount: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    height: 68,
-  },
-  appTitle: {
-    fontFamily: 'Playfair Display',
-    fontWeight: "600",
-    fontSize: 26,
-    color: COLORS.primary,
-  },
-  adminProfile: {
-    width: 36,
-    height: 36,
-    backgroundColor: COLORS.white,
-    borderRadius: 100,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#7E3E55",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.13,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  headerDivider: {
-    width: "100%",
-    height: 1,
-    backgroundColor: COLORS.border,
-  },
-  scrollContent: {
-    paddingBottom: 30,
-  },
-  pageIntro: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 3,
-  },
-  pageTitle: {
-    fontFamily: 'Playfair Display',
-    fontWeight: "600",
-    fontSize: 28,
-    lineHeight: 35,
-    color: COLORS.primary,
-  },
-  pageSubtitle: {
-    fontFamily: 'Poppins',
-    fontWeight: "400",
-    fontSize: 11,
-    lineHeight: 16,
-    color: COLORS.textMuted,
-  },
-  managementTabs: {
-    flexDirection: "row",
-    backgroundColor: COLORS.lightPink,
-    marginHorizontal: 20,
-    padding: 4,
-    borderRadius: 14,
-    gap: 2,
-    height: 58,
-  },
-  managementTab: {
-    flex: 1,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 10,
-    paddingHorizontal: 2,
-  },
-  activeTabBg: {
-    backgroundColor: COLORS.accentPink,
-  },
-  tabLabel: {
-    fontFamily: 'Poppins',
-    fontWeight: '400',
-    fontSize: 11,
-    lineHeight: 15,
-    textAlign: 'center',
-    color: '#986678',
-  },
-  activeTabLabel: {
-    fontFamily: 'Poppins',
-    fontWeight: '600',
-    fontSize: 11,
-    lineHeight: 15,
-    textAlign: 'center',
-    color: COLORS.primary,
-  },
-  workspace: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 12,
-  },
-  sectionHeading: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    height: 28,
-  },
-  sectionTitle: {
-    fontFamily: 'Playfair Display',
-    fontWeight: "500",
-    fontSize: 20,
-    color: COLORS.primary,
-  },
-  sectionContext: {
-    fontFamily: 'Poppins',
-    fontWeight: "400",
-    fontSize: 11,
-    color: COLORS.textMuted,
-  },
-  orderList: {
-    gap: 12,
-  },
-  orderCard: {
-    backgroundColor: COLORS.white,
-    padding: 12,
+  subtitle: { color: colors.muted, fontSize: 13, marginTop: 2, marginBottom: 19 },
+  filters: { flexDirection: 'row', gap: 8, marginBottom: 18 },
+  filter: {
+    minHeight: 34,
+    paddingHorizontal: 15,
     borderRadius: 18,
-    gap: 9,
-    shadowColor: "#7E3E55",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.line,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  customerAndStatus: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  filterSelected: { backgroundColor: colors.berry, borderColor: colors.berry },
+  filterText: { color: colors.muted, fontSize: 12, fontWeight: '500' },
+  filterTextSelected: { color: colors.background, fontWeight: '700' },
+  orderCard: {
+    borderWidth: 1,
+    borderColor: colors.pink,
+    borderRadius: 18,
+    paddingHorizontal: 15,
+    paddingTop: 14,
+    paddingBottom: 14,
+    marginBottom: 14,
   },
-  customerIdentity: {
-    gap: 1,
+  orderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  orderId: { color: colors.berry, fontSize: 13, fontWeight: '700' },
+  detailButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3 },
+  detailButtonText: { color: colors.muted, fontSize: 11 },
+  productRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+  productImage: {
+    width: 82,
+    height: 92,
+    borderRadius: 12,
+    backgroundColor: colors.palePink,
   },
-  orderNumber: {
-    fontFamily: 'Poppins',
-    fontWeight: "400",
-    fontSize: 10,
-    color: COLORS.textMuted,
-  },
-  customerName: {
-    fontFamily: 'Poppins',
-    fontWeight: "600",
-    fontSize: 13,
-    color: COLORS.textDark,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 100,
-  },
-  statusLabel: {
-    fontFamily: 'Poppins',
-    fontWeight: "500",
-    fontSize: 8,
-  },
-  orderedBouquet: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  bouquetPhotograph: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-  },
-  bouquetDetails: {
-    flex: 1,
-    gap: 3,
-  },
-  bouquetName: {
-    fontFamily: 'Playfair Display',
-    fontWeight: "500",
-    fontSize: 18,
-    color: COLORS.primary,
-  },
-  quantityPrice: {
-    fontFamily: 'Poppins',
-    fontWeight: "400",
-    fontSize: 11,
-    color: COLORS.textMuted,
-  },
-  scheduledPickup: {
-    flexDirection: "row",
-    alignItems: "center",
+  productInfo: { flex: 1, paddingLeft: 12, justifyContent: 'center' },
+  productName: { color: colors.berry, fontFamily: 'serif', fontSize: 18, lineHeight: 23, fontWeight: '700' },
+  price: { color: colors.berry, fontSize: 14, marginTop: 3 },
+  pickupLabel: { color: colors.muted, fontSize: 11, marginTop: 7 },
+  pickupDate: { color: colors.berry, fontSize: 14, marginTop: 1 },
+  divider: { height: 1, backgroundColor: colors.line, marginTop: 12, marginBottom: 10 },
+  statusRow: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
   },
-  pickupDetails: {
-    gap: 1,
-  },
-  pickupLabel: {
-    fontFamily: 'Poppins',
-    fontWeight: "400",
-    fontSize: 10,
-    color: COLORS.textMuted,
-  },
-  pickupTime: {
-    fontFamily: 'Poppins',
-    fontWeight: "500",
-    fontSize: 11,
-    color: COLORS.primary,
-  },
-  greetingCardMessage: {
-    backgroundColor: COLORS.lightPink,
-    padding: 10,
-    borderRadius: 10,
-    gap: 4,
-  },
-  greetingLabel: {
-    fontFamily: 'Poppins',
-    fontWeight: "600",
-    fontSize: 10,
-    color: COLORS.primary,
-  },
-  customGreeting: {
-    fontFamily: 'Poppins',
-    fontWeight: "400",
-    fontSize: 11,
-    lineHeight: 15,
-    color: COLORS.textDark,
-  },
-  bottomNavigation: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    shadowColor: "#71384C",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  navigationItems: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  navItem: {
-    alignItems: "center",
-    gap: 3,
+  statusLabel: { color: colors.muted, fontSize: 12 },
+  statusBadge: {
+    maxWidth: '72%',
+    borderWidth: 1,
+    borderColor: colors.berry,
+    borderRadius: 17,
     paddingVertical: 4,
+    paddingHorizontal: 10,
+    alignItems: 'center',
   },
-  navLabel: {
-    fontFamily: 'Poppins',
-    fontWeight: "500",
-    fontSize: 9,
-    color: COLORS.textMuted,
+  statusBadgeFilled: { backgroundColor: colors.pink, borderColor: colors.pink },
+  statusText: { color: colors.berry, fontSize: 10, fontWeight: '600', textAlign: 'center' },
+  statusTextFilled: { color: colors.berry },
+  orderNote: { color: colors.muted, fontSize: 11, marginTop: 5 },
+  detailPanel: { backgroundColor: colors.palePink, padding: 10, borderRadius: 10, gap: 4, marginTop: 10 },
+  detailText: { color: colors.berry, fontSize: 11, lineHeight: 16 },
+  emptyState: { alignItems: 'center', padding: 36, gap: 8 },
+  emptyTitle: { color: colors.berry, fontSize: 16, fontWeight: '700' },
+  emptyCopy: { color: colors.muted, fontSize: 12, textAlign: 'center' },
+  // Style untuk Bottom Navigation
+  bottomNavContainer: { 
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 84, 
+    borderTopWidth: 1, 
+    borderTopColor: '#F1D2DC', 
+    backgroundColor: '#FFF8F0', 
+    alignItems: 'center', 
+    paddingTop: 8, 
+    paddingHorizontal: 20 
   },
-  activeNavigationItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: COLORS.accentPink,
-    borderRadius: 100,
-    gap: 7,
-  },
-  activeNavigationLabel: {
-    fontFamily: 'Poppins',
-    fontWeight: "600",
-    fontSize: 12,
-    color: COLORS.primary,
-  },
-  homeIndicatorArea: {
-    alignItems: "center",
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  homeIndicator: {
-    width: 128,
-    height: 4,
-    backgroundColor: COLORS.textDark,
-    borderRadius: 100,
-  },
+  navTabs: { flexDirection: 'row', width: '100%', height: 48, gap: 16 },
+  tabActive: { flex: 1, height: 48, backgroundColor: '#FFF0F6', borderRadius: 4, justifyContent: 'center', alignItems: 'center', gap: 3 },
+  tabInactive: { flex: 1, height: 48, justifyContent: 'center', alignItems: 'center', gap: 3 },
+  tabLabelActive: { fontSize: 10, color: colors.berry, fontWeight: '600' },
+  tabLabelInactive: { fontSize: 10, color: '#999999' },
+  homeIndicator: { width: 120, height: 4, backgroundColor: colors.berry, borderRadius: 2, marginTop: 12 },
 });
