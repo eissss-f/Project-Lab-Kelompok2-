@@ -51,14 +51,11 @@ export default function LoginScreen() {
       });
 
       if (error) {
-        Alert.alert(
-          'Login Gagal',
-          error.message
-        );
+        Alert.alert('Login Gagal', error.message);
         return;
       }
 
-      router.replace('/katalog');
+      router.replace('/user/Katalog');
     } catch (error) {
       Alert.alert(
         'Terjadi Kesalahan',
