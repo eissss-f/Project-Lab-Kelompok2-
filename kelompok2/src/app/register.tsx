@@ -93,18 +93,23 @@ export default function RegisterScreen() {
         return;
       }
 
-      if (data.session) {
-        router.replace('/user/Katalog');
+      // 1. Jika sesi login langsung ada (Confirm Email Nonaktif)
+      if (data.session || data.user) {
+        // Beri jeda 300ms agar token/sesi tersimpan sempurna di storage browser/device
+        setTimeout(() => {
+          router.replace('/user/Katalog');
+        }, 300);
         return;
       }
 
+      // 2. Jika Confirm Email di Supabase masih aktif
       Alert.alert(
         'Pendaftaran Berhasil',
-        'Silakan cek email kamu untuk konfirmasi akun terlebih dahulu.',
+        'Silakan cek inbox email kamu untuk konfirmasi akun terlebih dahulu.',
         [
           {
             text: 'Ke Halaman Login',
-            onPress: () => router.replace('/login'),
+            onPress: () => router.push('/login'),
           },
         ]
       );

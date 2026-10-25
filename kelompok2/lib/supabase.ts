@@ -1,16 +1,19 @@
-
 import 'react-native-url-polyfill/auto';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_KEY!;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_KEY ||
+  '';
 
-const storage = {
+// Custom Storage adapter yang aman dari crash SSR / Node.js
+const customStorage = {
   getItem: async (key: string): Promise<string | null> => {
     if (Platform.OS === 'web') {
-      if (typeof window === 'undefined') return null;
+      if (typeof window === 'undefined') return null; // Safe check untuk Node.js SSR
       return window.localStorage.getItem(key);
     }
     return AsyncStorage.getItem(key);
@@ -35,9 +38,9 @@ const storage = {
   },
 };
 
-export const supabase = createClient(supabaseUrl, supabaseKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage,
+    storage: customStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
