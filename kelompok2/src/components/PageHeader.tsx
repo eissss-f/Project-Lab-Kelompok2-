@@ -7,9 +7,13 @@ const colors = { berry: '#A83F68', palePink: '#F7E6E6', muted: '#A17B84' };
 export default function PageHeader({
   title,
   subtitle,
+  onBack,
+  backAccessibilityLabel = 'Kembali',
 }: {
   title: string;
   subtitle?: string;
+  onBack?: () => void;
+  backAccessibilityLabel?: string;
 }) {
   const router = useRouter();
 
@@ -17,8 +21,8 @@ export default function PageHeader({
     <View style={styles.header}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Kembali"
-        onPress={() => router.back()}
+        accessibilityLabel={backAccessibilityLabel}
+        onPress={onBack ?? (() => router.back())}
         style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]}
       >
         <Ionicons name="arrow-back-outline" size={24} color={colors.berry} />

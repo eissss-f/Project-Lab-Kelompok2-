@@ -93,7 +93,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                 router.back();
             } catch {
                 try {
-                    router.push('/keranjang');
+                    router.push('/user/keranjang');
                 } catch {
                     // fallback
                 }
@@ -763,7 +763,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                 onClick={() => {
                                     setShowSuccessModal(false);
                                     try {
-                                        router.push('/pesanan');
+                                        router.push('/user/pesanan');
                                     } catch {
                                         // fallback
                                     }

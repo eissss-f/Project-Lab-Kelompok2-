@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Store, ShoppingBag, User } from "lucide-react-native";
+import PageHeader from "@/components/PageHeader";
 
 const colors = {
   background: "#FFF8F0",
@@ -102,8 +102,12 @@ export default function PesananScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.heading}>Pesanan Saya</Text>
-        <Text style={styles.subtitle}>Setiap pesanan, dirangkai dengan hati.</Text>
+        <PageHeader
+          title="Pesanan Saya"
+          subtitle="Setiap pesanan, dirangkai dengan hati."
+          onBack={() => router.replace("/user/Katalog")}
+          backAccessibilityLabel="Kembali ke Katalog"
+        />
 
         <View style={styles.filters}>
           {filters.map((filter) => {
@@ -189,14 +193,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   scrollView: { flex: 1 },
   content: { paddingHorizontal: 23, paddingTop: 18, paddingBottom: 100 },
-  heading: {
-    color: colors.berry,
-    fontFamily: "serif",
-    fontSize: 29,
-    fontWeight: "700",
-    lineHeight: 38,
-  },
-  subtitle: { color: colors.muted, fontSize: 13, marginTop: 2, marginBottom: 19 },
   filters: { flexDirection: "row", gap: 8, marginBottom: 18 },
   filter: {
     minHeight: 34,

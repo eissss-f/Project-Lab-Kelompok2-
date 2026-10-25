@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import PageHeader from "@/components/PageHeader";
 
 const colors = {
   background: "#FFF8F0",
@@ -16,7 +17,6 @@ const colors = {
   successBackground: "#E8F5EC",
 };
 
-// Menu alamat sudah dihapus, kini hanya menyisakan keamanan akun
 const accountMenu: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -30,6 +30,12 @@ const accountMenu: {
   },
 ];
 
+type ProfileFieldErrors = {
+  name?: string;
+  email?: string;
+  phone?: string;
+};
+
 export default function ProfilScreen() {
   const router = useRouter();
   const [name, setName] = useState("Nadia Aulia");
@@ -39,49 +45,58 @@ export default function ProfilScreen() {
   const [draftEmail, setDraftEmail] = useState(email);
   const [draftPhone, setDraftPhone] = useState(phone);
   const [isEditing, setIsEditing] = useState(false);
-  const [editError, setEditError] = useState("");
+  const [isLogoutConfirmationVisible, setIsLogoutConfirmationVisible] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<ProfileFieldErrors>({});
   const [profileMessage, setProfileMessage] = useState("");
 
   const openEditProfile = () => {
     setDraftName(name);
     setDraftEmail(email);
     setDraftPhone(phone);
-    setEditError("");
+    setFieldErrors({});
     setProfileMessage("");
     setIsEditing(true);
   };
 
   const saveProfile = () => {
-    if (!draftName.trim() || !draftEmail.trim() || !draftPhone.trim()) {
-      setEditError("Nama, email, dan nomor telepon wajib diisi.");
-      return;
+    const errors: ProfileFieldErrors = {};
+    const trimmedName = draftName.trim();
+    const trimmedEmail = draftEmail.trim();
+    const trimmedPhone = draftPhone.trim();
+
+    if (!trimmedName) {
+      errors.name = "Nama wajib diisi.";
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draftEmail.trim())) {
-      setEditError("Format email belum benar.");
+    if (!trimmedEmail) {
+      errors.email = "Email wajib diisi.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      errors.email = "Format email belum benar.";
+    }
+    if (!trimmedPhone) {
+      errors.phone = "Nomor telepon wajib diisi.";
+    }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
       return;
     }
 
-    setName(draftName.trim());
-    setEmail(draftEmail.trim());
-    setPhone(draftPhone.trim());
+    setName(trimmedName);
+    setEmail(trimmedEmail);
+    setPhone(trimmedPhone);
     setIsEditing(false);
-    setProfileMessage("Profil diperbarui sementara di layar ini.");
+    setProfileMessage("Perubahan profil tersimpan sementara di layar ini.");
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header Profil dengan tombol kembali */}
-        <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Kembali ke Beranda" onPress={() => router.replace("/user/Katalog")} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-            <Ionicons name="arrow-back-outline" size={24} color={colors.berry} />
-          </Pressable>
-
-          <View style={styles.headerText}>
-            <Text style={styles.heading}>Profil</Text>
-            <Text style={styles.subtitle}>Ruang kecil untuk cerita indahmu.</Text>
-          </View>
-        </View>
+        <PageHeader
+          title="Profil"
+          subtitle="Ruang kecil untuk cerita indahmu."
+          onBack={() => router.replace("/user/Katalog")}
+          backAccessibilityLabel="Kembali ke Beranda"
+        />
 
         {/* Informasi akun */}
         <View style={styles.accountCard}>
@@ -127,7 +142,6 @@ export default function ProfilScreen() {
             {profileMessage}
           </Text>
         ) : null}
-        <Text style={styles.dataNote}>Data contoh. Perubahan hanya tersimpan sementara di layar ini, belum ke database.</Text>
 
         {/* Menu akun */}
         <View style={styles.menuCard}>
@@ -171,7 +185,7 @@ export default function ProfilScreen() {
         </Pressable>
 
         {/* Tombol keluar akun */}
-        <Pressable accessibilityRole="button" onPress={() => router.replace("/login")} style={({ pressed }) => [styles.logout, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" onPress={() => setIsLogoutConfirmationVisible(true)} style={({ pressed }) => [styles.logout, pressed && styles.pressed]}>
           <Ionicons name="log-out-outline" size={21} color={colors.berry} />
           <Text style={styles.logoutText}>Keluar dari akun</Text>
         </Pressable>
@@ -181,36 +195,57 @@ export default function ProfilScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.editCard}>
             <Text style={styles.editTitle}>Edit profil</Text>
-            <Text style={styles.editSubtitle}>Perubahan ini hanya berlaku selama aplikasi berjalan.</Text>
+            <Text style={styles.editSubtitle}>Perbarui nama, email, dan nomor teleponmu.</Text>
 
-            <TextInput accessibilityLabel="Nama" value={draftName} onChangeText={setDraftName} placeholder="Nama lengkap" placeholderTextColor={colors.muted} style={styles.editInput} autoCapitalize="words" returnKeyType="next" />
+            <TextInput
+              accessibilityLabel="Nama"
+              value={draftName}
+              onChangeText={(value) => {
+                setDraftName(value);
+                setFieldErrors((current) => ({ ...current, name: undefined }));
+              }}
+              placeholder="Nama lengkap"
+              placeholderTextColor={colors.muted}
+              style={[styles.editInput, fieldErrors.name && styles.editInputError]}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+            {fieldErrors.name ? (
+              <Text accessibilityRole="alert" style={styles.editError}>{fieldErrors.name}</Text>
+            ) : null}
             <TextInput
               accessibilityLabel="Email"
               value={draftEmail}
-              onChangeText={setDraftEmail}
+              onChangeText={(value) => {
+                setDraftEmail(value);
+                setFieldErrors((current) => ({ ...current, email: undefined }));
+              }}
               placeholder="Email"
               placeholderTextColor={colors.muted}
-              style={styles.editInput}
+              style={[styles.editInput, fieldErrors.email && styles.editInputError]}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="next"
             />
+            {fieldErrors.email ? (
+              <Text accessibilityRole="alert" style={styles.editError}>{fieldErrors.email}</Text>
+            ) : null}
             <TextInput
               accessibilityLabel="Nomor telepon"
               value={draftPhone}
-              onChangeText={setDraftPhone}
+              onChangeText={(value) => {
+                setDraftPhone(value);
+                setFieldErrors((current) => ({ ...current, phone: undefined }));
+              }}
               placeholder="Nomor telepon"
               placeholderTextColor={colors.muted}
-              style={styles.editInput}
+              style={[styles.editInput, fieldErrors.phone && styles.editInputError]}
               keyboardType="phone-pad"
               returnKeyType="done"
             />
-
-            {editError ? (
-              <Text accessibilityRole="alert" style={styles.editError}>
-                {editError}
-              </Text>
+            {fieldErrors.phone ? (
+              <Text accessibilityRole="alert" style={styles.editError}>{fieldErrors.phone}</Text>
             ) : null}
 
             <View style={styles.editActions}>
@@ -224,6 +259,40 @@ export default function ProfilScreen() {
           </View>
         </View>
       </Modal>
+
+        <Modal
+          visible={isLogoutConfirmationVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsLogoutConfirmationVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.editCard}>
+              <Text style={styles.editTitle}>Yakin ingin keluar dari akun?</Text>
+              <Text style={styles.editSubtitle}>Kamu bisa masuk kembali kapan saja.</Text>
+
+              <View style={styles.editActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setIsLogoutConfirmationVisible(false)}
+                  style={styles.cancelEditButton}
+                >
+                  <Text style={styles.cancelEditText}>Batal</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setIsLogoutConfirmationVisible(false);
+                    router.replace("/login");
+                  }}
+                  style={styles.saveEditButton}
+                >
+                  <Text style={styles.saveEditText}>Ya, Keluar</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
     </SafeAreaView>
   );
 }
@@ -238,41 +307,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 18,
     paddingBottom: 110,
-  },
-
-  // Header Profil
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 21,
-  },
-
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.palePink,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-
-  headerText: {
-    flex: 1,
-  },
-
-  heading: {
-    color: colors.berry,
-    fontFamily: "serif",
-    fontSize: 31,
-    fontWeight: "700",
-    lineHeight: 38,
-  },
-
-  subtitle: {
-    color: colors.muted,
-    fontSize: 13,
-    marginTop: 2,
   },
 
   // Kartu akun
@@ -529,6 +563,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 11,
     marginBottom: 10,
+  },
+
+  editInputError: {
+    borderColor: colors.error,
   },
 
   editError: {
