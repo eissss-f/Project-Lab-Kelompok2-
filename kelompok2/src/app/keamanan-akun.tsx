@@ -8,8 +8,9 @@ export default function KeamananAkunScreen() {
       items={[
         {
           icon: 'mail-outline',
-          title: 'Email terverifikasi',
-          description: 'nadia.aulia@gmail.com',
+          title: 'Email akun',
+          description:
+            'Gunakan email yang bisa kamu akses untuk menerima informasi akun.',
         },
         {
           icon: 'lock-closed-outline',

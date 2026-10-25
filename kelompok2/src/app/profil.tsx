@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,21 +20,67 @@ const colors = {
   palePink: '#F7E6E6',
   muted: '#A17B84',
   line: '#EED7D8',
+  error: '#A83232',
+  success: '#287A4B',
+  successBackground: '#E8F5EC',
 };
 
 const accountMenu: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   detail?: string;
-  route: '/alamat' | '/notifikasi' | '/keamanan-akun';
+  href: '/alamat' | '/keamanan-akun';
 }[] = [
-  { icon: 'location-outline', label: 'Alamat tersimpan', detail: '2 alamat', route: '/alamat' },
-  { icon: 'notifications-outline', label: 'Notifikasi', route: '/notifikasi' },
-  { icon: 'shield-checkmark-outline', label: 'Keamanan akun', route: '/keamanan-akun' },
+  {
+    icon: 'location-outline',
+    label: 'Alamat tersimpan',
+    detail: 'Kelola',
+    href: '/alamat',
+  },
+  {
+    icon: 'shield-checkmark-outline',
+    label: 'Keamanan akun',
+    href: '/keamanan-akun',
+  },
 ];
 
 export default function ProfilScreen() {
   const router = useRouter();
+  const [name, setName] = useState('Nadia Aulia');
+  const [email, setEmail] = useState('nadia.aulia@gmail.com');
+  const [phone, setPhone] = useState('+62 812 3456 7890');
+  const [draftName, setDraftName] = useState(name);
+  const [draftEmail, setDraftEmail] = useState(email);
+  const [draftPhone, setDraftPhone] = useState(phone);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [profileMessage, setProfileMessage] = useState('');
+
+  const openEditProfile = () => {
+    setDraftName(name);
+    setDraftEmail(email);
+    setDraftPhone(phone);
+    setEditError('');
+    setProfileMessage('');
+    setIsEditing(true);
+  };
+
+  const saveProfile = () => {
+    if (!draftName.trim() || !draftEmail.trim() || !draftPhone.trim()) {
+      setEditError('Nama, email, dan nomor telepon wajib diisi.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draftEmail.trim())) {
+      setEditError('Format email belum benar.');
+      return;
+    }
+
+    setName(draftName.trim());
+    setEmail(draftEmail.trim());
+    setPhone(draftPhone.trim());
+    setIsEditing(false);
+    setProfileMessage('Profil diperbarui sementara di layar ini.');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -45,49 +94,98 @@ export default function ProfilScreen() {
             accessibilityRole="button"
             accessibilityLabel="Kembali ke Beranda"
             onPress={() => router.replace('/Katalog')}
-            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons name="arrow-back-outline" size={24} color={colors.berry} />
+            <Ionicons
+              name="arrow-back-outline"
+              size={24}
+              color={colors.berry}
+            />
           </Pressable>
 
           <View style={styles.headerText}>
             <Text style={styles.heading}>Profil</Text>
-            <Text style={styles.subtitle}>Ruang kecil untuk cerita indahmu.</Text>
+            <Text style={styles.subtitle}>
+              Ruang kecil untuk cerita indahmu.
+            </Text>
           </View>
         </View>
 
         {/* Informasi akun */}
         <View style={styles.accountCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>NA</Text>
+            <Text style={styles.avatarText}>
+              {name
+                .trim()
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((part) => part[0]?.toUpperCase())
+                .join('')}
+            </Text>
           </View>
 
           <View style={styles.accountText}>
-            <Text style={styles.name}>Nadia Aulia</Text>
-            <Text style={styles.customerLabel}>Pelanggan ra_scrafts.id</Text>
+            <Text style={styles.name}>{name}</Text>
+            <Text style={styles.customerLabel}>
+              Pelanggan ra_scrafts.id
+            </Text>
           </View>
         </View>
 
         {/* Informasi kontak */}
-        <Text style={styles.sectionTitle}>INFORMASI AKUN</Text>
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionTitle}>INFORMASI AKUN</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Edit profil"
+            onPress={openEditProfile}
+            style={({ pressed }) => [
+              styles.editProfileButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons name="create-outline" size={16} color={colors.berry} />
+            <Text style={styles.editProfileText}>Edit profil</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.contactList}>
           <View style={styles.contactRow}>
-            <Ionicons name="mail-outline" size={22} color={colors.berry} />
-            <Text style={styles.contactText}>nadia.aulia@gmail.com</Text>
             <Ionicons
-              name="checkmark-circle"
-              size={19}
+              name="mail-outline"
+              size={22}
               color={colors.berry}
-              accessibilityLabel="Email terverifikasi"
             />
+
+            <Text style={styles.contactText}>
+              {email}
+            </Text>
           </View>
 
           <View style={styles.contactRow}>
-            <Ionicons name="call-outline" size={22} color={colors.berry} />
-            <Text style={styles.contactText}>+62 812 3456 7890</Text>
+            <Ionicons
+              name="call-outline"
+              size={22}
+              color={colors.berry}
+            />
+
+            <Text style={styles.contactText}>
+              {phone}
+            </Text>
           </View>
         </View>
+        {profileMessage ? (
+          <Text accessibilityRole="alert" style={styles.profileMessage}>
+            {profileMessage}
+          </Text>
+        ) : null}
+        <Text style={styles.dataNote}>
+          Data contoh. Perubahan hanya tersimpan sementara di layar ini, belum
+          ke database.
+        </Text>
 
         {/* Menu akun */}
         <View style={styles.menuCard}>
@@ -96,21 +194,37 @@ export default function ProfilScreen() {
               key={item.label}
               accessibilityRole="button"
               accessibilityLabel={item.label}
-              onPress={() => router.push(item.route)}
-              style={({ pressed }) => [
+              onPress={() => router.push(item.href)}
+              style={[
                 styles.menuRow,
                 index < accountMenu.length - 1 && styles.menuDivider,
-                pressed && styles.pressed,
+                styles.menuPressable,
               ]}
             >
               <View style={styles.menuLeft}>
-                <Ionicons name={item.icon} size={21} color={colors.berry} />
-                <Text style={styles.menuLabel}>{item.label}</Text>
+                <Ionicons
+                  name={item.icon}
+                  size={21}
+                  color={colors.berry}
+                />
+
+                <Text style={styles.menuLabel}>
+                  {item.label}
+                </Text>
               </View>
 
               <View style={styles.menuRight}>
-                {item.detail ? <Text style={styles.menuDetail}>{item.detail}</Text> : null}
-                <Ionicons name="chevron-forward" size={19} color={colors.berry} />
+                {item.detail ? (
+                  <Text style={styles.menuDetail}>
+                    {item.detail}
+                  </Text>
+                ) : null}
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={19}
+                  color={colors.berry}
+                />
               </View>
             </Pressable>
           ))}
@@ -119,7 +233,7 @@ export default function ProfilScreen() {
         {/* Bantuan pelanggan */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Buka bantuan pelanggan"
+          accessibilityLabel="Bantuan pelanggan"
           onPress={() => router.push('/bantuan')}
           style={({ pressed }) => [
             styles.supportCard,
@@ -127,27 +241,122 @@ export default function ProfilScreen() {
           ]}
         >
           <View style={styles.supportIcon}>
-            <Ionicons name="chatbubble-outline" size={25} color={colors.berry} />
+            <Ionicons
+              name="chatbubble-outline"
+              size={25}
+              color={colors.berry}
+            />
           </View>
 
           <View style={styles.supportCopy}>
-            <Text style={styles.supportTitle}>Ada yang bisa kami bantu?</Text>
-            <Text style={styles.supportSub}>Tanya buket atau pesanan via WhatsApp.</Text>
+            <Text style={styles.supportTitle}>
+              Ada yang bisa kami bantu?
+            </Text>
+
+            <Text style={styles.supportSub}>
+              Panduan singkat untuk pesanan dan jadwal pengambilan.
+            </Text>
           </View>
 
-          <Ionicons name="arrow-forward" size={21} color={colors.berry} />
+          <Ionicons
+            name="arrow-forward"
+            size={21}
+            color={colors.berry}
+          />
         </Pressable>
 
         {/* Tombol keluar akun */}
         <Pressable
           accessibilityRole="button"
           onPress={() => router.replace('/login')}
-          style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.logout,
+            pressed && styles.pressed,
+          ]}
         >
-          <Ionicons name="log-out-outline" size={21} color={colors.berry} />
-          <Text style={styles.logoutText}>Keluar dari akun</Text>
+          <Ionicons
+            name="log-out-outline"
+            size={21}
+            color={colors.berry}
+          />
+
+          <Text style={styles.logoutText}>
+            Keluar dari akun
+          </Text>
         </Pressable>
       </ScrollView>
+
+      <Modal
+        visible={isEditing}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsEditing(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.editCard}>
+            <Text style={styles.editTitle}>Edit profil</Text>
+            <Text style={styles.editSubtitle}>
+              Perubahan ini hanya berlaku selama aplikasi berjalan.
+            </Text>
+
+            <TextInput
+              accessibilityLabel="Nama"
+              value={draftName}
+              onChangeText={setDraftName}
+              placeholder="Nama lengkap"
+              placeholderTextColor={colors.muted}
+              style={styles.editInput}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+            <TextInput
+              accessibilityLabel="Email"
+              value={draftEmail}
+              onChangeText={setDraftEmail}
+              placeholder="Email"
+              placeholderTextColor={colors.muted}
+              style={styles.editInput}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+            />
+            <TextInput
+              accessibilityLabel="Nomor telepon"
+              value={draftPhone}
+              onChangeText={setDraftPhone}
+              placeholder="Nomor telepon"
+              placeholderTextColor={colors.muted}
+              style={styles.editInput}
+              keyboardType="phone-pad"
+              returnKeyType="done"
+            />
+
+            {editError ? (
+              <Text accessibilityRole="alert" style={styles.editError}>
+                {editError}
+              </Text>
+            ) : null}
+
+            <View style={styles.editActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setIsEditing(false)}
+                style={styles.cancelEditButton}
+              >
+                <Text style={styles.cancelEditText}>Batal</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={saveProfile}
+                style={styles.saveEditButton}
+              >
+                <Text style={styles.saveEditText}>Simpan</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNavContainer}>
@@ -159,8 +368,15 @@ export default function ProfilScreen() {
             accessibilityRole="button"
             accessibilityLabel="Beranda"
           >
-            <Store size={21} color="#999999" strokeWidth={1.8} />
-            <Text style={styles.tabLabelInactive}>Produk</Text>
+            <Store
+              size={21}
+              color="#999999"
+              strokeWidth={1.8}
+            />
+
+            <Text style={styles.tabLabelInactive}>
+              Produk
+            </Text>
           </Pressable>
 
           {/* Pesanan */}
@@ -170,8 +386,15 @@ export default function ProfilScreen() {
             accessibilityRole="button"
             accessibilityLabel="Pesanan"
           >
-            <ShoppingBag size={21} color="#999999" strokeWidth={1.8} />
-            <Text style={styles.tabLabelInactive}>Pesanan</Text>
+            <ShoppingBag
+              size={21}
+              color="#999999"
+              strokeWidth={1.8}
+            />
+
+            <Text style={styles.tabLabelInactive}>
+              Pesanan
+            </Text>
           </Pressable>
 
           {/* Profil aktif */}
@@ -181,8 +404,15 @@ export default function ProfilScreen() {
             accessibilityRole="button"
             accessibilityLabel="Profil"
           >
-            <User size={21} color={colors.berry} strokeWidth={1.8} />
-            <Text style={styles.tabLabelActive}>Profil</Text>
+            <User
+              size={21}
+              color={colors.berry}
+              strokeWidth={1.8}
+            />
+
+            <Text style={styles.tabLabelActive}>
+              Profil
+            </Text>
           </Pressable>
         </View>
 
@@ -288,11 +518,33 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 11,
     fontWeight: '700',
+  },
+
+  sectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 8,
   },
 
+  editProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: colors.palePink,
+  },
+
+  editProfileText: {
+    color: colors.berry,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
   contactList: {
-    marginBottom: 14,
+    marginBottom: 4,
   },
 
   contactRow: {
@@ -306,6 +558,23 @@ const styles = StyleSheet.create({
     color: colors.berry,
     fontSize: 15,
     flex: 1,
+  },
+
+  dataNote: {
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 14,
+  },
+
+  profileMessage: {
+    color: colors.success,
+    backgroundColor: colors.successBackground,
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    fontSize: 12,
+    marginBottom: 8,
   },
 
   // Menu akun
@@ -322,6 +591,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+
+  menuPressable: {
+    width: '100%',
   },
 
   menuDivider: {
@@ -410,6 +683,84 @@ const styles = StyleSheet.create({
 
   pressed: {
     opacity: 0.7,
+  },
+
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(40, 20, 28, 0.4)',
+    padding: 24,
+  },
+
+  editCard: {
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    padding: 20,
+  },
+
+  editTitle: {
+    color: colors.berry,
+    fontFamily: 'serif',
+    fontSize: 23,
+    fontWeight: '700',
+  },
+
+  editSubtitle: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+
+  editInput: {
+    color: colors.berry,
+    fontSize: 14,
+    backgroundColor: colors.palePink,
+    borderWidth: 1,
+    borderColor: colors.pink,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    marginBottom: 10,
+  },
+
+  editError: {
+    color: colors.error,
+    fontSize: 12,
+    marginBottom: 10,
+  },
+
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+
+  cancelEditButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+
+  cancelEditText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  saveEditButton: {
+    backgroundColor: colors.berry,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+
+  saveEditText: {
+    color: colors.background,
+    fontSize: 13,
+    fontWeight: '700',
   },
 
   // Bottom Navigation
