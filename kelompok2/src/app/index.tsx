@@ -17,7 +17,7 @@ export default function LandingPageIndex() {
   return (
     <SafeAreaView style={styles.container}>
       <TouchableOpacity style={styles.content} activeOpacity={1} onPress={() => router.replace("/login")}>
-        <Image source={require("../../../assets/images/logo_racrafts.jpg.jpeg")} style={styles.logoImage} resizeMode="contain" />
+        <Image source={require("../../assets/images/logo_racrafts.jpg.jpeg")} style={styles.logoImage} resizeMode="contain" />
         <Text style={styles.brandTitle}>ra_scrafts.id</Text>
       </TouchableOpacity>
     </SafeAreaView>
