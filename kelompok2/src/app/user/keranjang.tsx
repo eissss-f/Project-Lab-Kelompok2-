@@ -96,7 +96,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
             onNavigateToCheckout();
         } else {
             try {
-                router.push('/checkout');
+                router.push('/user/checkout');
             } catch (e) {
                 console.log('Navigating to checkout...', e);
             }
@@ -485,7 +485,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                 }}>
                     {/* Tab 1: Produk (Active) */}
                     <button
-                        onClick={() => router.push('/Katalog')}
+                        onClick={() => router.push('/user/Katalog')}
                         style={{
                             border: 'none',
                             backgroundColor: '#FFF0F6',
@@ -507,7 +507,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
 
                     {/* Tab 2: Pesanan */}
                     <button
-                        onClick={() => router.push('/pesanan')}
+                        onClick={() => router.push('/user/pesanan')}
                         style={{
                             border: 'none',
                             background: 'none',
@@ -529,7 +529,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
 
                     {/* Tab 3: Profil */}
                     <button
-                        onClick={() => router.push('/profil')}
+                        onClick={() => router.push('/user/profil')}
                         style={{
                             border: 'none',
                             background: 'none',

@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import PageHeader from "@/components/PageHeader";
 
 const colors = {
   background: "#FFF8F0",
   berry: "#A83F68",
   pink: "#E8A6BD",
-  palePink: "#F7E6E6",
   muted: "#A17B84",
   line: "#EED7D8",
 };
@@ -18,22 +18,12 @@ export default function KeamananAkunScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header dengan tombol kembali ke profil */}
-        <View style={styles.header}>
-          <Pressable 
-            accessibilityRole="button" 
-            accessibilityLabel="Kembali ke Profil" 
-            onPress={() => router.replace("/user/profil")} 
-            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="arrow-back-outline" size={24} color={colors.berry} />
-          </Pressable>
-
-          <View style={styles.headerText}>
-            <Text style={styles.heading}>Keamanan akun</Text>
-            <Text style={styles.subtitle}>Informasi untuk menjaga akunmu tetap aman.</Text>
-          </View>
-        </View>
+        <PageHeader
+          title="Keamanan akun"
+          subtitle="Informasi untuk menjaga akunmu tetap aman."
+          onBack={() => router.replace("/user/profil")}
+          backAccessibilityLabel="Kembali ke Profil"
+        />
 
         {/* Kotak Informasi Keamanan */}
         <View style={styles.card}>
@@ -80,35 +70,6 @@ const styles = StyleSheet.create({
     paddingTop: 18, 
     paddingBottom: 40 
   },
-  header: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginBottom: 21 
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.palePink,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  headerText: { 
-    flex: 1 
-  },
-  heading: { 
-    color: colors.berry, 
-    fontFamily: "serif", 
-    fontSize: 27, 
-    fontWeight: "700", 
-    lineHeight: 34 
-  },
-  subtitle: { 
-    color: colors.muted, 
-    fontSize: 13, 
-    marginTop: 2 
-  },
   card: {
     borderWidth: 1,
     borderColor: colors.pink,
@@ -140,8 +101,5 @@ const styles = StyleSheet.create({
   divider: { 
     height: 1, 
     backgroundColor: colors.line 
-  },
-  pressed: { 
-    opacity: 0.7 
   },
 });

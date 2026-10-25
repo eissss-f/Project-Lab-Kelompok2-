@@ -162,12 +162,12 @@ export default function AkunAdminScreen() {
             <Text style={styles.navLabel}>Beranda</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/pesanan" as any)}>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/user/pesanan")}>
             <Ionicons name="bag-outline" size={19} color={COLORS.textMuted} />
             <Text style={styles.navLabel}>Pesanan</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/produk" as any)}>
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push("/user/Katalog")}>
             <MaterialCommunityIcons name="flower-outline" size={19} color={COLORS.textMuted} />
             <Text style={styles.navLabel}>Produk</Text>
           </TouchableOpacity>
