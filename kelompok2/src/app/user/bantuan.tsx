@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import PageHeader from '../components/PageHeader';
+import PageHeader from '@/components/PageHeader';
 
 const colors = {
   background: '#FFF8F0',
@@ -74,7 +74,7 @@ export default function BantuanScreen() {
 
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push('/pesanan')}
+          onPress={() => router.push('/user/pesanan')}
           style={({ pressed }) => [
             styles.ordersButton,
             pressed && styles.pressed,

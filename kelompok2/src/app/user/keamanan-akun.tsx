@@ -1,4 +1,4 @@
-import { ProfileInfoPage } from '../components/profile-info-page';
+import { ProfileInfoPage } from '@/components/profile-info-page';
 
 export default function KeamananAkunScreen() {
   return (

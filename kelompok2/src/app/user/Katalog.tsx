@@ -15,12 +15,6 @@ import { useRouter } from 'expo-router';
 import {
   Search,
   ShoppingCart,
-  Store,
-  ShoppingBag,
-  User,
-  Signal,
-  Wifi,
-  Battery,
   X,
 } from 'lucide-react-native';
 
@@ -87,7 +81,7 @@ const ALL_PRODUCTS: Product[] = [
     name: 'Buket Boneka Loopy Pink',
     price: 'Rp 210.000',
     category: 'Boneka',
-    imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 9,
@@ -115,12 +109,12 @@ export default function Katalog() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF8F0" />
 
+      {/* Header Toko */}
       <View style={styles.storeHeader}>
         <Text style={styles.brandTitle}>ra_scrafts.id</Text>
-        {/* Tombol Ikon Keranjang di Header dihubungkan ke halaman keranjang */}
         <TouchableOpacity 
           style={styles.cartButton}
-          onPress={() => router.push('/keranjang')}
+          onPress={() => router.push('/user/keranjang')}
         >
           <ShoppingCart size={20} color="#A83F68" strokeWidth={1.8} />
         </TouchableOpacity>
@@ -132,7 +126,7 @@ export default function Katalog() {
           <Text style={styles.subheadline}>Buket penuh makna, untuk mereka yang istimewa.</Text>
         </View>
 
-        {/* Pencarian */}
+        {/* Kotak Pencarian */}
         <View style={styles.searchContainer}>
           <Search size={19} color="#A83F68" strokeWidth={1.8} />
           <TextInput
@@ -166,89 +160,53 @@ export default function Katalog() {
         </ScrollView>
 
         {/* Grid Produk */}
-       
-<FlatList
-  data={filteredProducts}
-  keyExtractor={(item) => item.id.toString()}
-  numColumns={2}
-  columnWrapperStyle={styles.productRow}
-  scrollEnabled={false}
-  renderItem={({ item }) => (
-    <TouchableOpacity
-      style={styles.productCard}
-      onPress={() =>
-        router.push({
-          pathname: '/DetailProduk',
-          params: {
-            name: item.name,
-            price: item.price,
-            imageUrl: item.imageUrl,
-          },
-        })
-      }
-    >
-      <Image
-        source={{ uri: item.imageUrl }}
-        style={styles.productImage}
-        resizeMode="cover"
-      />
-      <Text style={styles.productName} numberOfLines={2}>
-        {item.name}
-      </Text>
-      <Text style={styles.productPrice}>{item.price}</Text>
-    </TouchableOpacity>
-  )}
-  ListEmptyComponent={
-    <Text style={styles.boutiqueNote}>
-      Produk tidak ditemukan.
-    </Text>
-  }
-/>
+        <FlatList
+          data={filteredProducts}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={2}
+          columnWrapperStyle={styles.productRow}
+          scrollEnabled={false}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.productCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/user/DetailProduk',
+                  params: {
+                    name: item.name,
+                    price: item.price,
+                    imageUrl: item.imageUrl,
+                  },
+                })
+              }
+            >
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.productImage}
+                resizeMode="cover"
+              />
+              <Text style={styles.productName} numberOfLines={2}>
+                {item.name}
+              </Text>
+              <Text style={styles.productPrice}>{item.price}</Text>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            <Text style={styles.boutiqueNote}>
+              Produk tidak ditemukan.
+            </Text>
+          }
+        />
 
         <Text style={styles.boutiqueNote}>Dirangkai dengan hati, diberikan dengan cinta.</Text>
       </ScrollView>
-
-      {/* Bottom Nav yang Responsif dan Terhubung */}
-      <View style={styles.bottomNavContainer}>
-        <View style={styles.navTabs}>
-          {/* Menu Produk (Aktif saat ini) */}
-          <TouchableOpacity 
-            style={styles.tabActive}
-            onPress={() => router.push('/Katalog')}
-          >
-            <Store size={21} color="#A83F68" strokeWidth={1.8} />
-            <Text style={styles.tabLabelActive}>Produk</Text>
-          </TouchableOpacity>
-
-          {/* Menu Pesanan dihubungkan ke halaman pesanan */}
-          <TouchableOpacity 
-            style={styles.tabInactive}
-            onPress={() => router.push('/pesanan')}
-          >
-            <ShoppingBag size={21} color="#999999" strokeWidth={1.8} />
-            <Text style={styles.tabLabelInactive}>Pesanan</Text>
-          </TouchableOpacity>
-
-          {/* Menu Profil dihubungkan ke halaman profil */}
-          <TouchableOpacity 
-            style={styles.tabInactive}
-            onPress={() => router.push('/profil')}
-          >
-            <User size={21} color="#999999" strokeWidth={1.8} />
-            <Text style={styles.tabLabelInactive}>Profil</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.homeIndicator} />
-      </View>
+      {/* Catatan: Bagian bottomNavContainer sudah dihapus dari sini karena sekarang ditangani sepenuhnya oleh _layout.tsx */}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF8F0' },
-  statusBar: { height: 44, paddingHorizontal: 24, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statusTime: { fontWeight: '600', fontSize: 14, color: '#A83F68' },
-  deviceStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   storeHeader: { height: 60, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   brandTitle: { fontWeight: '600', fontSize: 27, color: '#A83F68' },
   cartButton: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: '#EBCBD3', justifyContent: 'center', alignItems: 'center' },
@@ -263,25 +221,16 @@ const styles = StyleSheet.create({
   categoryChipActive: { backgroundColor: '#E8A6BD' },
   categoryText: { fontSize: 12, color: '#A83F68' },
   categoryTextActive: { fontWeight: '600' },
-  
-productRow: {
-  justifyContent: 'space-between',
-  marginBottom: 14,
-},
-
-productCard: {
-  width: '48%',
-  height: 214,
-},
+  productRow: {
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  productCard: {
+    width: '48%',
+    height: 214,
+  },
   productImage: { width: '100%', height: 154, borderRadius: 14, backgroundColor: '#EBCBD3' },
   productName: { fontWeight: '500', fontSize: 12, color: '#A83F68', marginTop: 4 },
   productPrice: { fontWeight: '600', fontSize: 12, color: '#A83F68' },
   boutiqueNote: { fontSize: 9, color: '#A83F68', textAlign: 'center', marginTop: 20 },
-  bottomNavContainer: { height: 84, borderTopWidth: 1, borderTopColor: '#F1D2DC', backgroundColor: '#FFF8F0', alignItems: 'center', paddingTop: 8, paddingHorizontal: 20 },
-  navTabs: { flexDirection: 'row', width: '100%', height: 48, gap: 16 },
-  tabActive: { flex: 1, height: 48, backgroundColor: '#FFF0F6', borderRadius: 4, justifyContent: 'center', alignItems: 'center', gap: 3 },
-  tabInactive: { flex: 1, height: 48, justifyContent: 'center', alignItems: 'center', gap: 3 },
-  tabLabelActive: { fontSize: 10, color: '#A83F68' },
-  tabLabelInactive: { fontSize: 10, color: '#999999' },
-  homeIndicator: { width: 120, height: 4, backgroundColor: '#A83F68', borderRadius: 2, marginTop: 12 },
 });
