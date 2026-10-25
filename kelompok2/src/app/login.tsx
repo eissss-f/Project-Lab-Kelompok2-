@@ -10,17 +10,20 @@ import {
   ScrollView,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    const emailTrim = email.trim();
+  const handleLogin = async () => {
+    const emailTrim = email.trim().toLowerCase();
 
     if (!emailTrim || !password) {
       Alert.alert('Login Gagal', 'Email dan password wajib diisi.');
@@ -39,8 +42,33 @@ export default function LoginScreen() {
       return;
     }
 
-    // Langsung masuk katalog tanpa database
-    router.navigate('/Katalog');
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: emailTrim,
+        password,
+      });
+
+      if (error) {
+        Alert.alert(
+          'Login Gagal',
+          error.message
+        );
+        return;
+      }
+
+      router.replace('/katalog');
+    } catch (error) {
+      Alert.alert(
+        'Terjadi Kesalahan',
+        error instanceof Error
+          ? error.message
+          : 'Tidak dapat terhubung ke Supabase. Periksa koneksi internet.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,7 +100,6 @@ export default function LoginScreen() {
               color="#A83F68"
               style={styles.inputIcon}
             />
-
             <TextInput
               style={styles.input}
               placeholder="Email"
@@ -92,7 +119,6 @@ export default function LoginScreen() {
               color="#A83F68"
               style={styles.inputIcon}
             />
-
             <TextInput
               style={styles.input}
               placeholder="Password"
@@ -102,7 +128,6 @@ export default function LoginScreen() {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
             />
-
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
               activeOpacity={0.7}
@@ -116,18 +141,22 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
             activeOpacity={0.8}
+            disabled={loading}
           >
-            <Text style={styles.buttonText}>Masuk</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFF8F0" />
+            ) : (
+              <Text style={styles.buttonText}>Masuk</Text>
+            )}
           </TouchableOpacity>
 
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>
               Belum punya akun?{' '}
             </Text>
-
             <TouchableOpacity
               onPress={() => router.push('/register')}
               activeOpacity={0.7}
@@ -212,6 +241,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     marginBottom: 20,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     color: '#FFF8F0',

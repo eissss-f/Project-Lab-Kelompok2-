@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -10,9 +9,11 @@ import {
   ScrollView,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
 
 export default function RegisterScreen() {
   const [namaLengkap, setNamaLengkap] = useState('');
@@ -21,55 +22,106 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agree, setAgree] = useState(false);
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
+    setErrorMessage('');
+
     const namaTrim = namaLengkap.trim();
-    const emailTrim = email.trim();
+    const emailTrim = email.trim().toLowerCase();
 
-    if (!namaTrim || !emailTrim || !password || !confirmPassword) {
-      Alert.alert(
-        'Pendaftaran Gagal',
-        'Nama, email, password, dan konfirmasi password wajib diisi.'
-      );
+    if (!namaTrim) {
+      setErrorMessage('Nama lengkap wajib diisi.');
+      return;
+    }
+
+    if (!emailTrim) {
+      setErrorMessage('Email wajib diisi.');
       return;
     }
 
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
-
     if (!emailValid) {
-      Alert.alert('Pendaftaran Gagal', 'Format email tidak valid.');
+      setErrorMessage('Format email tidak valid.');
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage('Password wajib diisi.');
       return;
     }
 
     if (password.length < 8) {
-      Alert.alert(
-        'Pendaftaran Gagal',
-        'Password minimal harus 8 karakter.'
-      );
+      setErrorMessage('Password minimal harus 8 karakter.');
+      return;
+    }
+
+    if (!confirmPassword) {
+      setErrorMessage('Konfirmasi password wajib diisi.');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert(
-        'Pendaftaran Gagal',
-        'Password dan konfirmasi password tidak sama.'
-      );
+      setErrorMessage('Password dan konfirmasi password tidak sama.');
       return;
     }
 
     if (!agree) {
-      Alert.alert(
-        'Pendaftaran Gagal',
-        'Silakan setujui Syarat & Ketentuan terlebih dahulu.'
-      );
+      setErrorMessage('Silakan setujui Syarat & Ketentuan terlebih dahulu.');
       return;
     }
 
-    // Langsung masuk katalog tanpa database
-    router.navigate('/Katalog');
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.auth.signUp({
+        email: emailTrim,
+        password,
+        options: {
+          data: {
+            full_name: namaTrim,
+            phone: nomorHp.trim(),
+          },
+        },
+      });
+
+      if (error) {
+        setErrorMessage(`Pendaftaran gagal: ${error.message}`);
+        return;
+      }
+
+      // 1. Jika sesi login langsung ada (Confirm Email Nonaktif)
+      if (data.session || data.user) {
+        // Beri jeda 300ms agar token/sesi tersimpan sempurna di storage browser/device
+        setTimeout(() => {
+          router.push('/Katalog');
+        }, 300);
+        return;
+      }
+
+      // 2. Jika Confirm Email di Supabase masih aktif
+      Alert.alert(
+        'Pendaftaran Berhasil',
+        'Silakan cek inbox email kamu untuk konfirmasi akun terlebih dahulu.',
+        [
+          {
+            text: 'Ke Halaman Login',
+            onPress: () => router.push('/login'),
+          },
+        ]
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kesalahan saat menghubungi server.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -93,8 +145,14 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.formContainer}>
-          <Text style={styles.label}>Nama Lengkap</Text>
+          {errorMessage ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={16} color="#D9534F" />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
 
+          <Text style={styles.label}>Nama Lengkap</Text>
           <View style={styles.inputWrapper}>
             <Ionicons
               name="person-outline"
@@ -102,7 +160,6 @@ export default function RegisterScreen() {
               color="#A83F68"
               style={styles.inputIcon}
             />
-
             <TextInput
               style={styles.input}
               placeholder="Nama lengkap"
@@ -114,7 +171,6 @@ export default function RegisterScreen() {
           </View>
 
           <Text style={styles.label}>Email</Text>
-
           <View style={styles.inputWrapper}>
             <Ionicons
               name="mail-outline"
@@ -122,7 +178,6 @@ export default function RegisterScreen() {
               color="#A83F68"
               style={styles.inputIcon}
             />
-
             <TextInput
               style={styles.input}
               placeholder="Alamat email"
@@ -136,7 +191,6 @@ export default function RegisterScreen() {
           </View>
 
           <Text style={styles.label}>Nomor HP (opsional)</Text>
-
           <View style={styles.inputWrapper}>
             <Ionicons
               name="call-outline"
@@ -144,7 +198,6 @@ export default function RegisterScreen() {
               color="#A83F68"
               style={styles.inputIcon}
             />
-
             <TextInput
               style={styles.input}
               placeholder="Nomor HP"
@@ -156,7 +209,6 @@ export default function RegisterScreen() {
           </View>
 
           <Text style={styles.label}>Password</Text>
-
           <View style={styles.inputWrapper}>
             <Ionicons
               name="lock-closed-outline"
@@ -164,7 +216,6 @@ export default function RegisterScreen() {
               color="#A83F68"
               style={styles.inputIcon}
             />
-
             <TextInput
               style={styles.input}
               placeholder="Password minimal 8 karakter"
@@ -174,7 +225,6 @@ export default function RegisterScreen() {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
             />
-
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
               activeOpacity={0.7}
@@ -188,7 +238,6 @@ export default function RegisterScreen() {
           </View>
 
           <Text style={styles.label}>Konfirmasi Password</Text>
-
           <View style={styles.inputWrapper}>
             <Ionicons
               name="lock-closed-outline"
@@ -196,7 +245,6 @@ export default function RegisterScreen() {
               color="#A83F68"
               style={styles.inputIcon}
             />
-
             <TextInput
               style={styles.input}
               placeholder="Ulangi password"
@@ -206,19 +254,12 @@ export default function RegisterScreen() {
               secureTextEntry={!showConfirmPassword}
               autoCapitalize="none"
             />
-
             <TouchableOpacity
-              onPress={() =>
-                setShowConfirmPassword(!showConfirmPassword)
-              }
+              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               activeOpacity={0.7}
             >
               <Ionicons
-                name={
-                  showConfirmPassword
-                    ? 'eye-outline'
-                    : 'eye-off-outline'
-                }
+                name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
                 size={18}
                 color="#A83F68"
               />
@@ -235,21 +276,23 @@ export default function RegisterScreen() {
               size={18}
               color="#A83F68"
             />
-
             <Text style={styles.checkboxText}>
               Saya setuju dengan{' '}
-              <Text style={styles.boldText}>
-                Syarat & Ketentuan
-              </Text>
+              <Text style={styles.boldText}>Syarat & Ketentuan</Text>
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleRegister}
             activeOpacity={0.8}
+            disabled={loading}
           >
-            <Text style={styles.buttonText}>Daftar</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFF8F0" />
+            ) : (
+              <Text style={styles.buttonText}>Daftar</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -257,7 +300,9 @@ export default function RegisterScreen() {
             onPress={() => router.push('/login')}
             activeOpacity={0.7}
           >
-            <Text style={styles.loginLinkText}>Sudah punya akun? Masuk</Text>
+            <Text style={styles.loginLinkText}>
+              Sudah punya akun? Masuk
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -286,23 +331,34 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontFamily: 'Playfair Display',
     fontWeight: '700',
     color: '#A83F68',
     marginBottom: 4,
   },
   headerSub: {
     fontSize: 12,
-    fontFamily: 'Poppins',
     color: '#A83F68',
     opacity: 0.7,
   },
   formContainer: {
     width: '100%',
   },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FADBD8',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#D9534F',
+    fontSize: 11,
+    marginLeft: 6,
+    flex: 1,
+  },
   label: {
     fontSize: 12,
-    fontFamily: 'Poppins',
     fontWeight: '600',
     color: '#A83F68',
     marginBottom: 4,
@@ -324,7 +380,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 13,
-    fontFamily: 'Poppins',
     color: '#A83F68',
   },
   checkboxRow: {
@@ -335,7 +390,6 @@ const styles = StyleSheet.create({
   },
   checkboxText: {
     fontSize: 11,
-    fontFamily: 'Poppins',
     color: '#A83F68',
     marginLeft: 8,
   },
@@ -350,10 +404,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   buttonText: {
     color: '#FFF8F0',
     fontSize: 14,
-    fontFamily: 'Poppins',
     fontWeight: '700',
   },
   loginLink: {
@@ -361,7 +417,6 @@ const styles = StyleSheet.create({
   },
   loginLinkText: {
     fontSize: 13,
-    fontFamily: 'Poppins',
     fontWeight: '600',
     color: '#A83F68',
   },
