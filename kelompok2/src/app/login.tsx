@@ -40,7 +40,7 @@ export default function LoginScreen() {
     }
 
     // Langsung masuk katalog tanpa database
-    router.navigate('/Katalog');
+    router.navigate('/user/Katalog');
   };
 
   return (

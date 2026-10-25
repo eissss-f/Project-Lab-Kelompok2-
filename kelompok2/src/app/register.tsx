@@ -69,7 +69,7 @@ export default function RegisterScreen() {
     }
 
     // Langsung masuk katalog tanpa database
-    router.navigate('/Katalog');
+    router.navigate('/login');
   };
 
   return (
