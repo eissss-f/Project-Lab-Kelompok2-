@@ -24,10 +24,10 @@ export default function AppTabs() {
           <TabTrigger name="index" href="/" asChild>
             <TabButton icon="storefront-outline">Produk</TabButton>
           </TabTrigger>
-          <TabTrigger name="pesanan" href="/pesanan" asChild>
+          <TabTrigger name="pesanan" href="/user/pesanan" asChild>
             <TabButton icon="bag-handle-outline">Pesanan</TabButton>
           </TabTrigger>
-          <TabTrigger name="profil" href="/profil" asChild>
+          <TabTrigger name="profil" href="/user/profil" asChild>
             <TabButton icon="person-outline">Profil</TabButton>
           </TabTrigger>
         </CustomTabList>

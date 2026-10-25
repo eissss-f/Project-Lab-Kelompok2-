@@ -7,8 +7,11 @@ export default function AppLayout() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Sembunyikan bottom nav di halaman DetailProduk atau keranjang
-  const hideBottomNav = pathname.includes("/DetailProduk") || pathname.includes("/keranjang");
+  const hideBottomNav =
+    pathname.includes("/DetailProduk") ||
+    pathname.includes("/keranjang") ||
+    pathname === "/user/keamanan-akun" ||
+    pathname === "/user/bantuan";
 
   return (
     <View style={styles.container}>
