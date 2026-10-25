@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -12,13 +13,15 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const emailTrim = email.trim();
 
     if (!emailTrim || !password) {
@@ -38,8 +41,38 @@ export default function LoginScreen() {
       return;
     }
 
-    // Langsung masuk katalog tanpa database
-    router.replace('/user/Katalog');
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: emailTrim,
+        password,
+      });
+
+      if (error) {
+        Alert.alert('Login Gagal', error.message);
+        return;
+      }
+
+      if (!data.session || !data.user) {
+        Alert.alert(
+          'Login Gagal',
+          'Sesi login tidak berhasil dibuat. Silakan coba lagi.'
+        );
+        return;
+      }
+
+      router.replace('/user/Katalog');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kesalahan saat login.';
+
+      Alert.alert('Login Gagal', message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -81,6 +114,7 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!loading}
             />
           </View>
 
@@ -100,11 +134,13 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              editable={!loading}
             />
 
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
               activeOpacity={0.7}
+              disabled={loading}
             >
               <Ionicons
                 name={showPassword ? 'eye-outline' : 'eye-off-outline'}
@@ -115,11 +151,17 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.button}
+            style={[
+              styles.button,
+              loading && styles.buttonDisabled,
+            ]}
             onPress={handleLogin}
             activeOpacity={0.8}
+            disabled={loading}
           >
-            <Text style={styles.buttonText}>Masuk</Text>
+            <Text style={styles.buttonText}>
+              {loading ? 'Memproses...' : 'Masuk'}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.footerRow}>
@@ -130,6 +172,7 @@ export default function LoginScreen() {
             <TouchableOpacity
               onPress={() => router.push('/register')}
               activeOpacity={0.7}
+              disabled={loading}
             >
               <Text style={styles.linkText}>Daftar</Text>
             </TouchableOpacity>
@@ -212,6 +255,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 20,
   },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
   buttonText: {
     color: '#FFF8F0',
     fontSize: 15,
@@ -234,4 +280,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#A83F68',
   },
-}); 
+});
