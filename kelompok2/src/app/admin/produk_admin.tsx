@@ -1,20 +1,37 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, Modal, TextInput, useWindowDimensions, Alert } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  SafeAreaView,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { supabase } from "../../../lib/supabase";
 
 const COLORS = {
-  bgApp: "#FFF8F0",
+  bg: "#FFF8F0",
   primary: "#A83F68",
-  accentPink: "#E8A6BD",
+  pink: "#E8A6BD",
   lightPink: "#FBEAF0",
   border: "#F2E4E5",
-  textDark: "#49343C",
-  textMuted: "#806A72",
+  dark: "#49343C",
+  muted: "#806A72",
   white: "#FFFFFF",
-  overlay: "rgba(73, 52, 60, 0.4)",
 };
+
+const VARIANTS = ["S", "M", "XL"] as const;
+type SizeName = (typeof VARIANTS)[number];
 
 interface SizeDetail {
   price: string;
@@ -22,380 +39,669 @@ interface SizeDetail {
 }
 
 interface ProductItem {
-  id: string;
-  category: string;
+  id: number;
   title: string;
+  category: string;
   photo: string;
-  sizes: {
-    S: SizeDetail;
-    M: SizeDetail;
-    XL: SizeDetail;
-  };
+  description: string;
+  price: number;
+  stock: number;
+  sizes: Record<SizeName, SizeDetail>;
 }
 
-const CATEGORY_OPTIONS = ["Buket Uang", "Buket Bunga", "Buket Boneka", "Buket Snack"];
+const EMPTY_SIZES: Record<SizeName, SizeDetail> = {
+  S: { price: "", stock: "" },
+  M: { price: "", stock: "" },
+  XL: { price: "", stock: "" },
+};
+
+const CATEGORIES = [
+  "Buket Uang",
+  "Buket Bunga",
+  "Buket Boneka",
+  "Buket Snack",
+];
+
+const DEFAULT_PHOTO =
+  "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=600";
+
+const PRODUCT_TABLE = "products";
+const VARIANT_TABLE = "product_variants";
+
+// Jika nama kolom timestamp-mu berbeda, sesuaikan di bawah.
+const CREATED_COLUMN = "created_ad";
+const UPDATED_COLUMN = "update_ad";
+const showMessage = (title: string, message: string) => {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
+const rupiah = (value: number | string) =>
+  "Rp" + Number(value || 0).toLocaleString("id-ID");
+
+const emptyProduct = () => ({
+  title: "",
+  category: CATEGORIES[1],
+  photo: DEFAULT_PHOTO,
+  description: "",
+  sizes: {
+    S: { ...EMPTY_SIZES.S },
+    M: { ...EMPTY_SIZES.M },
+    XL: { ...EMPTY_SIZES.XL },
+  },
+});
 
 export default function KelolaProdukScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
-  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState<boolean>(false);
-  
-  const isSmallScreen = width < 360;
-  const tabFontSize = isSmallScreen ? 10 : 11;
 
-  // Form States
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [bouquetTitle, setBouquetTitle] = useState<string>("");
-  const [bouquetCategory, setBouquetCategory] = useState<string>("");
-  const [bouquetPhoto, setBouquetPhoto] = useState<string>("https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300");
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // States Harga & Stok per Ukuran (S, M, XL)
-  const [sizeS, setSizeS] = useState<SizeDetail>({ price: "", stock: "" });
-  const [sizeM, setSizeM] = useState<SizeDetail>({ price: "", stock: "" });
-  const [sizeXL, setSizeXL] = useState<SizeDetail>({ price: "", stock: "" });
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState(CATEGORIES[1]);
+  const [photo, setPhoto] = useState(DEFAULT_PHOTO);
+  const [description, setDescription] = useState("");
+  const [sizes, setSizes] =
+    useState<Record<SizeName, SizeDetail>>(EMPTY_SIZES);
 
-  // Daftar Produk Utama
-  const [products, setProducts] = useState<ProductItem[]>([
-    {
-      id: "1",
-      category: "Buket Bunga",
-      title: "Pink Romance",
-      photo: "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
-      sizes: {
-        S: { price: "120.000", stock: "10" },
-        M: { price: "185.000", stock: "12" },
-        XL: { price: "250.000", stock: "5" },
-      },
-    },
-    {
-      id: "2",
-      category: "Buket Bunga",
-      title: "Peach Bloom",
-      photo: "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=300",
-      sizes: {
-        S: { price: "110.000", stock: "8" },
-        M: { price: "165.000", stock: "8" },
-        XL: { price: "220.000", stock: "3" },
-      },
-    },
-  ]);
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
 
-  // Fungsi Pilih Foto dari HP
-  const handlePickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    try {
+      const { data, error } = await supabase
+        .from(PRODUCT_TABLE)
+        .select("*")
+        .order("id", { ascending: false });
 
-    if (!permissionResult.granted) {
-      Alert.alert("Izin Ditolak", "Izin akses galeri dibutuhkan untuk memilih foto buket.");
-      return;
+      if (error) throw error;
+
+      const productRows = data ?? [];
+
+      const ids = productRows.map((p: any) => p.id);
+      let variantRows: any[] = [];
+
+      if (ids.length > 0) {
+        const { data: variants, error: variantError } = await supabase
+          .from(VARIANT_TABLE)
+          .select("*")
+          .in("product_id", ids);
+
+        if (variantError) throw variantError;
+        variantRows = variants ?? [];
+      }
+
+      const result: ProductItem[] = productRows.map((p: any) => {
+        const productVariants = variantRows.filter(
+          (v: any) => String(v.product_id) === String(p.id)
+        );
+
+        const productSizes = {
+          S: { ...EMPTY_SIZES.S },
+          M: { ...EMPTY_SIZES.M },
+          XL: { ...EMPTY_SIZES.XL },
+        };
+
+        productVariants.forEach((v: any) => {
+          const normalized = String(v.size_name).trim().toUpperCase();
+
+          if (VARIANTS.includes(normalized as SizeName)) {
+            productSizes[normalized as SizeName] = {
+              price: String(v.price ?? ""),
+              stock: String(v.stock ?? ""),
+            };
+          }
+        });
+
+        return {
+          id: p.id,
+          title: p.title ?? "",
+          category: p.category ?? CATEGORIES[1],
+          photo: p.photo || DEFAULT_PHOTO,
+          description: p.description ?? "",
+          price: Number(p.price ?? 0),
+          stock: Number(p.stock ?? 0),
+          sizes: productSizes,
+        };
+      });
+
+      setProducts(result);
+    } catch (error: any) {
+      Alert.alert(
+        "Gagal Memuat Produk",
+        error?.message ?? "Periksa koneksi Supabase dan nama tabel."
+      );
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
-    if (!result.canceled && result.assets[0].uri) {
-      setBouquetPhoto(result.assets[0].uri);
-    }
-  };
+  const openModal = (product?: ProductItem) => {
+    setDropdownOpen(false);
 
-  // Buka Modal (Tambah Baru / Edit)
-  const handleOpenModal = (item?: ProductItem) => {
-    setIsCategoryDropdownOpen(false);
-    if (item) {
-      setEditingId(item.id);
-      setBouquetTitle(item.title);
-      setBouquetCategory(item.category);
-      setBouquetPhoto(item.photo);
-      setSizeS(item.sizes.S);
-      setSizeM(item.sizes.M);
-      setSizeXL(item.sizes.XL);
+    if (product) {
+      setEditingId(product.id);
+      setTitle(product.title);
+      setCategory(product.category);
+      setPhoto(product.photo);
+      setDescription(product.description);
+      setSizes({
+        S: { ...product.sizes.S },
+        M: { ...product.sizes.M },
+        XL: { ...product.sizes.XL },
+      });
     } else {
       setEditingId(null);
-      setBouquetTitle("");
-      setBouquetCategory(""); // Dikosongkan agar placeholder muncul
-      setBouquetPhoto("https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300");
-      setSizeS({ price: "", stock: "" });
-      setSizeM({ price: "", stock: "" });
-      setSizeXL({ price: "", stock: "" });
+      const empty = emptyProduct();
+      setTitle(empty.title);
+      setCategory(empty.category);
+      setPhoto(empty.photo);
+      setDescription(empty.description);
+      setSizes(empty.sizes);
     }
-    setIsModalVisible(true);
+
+    setModalVisible(true);
   };
 
-  // Simpan Produk
-  const handleSaveProduct = () => {
-    if (!bouquetTitle.trim()) {
-      Alert.alert("Peringatan", "Nama buket harus diisi.");
+  const pickImage = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Izin Dibutuhkan",
+          "Izinkan akses galeri untuk memilih foto."
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]?.uri) {
+        setPhoto(result.assets[0].uri);
+      }
+    } catch (error: any) {
+      Alert.alert("Gagal Memilih Foto", error?.message);
+    }
+  };
+
+  const updateSize = (
+    sizeName: SizeName,
+    field: keyof SizeDetail,
+    value: string
+  ) => {
+    setSizes((previous) => ({
+      ...previous,
+      [sizeName]: {
+        ...previous[sizeName],
+        [field]: value,
+      },
+    }));
+  };
+
+  
+const saveProduct = async () => {
+  if (!title.trim()) {
+    showMessage("Peringatan", "Nama buket wajib diisi.");
+    return;
+  }
+
+  if (!category) {
+    showMessage("Peringatan", "Pilih kategori buket.");
+    return;
+  }
+
+  for (const sizeName of VARIANTS) {
+    const variant = sizes[sizeName];
+
+    if (
+      variant.price.trim() !== "" &&
+      (!Number.isFinite(Number(variant.price)) ||
+        Number(variant.price) < 0)
+    ) {
+      showMessage(
+        "Peringatan",
+        `Harga ukuran ${sizeName} tidak valid.`
+      );
       return;
     }
 
-    if (editingId) {
-      // Edit Produk
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === editingId
-            ? {
-                ...p,
-                title: bouquetTitle,
-                category: bouquetCategory || "Buket Bunga",
-                photo: bouquetPhoto,
-                sizes: { S: sizeS, M: sizeM, XL: sizeXL },
-              }
-            : p
-        )
+    if (
+      variant.stock.trim() !== "" &&
+      (!Number.isInteger(Number(variant.stock)) ||
+        Number(variant.stock) < 0)
+    ) {
+      showMessage(
+        "Peringatan",
+        `Stok ukuran ${sizeName} tidak valid.`
       );
+      return;
+    }
+  }
+
+  const validVariants = VARIANTS.filter(
+    (s) =>
+      sizes[s].price.trim() !== "" ||
+      sizes[s].stock.trim() !== ""
+  );
+
+  if (validVariants.length === 0) {
+    showMessage(
+      "Peringatan",
+      "Isi harga dan stok minimal satu ukuran buket."
+    );
+    return;
+  }
+
+  for (const s of validVariants) {
+    if (
+      sizes[s].price.trim() === "" ||
+      sizes[s].stock.trim() === ""
+    ) {
+      showMessage(
+        "Peringatan",
+        `Isi harga dan stok ukuran ${s}, atau kosongkan keduanya.`
+      );
+      return;
+    }
+  }
+
+  const totalStock = validVariants.reduce(
+    (sum, s) => sum + Number(sizes[s].stock || 0),
+    0
+  );
+
+  const prices = validVariants.map(
+    (s) => Number(sizes[s].price)
+  );
+
+  const basePrice = Math.min(...prices);
+
+  setSaving(true);
+
+  try {
+    const productPayload = {
+      title: title.trim(),
+      category,
+      photo,
+      description: description.trim(),
+      price: basePrice,
+      stock: totalStock,
+    };
+
+    let productId = editingId;
+
+    if (editingId !== null) {
+      const { data, error } = await supabase
+        .from(PRODUCT_TABLE)
+        .update(productPayload)
+        .eq("id", editingId)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      productId = data.id;
     } else {
-      // Tambah Produk Baru
-      const newProduct: ProductItem = {
-        id: Date.now().toString(),
-        category: bouquetCategory || "Buket Bunga",
-        title: bouquetTitle,
-        photo: bouquetPhoto,
-        sizes: { S: sizeS, M: sizeM, XL: sizeXL },
-      };
-      setProducts((prev) => [newProduct, ...prev]);
+      const { data, error } = await supabase
+        .from(PRODUCT_TABLE)
+        .insert(productPayload)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      productId = data.id;
     }
 
-    setIsModalVisible(false);
+    if (productId === null) {
+      throw new Error("ID produk tidak ditemukan setelah disimpan.");
+    }
+
+    const { error: deleteVariantError } = await supabase
+      .from(VARIANT_TABLE)
+      .delete()
+      .eq("product_id", productId);
+
+    if (deleteVariantError) throw deleteVariantError;
+
+    const variantPayload = validVariants.map((s) => ({
+      product_id: productId,
+      size_name: s,
+      price: Number(sizes[s].price),
+      stock: Number(sizes[s].stock),
+    }));
+
+    const { error: insertVariantError } = await supabase
+      .from(VARIANT_TABLE)
+      .insert(variantPayload);
+
+    if (insertVariantError) {
+      throw new Error(
+        "Produk utama tersimpan, tetapi varian gagal disimpan: " +
+          insertVariantError.message
+      );
+    }
+
+    setModalVisible(false);
+    await loadProducts();
+
+    showMessage(
+      "Berhasil",
+      editingId !== null
+        ? "Produk berhasil diperbarui."
+        : "Produk baru berhasil ditambahkan."
+    );
+  } catch (error: any) {
+    console.error("Gagal menyimpan produk:", error);
+
+    showMessage(
+      "Gagal Menyimpan",
+      error?.message ?? "Terjadi kesalahan saat menyimpan produk."
+    );
+  } finally {
+    setSaving(false);
+  }
+};
+
+
+  const deleteProduct = (product: ProductItem) => {
+    Alert.alert(
+      "Hapus Produk",
+      `Yakin ingin menghapus "${product.title}"?`,
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Hapus",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Hapus varian dahulu jika foreign key tidak memakai CASCADE.
+              const { error: variantError } = await supabase
+                .from(VARIANT_TABLE)
+                .delete()
+                .eq("product_id", product.id);
+
+              if (variantError) throw variantError;
+
+              const { error } = await supabase
+                .from(PRODUCT_TABLE)
+                .delete()
+                .eq("id", product.id);
+
+              if (error) throw error;
+
+              await loadProducts();
+              Alert.alert("Berhasil", "Produk berhasil dihapus.");
+            } catch (error: any) {
+              Alert.alert(
+                "Gagal Menghapus",
+                error?.message ?? "Produk tidak bisa dihapus."
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
-  // Hapus Produk
-  const handleDeleteProduct = (id: string) => {
-    Alert.alert("Konfirmasi", "Apakah kamu yakin ingin menghapus buket ini?", [
-      { text: "Batal", style: "cancel" },
-      {
-        text: "Hapus",
-        style: "destructive",
-        onPress: () => setProducts((prev) => prev.filter((p) => p.id !== id)),
-      },
-    ]);
-  };
+  const renderSizeForm = (sizeName: SizeName) => (
+    <View style={styles.sizeBox} key={sizeName}>
+      <Text style={styles.sizeHeading}>Ukuran {sizeName}</Text>
+
+      <View style={styles.inputRow}>
+        <View style={styles.flex}>
+          <Text style={styles.smallLabel}>Harga (Rp)</Text>
+          <TextInput
+            style={styles.smallInput}
+            value={sizes[sizeName].price}
+            onChangeText={(v) => updateSize(sizeName, "price", v)}
+            keyboardType="numeric"
+            placeholder="Contoh: 120000"
+            placeholderTextColor={COLORS.muted}
+          />
+        </View>
+
+        <View style={styles.flex}>
+          <Text style={styles.smallLabel}>Stok</Text>
+          <TextInput
+            style={styles.smallInput}
+            value={sizes[sizeName].stock}
+            onChangeText={(v) => updateSize(sizeName, "stock", v)}
+            keyboardType="numeric"
+            placeholder="0"
+            placeholderTextColor={COLORS.muted}
+          />
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.headerContainer}>
-        <View style={styles.brandAndAccount}>
-          <Text style={styles.appTitle}>ra_scrafts.id Admin</Text>
-          <TouchableOpacity style={styles.adminProfile} onPress={() => router.push("/admin/profil_admin" as any)}>
-            <Ionicons name="person-outline" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.headerDivider} />
+      <View style={styles.header}>
+        <Text style={styles.brand}>ra_scrafts.id Admin</Text>
+        <TouchableOpacity
+          style={styles.profileButton}
+          onPress={() => router.push("/admin/profil_admin" as any)}
+        >
+          <Ionicons name="person-outline" size={21} color={COLORS.primary} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* PAGE INTRO */}
-        <View style={styles.pageIntro}>
-          <Text style={styles.pageTitle}>Kelola Toko</Text>
-          <Text style={styles.pageSubtitle}>Kelola Produk & Pesanan</Text>
-        </View>
+      <ScrollView contentContainerStyle={styles.page}>
+        <Text style={styles.pageTitle}>Kelola Toko</Text>
+        <Text style={styles.subtitle}>Kelola produk, harga, dan stok.</Text>
 
-        {/* MANAGEMENT TABS */}
-        <View style={styles.managementTabs}>
+        <View style={styles.tabs}>
           {[
             { label: "Kelola Produk", route: "/admin/produk_admin" },
             { label: "Kelola Pesanan", route: "/admin/kelola_pesanan_admin" },
             { label: "Verifikasi", route: "/admin/verifikasi_admin" },
             { label: "Update Status", route: "/admin/status_admin" },
-          ].map((tab) => {
-            const isActive = tab.route === "/admin/produk_admin";
-            return (
-              <TouchableOpacity key={tab.route} style={[styles.managementTab, isActive && styles.activeTabBg]} onPress={() => router.push(tab.route as any)}>
-                <Text style={[styles.tabLabel, { fontSize: tabFontSize }, isActive && styles.activeTabLabel]} numberOfLines={2}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          ].map((tab) => (
+            <TouchableOpacity
+              key={tab.route}
+              style={[
+                styles.tab,
+                tab.route === "/admin/produk_admin" && styles.activeTab,
+              ]}
+              onPress={() => router.push(tab.route as any)}
+            >
+              <Text style={styles.tabText}>{tab.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* WORKSPACE */}
-        <View style={styles.workspace}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => handleOpenModal()}>
-            <Text style={styles.buttonLabel}>+ Tambah Buket Baru</Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => openModal()}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={COLORS.white} />
+          <Text style={styles.addButtonText}>Tambah Buket Baru</Text>
+        </TouchableOpacity>
 
-          <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle}>Koleksi buket</Text>
-            <Text style={styles.sectionContext}>{products.length} produk aktif</Text>
-          </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Koleksi Buket</Text>
+          <Text style={styles.subtitle}>{products.length} produk</Text>
+        </View>
 
-          <View style={styles.bouquetCollection}>
-            {products.map((item) => (
-              <View key={item.id} style={styles.bouquetProduct}>
-                <Image source={{ uri: item.photo }} style={styles.bouquetPhotograph} />
-                <View style={styles.productDetails}>
-                  <Text style={styles.bouquetCategory}>{item.category}</Text>
-                  <Text style={styles.bouquetTitle}>{item.title}</Text>
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color={COLORS.primary}
+            style={{ marginTop: 30 }}
+          />
+        ) : products.length === 0 ? (
+          <Text style={styles.emptyText}>Belum ada produk di database.</Text>
+        ) : (
+          products.map((item) => (
+            <View key={String(item.id)} style={styles.productCard}>
+              <Image
+                source={{ uri: item.photo || DEFAULT_PHOTO }}
+                style={styles.productImage}
+              />
 
-                  {/* Tampilan Varian Ukuran */}
-                  <View style={styles.sizeBadgesContainer}>
-                    <Text style={styles.sizeBadgeText}>
-                      S: Rp{item.sizes.S.price || "0"} (Stok: {item.sizes.S.stock || "0"})
-                    </Text>
-                    <Text style={styles.sizeBadgeText}>
-                      M: Rp{item.sizes.M.price || "0"} (Stok: {item.sizes.M.stock || "0"})
-                    </Text>
-                    <Text style={styles.sizeBadgeText}>
-                      XL: Rp{item.sizes.XL.price || "0"} (Stok: {item.sizes.XL.stock || "0"})
-                    </Text>
-                  </View>
+              <View style={styles.productInfo}>
+                <Text style={styles.category}>{item.category}</Text>
+                <Text style={styles.productTitle}>{item.title}</Text>
+                <Text style={styles.priceText}>
+                  Mulai {rupiah(item.price)}
+                </Text>
 
-                  <View style={styles.stockAndActions}>
-                    <View style={styles.quickActions}>
-                      <TouchableOpacity style={styles.editProduct} onPress={() => handleOpenModal(item)}>
-                        <Ionicons name="pencil-outline" size={18} color={COLORS.primary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.deleteProduct} onPress={() => handleDeleteProduct(item.id)}>
-                        <Ionicons name="trash-outline" size={18} color={COLORS.primary} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                {VARIANTS.map((s) => (
+                  <Text style={styles.stockText} key={s}>
+                    {s}: {rupiah(item.sizes[s].price)} · Stok{" "}
+                    {item.sizes[s].stock || "0"}
+                  </Text>
+                ))}
+
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => openModal(item)}
+                  >
+                    <Ionicons
+                      name="create-outline"
+                      size={20}
+                      color={COLORS.primary}
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => deleteProduct(item)}
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={20}
+                      color={COLORS.primary}
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
-            ))}
-          </View>
-        </View>
+            </View>
+          ))
+        )}
       </ScrollView>
 
-      {/* MODAL TAMBAH / EDIT BUKET */}
-      <Modal visible={isModalVisible} transparent={true} animationType="slide" onRequestClose={() => setIsModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.overlayTouchable} activeOpacity={1} onPress={() => setIsModalVisible(false)} />
-          <View style={styles.bottomSheetContainer}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.sheetHandleArea}>
-                <View style={styles.dragHandle} />
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !saving && setModalVisible(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <View style={styles.flex}>
+                <Text style={styles.modalTitle}>
+                  {editingId !== null ? "Edit Buket" : "Tambah Buket"}
+                </Text>
+                <Text style={styles.subtitle}>
+                  Isi detail produk dan varian.
+                </Text>
               </View>
 
-              <View style={styles.formIntro}>
-                <View style={styles.formHeading}>
-                  <Text style={styles.modalTitle}>{editingId ? "Edit Buket" : "Tambah Buket Baru"}</Text>
-                  <Text style={styles.formDescription}>Lengkapi detail foto, kategori, harga, dan stok.</Text>
-                </View>
-                <TouchableOpacity style={styles.closeModalBtn} onPress={() => setIsModalVisible(false)}>
-                  <Ionicons name="close" size={18} color={COLORS.primary} />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                disabled={saving}
+                onPress={() => setModalVisible(false)}
+              >
+                <Ionicons name="close" size={25} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
 
-              {/* UNGGAH FOTO BUKET */}
-              <View style={styles.photoFieldContainer}>
-                <Text style={styles.fieldLabel}>Foto Buket</Text>
-                <View style={styles.photoDropzone}>
-                  <Image source={{ uri: bouquetPhoto }} style={styles.currentBouquetPhoto} />
-                  <View style={styles.uploadGuidance}>
-                    <TouchableOpacity style={styles.uploadAction} onPress={handlePickImage}>
-                      <Ionicons name="cloud-upload-outline" size={20} color={COLORS.primary} />
-                      <Text style={styles.uploadLabel}>Pilih / Ganti Foto dari Galeri</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.fileRequirements}>Format JPG, PNG (Ukuran disarankan 1:1)</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* NAMA BUKET */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.fieldLabel}>Nama Buket</Text>
-                <View style={styles.fieldInput}>
-                  <TextInput style={styles.textInput} value={bouquetTitle} onChangeText={setBouquetTitle} placeholder="Contoh: Pink Romance" placeholderTextColor={COLORS.textMuted} />
-                </View>
-              </View>
-
-              {/* DROPDOWN KATEGORI BUKET */}
-              <View style={[styles.inputGroup, { zIndex: 10 }]}>
-                <Text style={styles.fieldLabel}>Kategori Buket</Text>
-                <TouchableOpacity style={styles.dropdownSelector} onPress={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}>
-                  <Text style={[styles.textInput, !bouquetCategory && { color: COLORS.textMuted }]}>
-                    {bouquetCategory || "Pilih kategori buket..."}
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.label}>Foto Buket</Text>
+              <TouchableOpacity
+                style={styles.photoPicker}
+                onPress={pickImage}
+                disabled={saving}
+              >
+                <Image source={{ uri: photo }} style={styles.preview} />
+                <View style={styles.flex}>
+                  <Text style={styles.pinkText}>Pilih Foto dari Galeri</Text>
+                  <Text style={styles.subtitle}>
+                    Tekan untuk memilih foto.
                   </Text>
-                  <Ionicons name={isCategoryDropdownOpen ? "chevron-up" : "chevron-down"} size={18} color={COLORS.primary} />
-                </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
 
-                {isCategoryDropdownOpen && (
-                  <View style={styles.dropdownListContainer}>
-                    {CATEGORY_OPTIONS.map((cat, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                          setBouquetCategory(cat);
-                          setIsCategoryDropdownOpen(false);
-                        }}
-                      >
-                        <Text style={[styles.dropdownItemText, bouquetCategory === cat && styles.dropdownItemTextActive]}>{cat}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+              <Text style={styles.label}>Nama Buket</Text>
+              <TextInput
+                style={styles.input}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Contoh: Pink Romance"
+                placeholderTextColor={COLORS.muted}
+              />
+
+              <Text style={styles.label}>Kategori</Text>
+              <TouchableOpacity
+                style={styles.input}
+                onPress={() => setDropdownOpen(!dropdownOpen)}
+              >
+                <Text style={styles.inputText}>{category}</Text>
+                <Ionicons
+                  name={dropdownOpen ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  color={COLORS.primary}
+                />
+              </TouchableOpacity>
+
+              {dropdownOpen &&
+                CATEGORIES.map((c) => (
+                  <TouchableOpacity
+                    key={c}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setCategory(c);
+                      setDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.inputText}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+
+              <Text style={styles.label}>Deskripsi</Text>
+              <TextInput
+                style={[styles.input, styles.descriptionInput]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Deskripsi buket (opsional)"
+                multiline
+                placeholderTextColor={COLORS.muted}
+              />
+
+              <Text style={styles.sectionTitle}>Harga & Stok Varian</Text>
+              {VARIANTS.map(renderSizeForm)}
+
+              <TouchableOpacity
+                style={[styles.saveButton, saving && { opacity: 0.6 }]}
+                onPress={saveProduct}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <Text style={styles.saveButtonText}>
+                    {editingId !== null ? "Simpan Perubahan" : "Simpan Buket"}
+                  </Text>
                 )}
-              </View>
-
-              {/* HARGA & STOK PER UKURAN */}
-              <Text style={[styles.fieldLabel, { marginTop: 12, fontSize: 14, color: COLORS.primary }]}>Harga & Stok Per Ukuran</Text>
-
-              {/* UKURAN S */}
-              <View style={styles.sizeBoxContainer}>
-                <Text style={styles.sizeTitleBadge}>Ukuran S</Text>
-                <View style={styles.rowInputs}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.smallFieldLabel}>Harga S (Rp)</Text>
-                    <View style={styles.fieldInputSmall}>
-                      <TextInput style={styles.textInput} value={sizeS.price} onChangeText={(val) => setSizeS({ ...sizeS, price: val })} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textMuted} />
-                    </View>
-                  </View>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.smallFieldLabel}>Stok S</Text>
-                    <View style={styles.fieldInputSmall}>
-                      <TextInput style={styles.textInput} value={sizeS.stock} onChangeText={(val) => setSizeS({ ...sizeS, stock: val })} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textMuted} />
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* UKURAN M */}
-              <View style={styles.sizeBoxContainer}>
-                <Text style={styles.sizeTitleBadge}>Ukuran M</Text>
-                <View style={styles.rowInputs}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.smallFieldLabel}>Harga M (Rp)</Text>
-                    <View style={styles.fieldInputSmall}>
-                      <TextInput style={styles.textInput} value={sizeM.price} onChangeText={(val) => setSizeM({ ...sizeM, price: val })} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textMuted} />
-                    </View>
-                  </View>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.smallFieldLabel}>Stok M</Text>
-                    <View style={styles.fieldInputSmall}>
-                      <TextInput style={styles.textInput} value={sizeM.stock} onChangeText={(val) => setSizeM({ ...sizeM, stock: val })} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textMuted} />
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* UKURAN XL */}
-              <View style={styles.sizeBoxContainer}>
-                <Text style={styles.sizeTitleBadge}>Ukuran XL</Text>
-                <View style={styles.rowInputs}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.smallFieldLabel}>Harga XL (Rp)</Text>
-                    <View style={styles.fieldInputSmall}>
-                      <TextInput style={styles.textInput} value={sizeXL.price} onChangeText={(val) => setSizeXL({ ...sizeXL, price: val })} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textMuted} />
-                    </View>
-                  </View>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.smallFieldLabel}>Stok XL</Text>
-                    <View style={styles.fieldInputSmall}>
-                      <TextInput style={styles.textInput} value={sizeXL.stock} onChangeText={(val) => setSizeXL({ ...sizeXL, stock: val })} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textMuted} />
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* TOMBOL SIMPAN */}
-              <TouchableOpacity style={styles.saveProductButton} onPress={handleSaveProduct}>
-                <Text style={styles.saveButtonText}>Simpan Buket</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -406,151 +712,177 @@ export default function KelolaProdukScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bgApp },
-  headerContainer: { width: "100%", backgroundColor: COLORS.bgApp },
-  brandAndAccount: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, height: 72 },
-  appTitle: { fontFamily: "Playfair Display", fontWeight: "700", fontSize: 26, color: COLORS.primary },
-  adminProfile: {
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  header: {
+    height: 65,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderColor: COLORS.border,
+  },
+  brand: { fontSize: 22, fontWeight: "700", color: COLORS.primary },
+  profileButton: {
     width: 40,
     height: 40,
     backgroundColor: COLORS.white,
-    borderRadius: 100,
+    borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#7E3E55",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.13,
-    shadowRadius: 10,
-    elevation: 3,
   },
-  headerDivider: { width: "100%", height: 1, backgroundColor: COLORS.border },
-  scrollContent: { paddingBottom: 35 },
-  pageIntro: { paddingHorizontal: 20, paddingVertical: 12, gap: 4 },
-  pageTitle: { fontFamily: "Playfair Display", fontWeight: "700", fontSize: 28, color: COLORS.primary },
-  pageSubtitle: { fontFamily: "Poppins", fontWeight: "400", fontSize: 12, color: COLORS.textMuted },
-  managementTabs: {
+  page: { padding: 20, paddingBottom: 50 },
+  pageTitle: { fontSize: 27, fontWeight: "700", color: COLORS.primary },
+  subtitle: { fontSize: 12, color: COLORS.muted, marginTop: 4 },
+  tabs: {
     flexDirection: "row",
+    flexWrap: "wrap",
     backgroundColor: COLORS.lightPink,
-    marginHorizontal: 20,
+    borderRadius: 14,
     padding: 5,
-    borderRadius: 16,
+    marginTop: 18,
     gap: 4,
-    minHeight: 56,
   },
-  managementTab: { flex: 1, justifyContent: "center", alignItems: "center", borderRadius: 12, paddingHorizontal: 4, paddingVertical: 8 },
-  activeTabBg: { backgroundColor: COLORS.accentPink },
-  tabLabel: { fontFamily: "Poppins", fontWeight: "500", textAlign: "center", color: "#986678" },
-  activeTabLabel: { fontFamily: "Poppins", fontWeight: "700", color: COLORS.primary },
-  workspace: { paddingHorizontal: 20, paddingTop: 18, gap: 14 },
-  actionButton: { backgroundColor: COLORS.accentPink, height: 50, borderRadius: 14, justifyContent: "center", alignItems: "center" },
-  buttonLabel: { fontFamily: "Poppins", fontWeight: "600", fontSize: 14, color: COLORS.white },
-  sectionHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  sectionTitle: { fontFamily: "Playfair Display", fontWeight: "600", fontSize: 20, color: COLORS.primary },
-  sectionContext: { fontFamily: "Poppins", fontWeight: "400", fontSize: 12, color: COLORS.textMuted },
-  bouquetCollection: { gap: 14 },
-  bouquetProduct: {
+  tab: {
+    flexGrow: 1,
+    flexBasis: "45%",
+    padding: 10,
+    alignItems: "center",
+    borderRadius: 10,
+  },
+  activeTab: { backgroundColor: COLORS.pink },
+  tabText: { color: COLORS.primary, fontSize: 11, fontWeight: "600" },
+  addButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 13,
+    padding: 15,
     flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: COLORS.white,
-    padding: 14,
-    borderRadius: 18,
-    gap: 14,
-    shadowColor: "#7E3E55",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 20,
   },
-  bouquetPhotograph: { width: 92, height: 110, borderRadius: 12 },
-  productDetails: { flex: 1, gap: 4 },
-  bouquetCategory: { fontFamily: "Poppins", fontWeight: "400", fontSize: 11, color: COLORS.textMuted },
-  bouquetTitle: { fontFamily: "Playfair Display", fontWeight: "600", fontSize: 18, color: COLORS.primary },
-  sizeBadgesContainer: { gap: 2, marginTop: 2 },
-  sizeBadgeText: { fontFamily: "Poppins", fontWeight: "500", fontSize: 11, color: COLORS.textDark },
-  stockAndActions: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginTop: 6 },
-  quickActions: { flexDirection: "row", gap: 8 },
-  editProduct: { width: 34, height: 34, backgroundColor: COLORS.lightPink, borderRadius: 10, justifyContent: "center", alignItems: "center" },
-  deleteProduct: { width: 34, height: 34, backgroundColor: COLORS.lightPink, borderRadius: 10, justifyContent: "center", alignItems: "center" },
-  
-  // MODAL STYLES
-  modalOverlay: { flex: 1, backgroundColor: COLORS.overlay, justifyContent: "flex-end" },
-  overlayTouchable: { flex: 0.2 },
-  bottomSheetContainer: {
-    maxHeight: "85%",
-    backgroundColor: COLORS.bgApp,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 30,
-    gap: 12,
-  },
-  sheetHandleArea: { alignItems: "center", marginBottom: 6 },
-  dragHandle: { width: 44, height: 5, backgroundColor: COLORS.border, borderRadius: 100 },
-  formIntro: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
-  formHeading: { flex: 1, gap: 4 },
-  modalTitle: { fontFamily: "Playfair Display", fontWeight: "700", fontSize: 24, color: COLORS.primary },
-  formDescription: { fontFamily: "Poppins", fontWeight: "400", fontSize: 12, color: COLORS.textMuted },
-  closeModalBtn: { width: 34, height: 34, backgroundColor: COLORS.lightPink, borderRadius: 100, justifyContent: "center", alignItems: "center" },
-  photoFieldContainer: { gap: 8, marginBottom: 12 },
-  photoDropzone: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.accentPink, borderStyle: "dashed", borderRadius: 14, padding: 12, gap: 14 },
-  currentBouquetPhoto: { width: 80, height: 80, borderRadius: 12 },
-  uploadGuidance: { flex: 1, gap: 4 },
-  uploadAction: { flexDirection: "row", alignItems: "center", gap: 6 },
-  uploadLabel: { fontFamily: "Poppins", fontWeight: "600", fontSize: 12, color: COLORS.primary },
-  fileRequirements: { fontFamily: "Poppins", fontWeight: "400", fontSize: 10, color: COLORS.textMuted },
-  inputGroup: { gap: 6, marginBottom: 10 },
-  fieldLabel: { fontFamily: "Poppins", fontWeight: "600", fontSize: 13, color: COLORS.primary },
-  smallFieldLabel: { fontFamily: "Poppins", fontWeight: "500", fontSize: 11, color: COLORS.textDark },
-  fieldInput: { height: 48, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 14, justifyContent: "center" },
-  fieldInputSmall: { height: 44, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingHorizontal: 12, justifyContent: "center" },
-  textInput: { fontFamily: "Poppins", fontWeight: "400", fontSize: 13, color: COLORS.textDark },
-  
-  // DROPDOWN STYLES
-  dropdownSelector: {
-    height: 48,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
+  addButtonText: { color: COLORS.white, fontWeight: "700" },
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginVertical: 18,
   },
-  dropdownListContainer: {
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: COLORS.primary },
+  emptyText: { color: COLORS.muted, textAlign: "center", marginTop: 30 },
+  productCard: {
+    flexDirection: "row",
     backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    marginTop: 4,
-    overflow: "hidden",
-    elevation: 3,
-    shadowColor: "#7E3E55",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 12,
+    gap: 12,
   },
-  dropdownItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+  productImage: { width: 100, height: 125, borderRadius: 12 },
+  productInfo: { flex: 1, gap: 4 },
+  category: { fontSize: 11, color: COLORS.muted },
+  productTitle: { fontSize: 17, fontWeight: "700", color: COLORS.primary },
+  priceText: { fontSize: 12, fontWeight: "700", color: COLORS.dark },
+  stockText: { fontSize: 10, color: COLORS.dark },
+  actions: { flexDirection: "row", gap: 8, marginTop: 6 },
+  iconButton: {
+    backgroundColor: COLORS.lightPink,
+    width: 36,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  dropdownItemText: {
-    fontFamily: "Poppins",
-    fontWeight: "400",
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  modal: {
+    maxHeight: "90%",
+    backgroundColor: COLORS.bg,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 23, fontWeight: "700", color: COLORS.primary },
+  label: {
     fontSize: 13,
-    color: COLORS.textDark,
-  },
-  dropdownItemTextActive: {
     fontWeight: "700",
     color: COLORS.primary,
+    marginTop: 12,
+    marginBottom: 7,
   },
-
-  sizeBoxContainer: { backgroundColor: COLORS.white, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 10, gap: 6 },
-  sizeTitleBadge: { fontFamily: "Poppins", fontWeight: "700", fontSize: 12, color: COLORS.primary },
-  rowInputs: { flexDirection: "row", gap: 10 },
-  saveProductButton: { height: 50, backgroundColor: COLORS.accentPink, borderRadius: 14, justifyContent: "center", alignItems: "center", marginTop: 12, marginBottom: 20 },
-  saveButtonText: { fontFamily: "Poppins", fontWeight: "700", fontSize: 14, color: COLORS.white },
+  photoPicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 10,
+  },
+  preview: { width: 75, height: 75, borderRadius: 10 },
+  pinkText: { color: COLORS.primary, fontWeight: "700", fontSize: 13 },
+  input: {
+    minHeight: 46,
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: COLORS.dark,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  inputText: { color: COLORS.dark, fontSize: 13 },
+  descriptionInput: { minHeight: 75, textAlignVertical: "top" },
+  dropdownItem: {
+    backgroundColor: COLORS.white,
+    padding: 13,
+    borderBottomWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sizeBox: {
+    backgroundColor: COLORS.white,
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sizeHeading: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.primary,
+    marginBottom: 10,
+  },
+  inputRow: { flexDirection: "row", gap: 10 },
+  flex: { flex: 1 },
+  smallLabel: { fontSize: 11, color: COLORS.dark, marginBottom: 5 },
+  smallInput: {
+    height: 43,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 9,
+    paddingHorizontal: 9,
+    color: COLORS.dark,
+    fontSize: 12,
+  },
+  saveButton: {
+    backgroundColor: COLORS.primary,
+    minHeight: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  saveButtonText: { color: COLORS.white, fontWeight: "700", fontSize: 14 },
 });

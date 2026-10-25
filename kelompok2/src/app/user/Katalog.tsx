@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   StyleSheet,
   Text,
   View,
@@ -10,105 +12,156 @@ import {
   StatusBar,
   FlatList,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Search, ShoppingCart, X } from 'lucide-react-native';
 import ProductCard from '../../components/ProductCard';
+import { supabase } from '../../../lib/supabase';
+
+const VARIANT_TABLE = 'product_variants';
 
 interface Product {
-  id: number;
+  id: string;
   name: string;
   price: string;
   category: string;
   imageUrl: string;
 }
 
-const ALL_PRODUCTS: Product[] = [
-  {
-    id: 1,
-    name: 'Buket Matahari Ceria',
-    price: 'Rp 165.000',
-    category: 'Bunga',
-    imageUrl:
-      'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 2,
-    name: 'Buket Bunga Pink',
-    price: 'Rp 175.000',
-    category: 'Bunga',
-    imageUrl:
-      'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 3,
-    name: 'Buket Daisy Putih',
-    price: 'Rp 150.000',
-    category: 'Bunga',
-    imageUrl:
-      'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 4,
-    name: 'Buket Uang Biru Elegan',
-    price: 'Rp 350.000',
-    category: 'Uang',
-    imageUrl:
-      'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 5,
-    name: 'Buket Uang & Mawar Pink',
-    price: 'Rp 500.000',
-    category: 'Uang',
-    imageUrl:
-      'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 6,
-    name: 'Buket Snack Sweet Pink',
-    price: 'Rp 120.000',
-    category: 'Snack',
-    imageUrl:
-      'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 7,
-    name: 'Buket Cokelat Premium',
-    price: 'Rp 185.000',
-    category: 'Snack',
-    imageUrl:
-      'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 8,
-    name: 'Buket Boneka Loopy Pink',
-    price: 'Rp 210.000',
-    category: 'Boneka',
-    imageUrl:
-      'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 9,
-    name: 'Buket Boneka LinaBell',
-    price: 'Rp 225.000',
-    category: 'Boneka',
-    imageUrl:
-      'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80',
-  },
-];
+interface SupabaseProduct {
+  id: string | number;
+  title: string;
+  category: string;
+  photo: string | null;
+  description: string | null;
+  price: number | string | null;
+  stock: number | null;
+}
+
+interface SupabaseVariant {
+  product_id: string | number;
+  size_name: string;
+  price: number | string;
+  stock: number;
+}
 
 const CATEGORIES = ['Semua', 'Bunga', 'Uang', 'Snack', 'Boneka'];
+
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80';
+
+const formatRupiah = (value: number) => {
+  return `Rp ${value.toLocaleString('id-ID')}`;
+};
+
+const toNumber = (value: number | string | null | undefined) => {
+  if (value === null || value === undefined || value === '') {
+    return 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 export default function Katalog() {
   const router = useRouter();
 
+  const [products, setProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const filteredProducts = ALL_PRODUCTS.filter((product) => {
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setErrorMessage('');
+
+      // 1. Ambil produk dari tabel produk
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('id, title, category, photo, description, price, stock')
+        .order('id', { ascending: false });
+
+      if (productError) {
+        throw productError;
+      }
+
+      const rows = (productData ?? []) as SupabaseProduct[];
+
+      // Jika belum ada produk, tidak perlu mengambil varian
+      if (rows.length === 0) {
+        setProducts([]);
+        return;
+      }
+
+      // 2. Ambil semua varian harga produk
+      const { data: variantData, error: variantError } = await supabase
+        .from(VARIANT_TABLE)
+        .select('product_id, size_name, price, stock');
+
+      if (variantError) {
+        throw variantError;
+      }
+
+      const variants = (variantData ?? []) as SupabaseVariant[];
+
+      // 3. Gabungkan produk dengan harga varian termurah
+      const formattedProducts: Product[] = rows.map((item) => {
+        const productVariants = variants.filter(
+          (variant) => String(variant.product_id) === String(item.id)
+        );
+
+        const variantPrices = productVariants
+          .map((variant) => toNumber(variant.price))
+          .filter((price) => price > 0);
+
+        const basePrice = toNumber(item.price);
+
+        const lowestPrice =
+          variantPrices.length > 0
+            ? Math.min(...variantPrices)
+            : basePrice;
+
+        return {
+          id: String(item.id),
+          name: item.title,
+          price:
+            lowestPrice > 0
+              ? formatRupiah(lowestPrice)
+              : 'Harga belum tersedia',
+          category: item.category,
+          imageUrl: item.photo || FALLBACK_IMAGE,
+        };
+      });
+
+      setProducts(formattedProducts);
+    } catch (error) {
+      console.error('Gagal mengambil produk:', error);
+
+      setErrorMessage(
+        'Produk gagal dimuat. Periksa nama tabel, kolom database, dan koneksi Supabase.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Muat produk saat halaman pertama kali dibuka
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Muat ulang ketika pengguna kembali ke halaman katalog
+  useFocusEffect(
+    useCallback(() => {
+      fetchProducts();
+    }, [fetchProducts])
+  );
+
+  const filteredProducts = products.filter((product) => {
     const matchesCategory =
       activeCategory === 'Semua' ||
-      product.category === activeCategory;
+      product.category.toLowerCase() === activeCategory.toLowerCase();
 
     const matchesSearch = product.name
       .toLowerCase()
@@ -119,10 +172,7 @@ export default function Katalog() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#FFF8F0"
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF8F0" />
 
       {/* Header Toko */}
       <View style={styles.storeHeader}>
@@ -132,11 +182,7 @@ export default function Katalog() {
           style={styles.cartButton}
           onPress={() => router.push('/user/keranjang')}
         >
-          <ShoppingCart
-            size={20}
-            color="#A83F68"
-            strokeWidth={1.8}
-          />
+          <ShoppingCart size={20} color="#A83F68" strokeWidth={1.8} />
         </TouchableOpacity>
       </View>
 
@@ -146,10 +192,7 @@ export default function Katalog() {
       >
         {/* Intro */}
         <View style={styles.introContainer}>
-          <Text style={styles.headline}>
-            Untuk setiap rasa.
-          </Text>
-
+          <Text style={styles.headline}>Untuk setiap rasa.</Text>
           <Text style={styles.subheadline}>
             Buket penuh makna, untuk mereka yang istimewa.
           </Text>
@@ -157,11 +200,7 @@ export default function Katalog() {
 
         {/* Pencarian */}
         <View style={styles.searchContainer}>
-          <Search
-            size={19}
-            color="#A83F68"
-            strokeWidth={1.8}
-          />
+          <Search size={19} color="#A83F68" strokeWidth={1.8} />
 
           <TextInput
             style={styles.searchInput}
@@ -172,9 +211,7 @@ export default function Katalog() {
           />
 
           {searchQuery !== '' && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-            >
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
               <X size={16} color="#A83F68" />
             </TouchableOpacity>
           )}
@@ -211,36 +248,58 @@ export default function Katalog() {
           })}
         </ScrollView>
 
-        {/* Grid Produk menggunakan ProductCard */}
-        <FlatList
-          data={filteredProducts}
-          keyExtractor={(item) => item.id.toString()}
-          numColumns={2}
-          columnWrapperStyle={styles.productRow}
-          scrollEnabled={false}
-          renderItem={({ item }) => (
-            <ProductCard
-              name={item.name}
-              price={item.price}
-              imageUrl={item.imageUrl}
-              onPress={() =>
-                router.push({
-                  pathname: '/user/DetailProduk',
-                  params: {
-                    name: item.name,
-                    price: item.price,
-                    imageUrl: item.imageUrl,
-                  },
-                })
-              }
-            />
-          )}
-          ListEmptyComponent={
-            <Text style={styles.boutiqueNote}>
-              Produk tidak ditemukan.
-            </Text>
-          }
-        />
+        {/* Daftar Produk dari Supabase */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#A83F68" />
+            <Text style={styles.statusText}>Memuat katalog...</Text>
+          </View>
+        ) : errorMessage ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.statusText}>{errorMessage}</Text>
+
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={fetchProducts}
+            >
+              <Text style={styles.retryText}>Coba Lagi</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredProducts}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.productRow}
+            scrollEnabled={false}
+            renderItem={({ item }) => (
+              <ProductCard
+                name={item.name}
+                price={item.price}
+                imageUrl={item.imageUrl}
+                onPress={() =>
+                  router.push({
+                    pathname: '/user/DetailProduk',
+                    params: {
+                      id: item.id,
+                      name: item.name,
+                      price: item.price,
+                      imageUrl: item.imageUrl,
+                      category: item.category,
+                    },
+                  })
+                }
+              />
+            )}
+            ListEmptyComponent={
+              <Text style={styles.boutiqueNote}>
+                {products.length === 0
+                  ? 'Belum ada produk yang tersedia.'
+                  : 'Produk tidak ditemukan.'}
+              </Text>
+            }
+          />
+        )}
 
         <Text style={styles.boutiqueNote}>
           Dirangkai dengan hati, diberikan dengan cinta.
@@ -338,6 +397,28 @@ const styles = StyleSheet.create({
   productRow: {
     justifyContent: 'space-between',
     marginBottom: 14,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 35,
+    gap: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#A83F68',
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    backgroundColor: '#E8A6BD',
+    borderRadius: 10,
+  },
+  retryText: {
+    color: '#71304A',
+    fontSize: 12,
+    fontWeight: '600',
   },
   boutiqueNote: {
     fontSize: 9,

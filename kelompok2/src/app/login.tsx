@@ -21,59 +21,86 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    const emailTrim = email.trim();
+const handleLogin = async () => {
+  const emailTrim = email.trim();
 
-    if (!emailTrim || !password) {
-      Alert.alert('Login Gagal', 'Email dan password wajib diisi.');
+  if (!emailTrim || !password) {
+    Alert.alert('Login Gagal', 'Email dan password wajib diisi.');
+    return;
+  }
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
+
+  if (!emailValid) {
+    Alert.alert('Login Gagal', 'Masukkan format email yang valid.');
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: emailTrim,
+      password,
+    });
+
+    if (error) {
+      Alert.alert('Login Gagal', error.message);
       return;
     }
 
-    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
-
-    if (!emailValid) {
-      Alert.alert('Login Gagal', 'Masukkan format email yang valid.');
+    if (!data.session || !data.user) {
+      Alert.alert(
+        'Login Gagal',
+        'Sesi login tidak berhasil dibuat. Silakan coba lagi.'
+      );
       return;
     }
 
-    if (password.length < 8) {
-      Alert.alert('Login Gagal', 'Password minimal 8 karakter.');
+    // Ambil role dari profil berdasarkan ID akun yang login
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      await supabase.auth.signOut();
+
+      Alert.alert(
+        'Login Gagal',
+        'Profil akun tidak ditemukan. Hubungi admin untuk memeriksa profil akunmu.'
+      );
       return;
     }
 
-    try {
-      setLoading(true);
+    if (profile.role === 'admin') {
+      router.replace('/admin/index_admin');
+      return;
+    }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: emailTrim,
-        password,
-      });
-
-      if (error) {
-        Alert.alert('Login Gagal', error.message);
-        return;
-      }
-
-      if (!data.session || !data.user) {
-        Alert.alert(
-          'Login Gagal',
-          'Sesi login tidak berhasil dibuat. Silakan coba lagi.'
-        );
-        return;
-      }
-
+    if (profile.role === 'user') {
       router.replace('/user/Katalog');
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Terjadi kesalahan saat login.';
-
-      Alert.alert('Login Gagal', message);
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    await supabase.auth.signOut();
+
+    Alert.alert(
+      'Login Gagal',
+      'Role akun tidak dikenali. Silakan hubungi admin.'
+    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Terjadi kesalahan saat login.';
+
+    Alert.alert('Login Gagal', message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>

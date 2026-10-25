@@ -224,14 +224,17 @@ export default function RegisterScreen() {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              autoCorrect={false}
+    
             />
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
               activeOpacity={0.7}
+              disabled={loading}
             >
               <Ionicons
                 name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                size={18}
+                size={20}
                 color="#A83F68"
               />
             </TouchableOpacity>
