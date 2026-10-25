@@ -47,7 +47,7 @@ export function ProfileInfoPage({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Kembali ke Profil"
-            onPress={() => router.replace('/profil')}
+            onPress={() => router.replace('/user/profil')}
             style={({ pressed }) => [
               styles.backButton,
               pressed && styles.pressed,
