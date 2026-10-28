@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
@@ -18,16 +17,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../lib/supabase";
+import AdminSubNav from "../../components/AdminSubNav"; 
 
 const COLORS = {
-  bg: "#FFF8F0",
+  bgApp: "#FFF8F0",
   primary: "#A83F68",
-  pink: "#E8A6BD",
+  accentPink: "#E8A6BD",
   lightPink: "#FBEAF0",
   border: "#F2E4E5",
+  textDark: "#49343C",
+  textMuted: "#806A72",
+  white: "#FFFFFF",
   dark: "#49343C",
   muted: "#806A72",
-  white: "#FFFFFF",
+  pink: "#E8A6BD",
+  bg: "#FFF8F0",
 };
 
 const VARIANTS = ["S", "M", "XL"] as const;
@@ -68,9 +72,6 @@ const DEFAULT_PHOTO =
 const PRODUCT_TABLE = "products";
 const VARIANT_TABLE = "product_variants";
 
-// Jika nama kolom timestamp-mu berbeda, sesuaikan di bawah.
-const CREATED_COLUMN = "created_ad";
-const UPDATED_COLUMN = "update_ad";
 const showMessage = (title: string, message: string) => {
   if (Platform.OS === "web") {
     window.alert(`${title}\n\n${message}`);
@@ -255,169 +256,167 @@ export default function KelolaProdukScreen() {
     }));
   };
 
-  
-const saveProduct = async () => {
-  if (!title.trim()) {
-    showMessage("Peringatan", "Nama buket wajib diisi.");
-    return;
-  }
+  const saveProduct = async () => {
+    if (!title.trim()) {
+      showMessage("Peringatan", "Nama buket wajib diisi.");
+      return;
+    }
 
-  if (!category) {
-    showMessage("Peringatan", "Pilih kategori buket.");
-    return;
-  }
+    if (!category) {
+      showMessage("Peringatan", "Pilih kategori buket.");
+      return;
+    }
 
-  for (const sizeName of VARIANTS) {
-    const variant = sizes[sizeName];
+    for (const sizeName of VARIANTS) {
+      const variant = sizes[sizeName];
 
-    if (
-      variant.price.trim() !== "" &&
-      (!Number.isFinite(Number(variant.price)) ||
-        Number(variant.price) < 0)
-    ) {
+      if (
+        variant.price.trim() !== "" &&
+        (!Number.isFinite(Number(variant.price)) ||
+          Number(variant.price) < 0)
+      ) {
+        showMessage(
+          "Peringatan",
+          `Harga ukuran ${sizeName} tidak valid.`
+        );
+        return;
+      }
+
+      if (
+        variant.stock.trim() !== "" &&
+        (!Number.isInteger(Number(variant.stock)) ||
+          Number(variant.stock) < 0)
+      ) {
+        showMessage(
+          "Peringatan",
+          `Stok ukuran ${sizeName} tidak valid.`
+        );
+        return;
+      }
+    }
+
+    const validVariants = VARIANTS.filter(
+      (s) =>
+        sizes[s].price.trim() !== "" ||
+        sizes[s].stock.trim() !== ""
+    );
+
+    if (validVariants.length === 0) {
       showMessage(
         "Peringatan",
-        `Harga ukuran ${sizeName} tidak valid.`
+        "Isi harga dan stok minimal satu ukuran buket."
       );
       return;
     }
 
-    if (
-      variant.stock.trim() !== "" &&
-      (!Number.isInteger(Number(variant.stock)) ||
-        Number(variant.stock) < 0)
-    ) {
+    for (const s of validVariants) {
+      if (
+        sizes[s].price.trim() === "" ||
+        sizes[s].stock.trim() === ""
+      ) {
+        showMessage(
+          "Peringatan",
+          `Isi harga dan stok ukuran ${s}, atau kosongkan keduanya.`
+        );
+        return;
+      }
+    }
+
+    const totalStock = validVariants.reduce(
+      (sum, s) => sum + Number(sizes[s].stock || 0),
+      0
+    );
+
+    const prices = validVariants.map(
+      (s) => Number(sizes[s].price)
+    );
+
+    const basePrice = Math.min(...prices);
+
+    setSaving(true);
+
+    try {
+      const productPayload = {
+        title: title.trim(),
+        category,
+        photo,
+        description: description.trim(),
+        price: basePrice,
+        stock: totalStock,
+      };
+
+      let productId = editingId;
+
+      if (editingId !== null) {
+        const { data, error } = await supabase
+          .from(PRODUCT_TABLE)
+          .update(productPayload)
+          .eq("id", editingId)
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        productId = data.id;
+      } else {
+        const { data, error } = await supabase
+          .from(PRODUCT_TABLE)
+          .insert(productPayload)
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        productId = data.id;
+      }
+
+      if (productId === null) {
+        throw new Error("ID produk tidak ditemukan setelah disimpan.");
+      }
+
+      const { error: deleteVariantError } = await supabase
+        .from(VARIANT_TABLE)
+        .delete()
+        .eq("product_id", productId);
+
+      if (deleteVariantError) throw deleteVariantError;
+
+      const variantPayload = validVariants.map((s) => ({
+        product_id: productId,
+        size_name: s,
+        price: Number(sizes[s].price),
+        stock: Number(sizes[s].stock),
+      }));
+
+      const { error: insertVariantError } = await supabase
+        .from(VARIANT_TABLE)
+        .insert(variantPayload);
+
+      if (insertVariantError) {
+        throw new Error(
+          "Produk utama tersimpan, tetapi varian gagal disimpan: " +
+            insertVariantError.message
+        );
+      }
+
+      setModalVisible(false);
+      await loadProducts();
+
       showMessage(
-        "Peringatan",
-        `Stok ukuran ${sizeName} tidak valid.`
+        "Berhasil",
+        editingId !== null
+          ? "Produk berhasil diperbarui."
+          : "Produk baru berhasil ditambahkan."
       );
-      return;
-    }
-  }
+    } catch (error: any) {
+      console.error("Gagal menyimpan produk:", error);
 
-  const validVariants = VARIANTS.filter(
-    (s) =>
-      sizes[s].price.trim() !== "" ||
-      sizes[s].stock.trim() !== ""
-  );
-
-  if (validVariants.length === 0) {
-    showMessage(
-      "Peringatan",
-      "Isi harga dan stok minimal satu ukuran buket."
-    );
-    return;
-  }
-
-  for (const s of validVariants) {
-    if (
-      sizes[s].price.trim() === "" ||
-      sizes[s].stock.trim() === ""
-    ) {
       showMessage(
-        "Peringatan",
-        `Isi harga dan stok ukuran ${s}, atau kosongkan keduanya.`
+        "Gagal Menyimpan",
+        error?.message ?? "Terjadi kesalahan saat menyimpan produk."
       );
-      return;
+    } finally {
+      setSaving(false);
     }
-  }
-
-  const totalStock = validVariants.reduce(
-    (sum, s) => sum + Number(sizes[s].stock || 0),
-    0
-  );
-
-  const prices = validVariants.map(
-    (s) => Number(sizes[s].price)
-  );
-
-  const basePrice = Math.min(...prices);
-
-  setSaving(true);
-
-  try {
-    const productPayload = {
-      title: title.trim(),
-      category,
-      photo,
-      description: description.trim(),
-      price: basePrice,
-      stock: totalStock,
-    };
-
-    let productId = editingId;
-
-    if (editingId !== null) {
-      const { data, error } = await supabase
-        .from(PRODUCT_TABLE)
-        .update(productPayload)
-        .eq("id", editingId)
-        .select("id")
-        .single();
-
-      if (error) throw error;
-      productId = data.id;
-    } else {
-      const { data, error } = await supabase
-        .from(PRODUCT_TABLE)
-        .insert(productPayload)
-        .select("id")
-        .single();
-
-      if (error) throw error;
-      productId = data.id;
-    }
-
-    if (productId === null) {
-      throw new Error("ID produk tidak ditemukan setelah disimpan.");
-    }
-
-    const { error: deleteVariantError } = await supabase
-      .from(VARIANT_TABLE)
-      .delete()
-      .eq("product_id", productId);
-
-    if (deleteVariantError) throw deleteVariantError;
-
-    const variantPayload = validVariants.map((s) => ({
-      product_id: productId,
-      size_name: s,
-      price: Number(sizes[s].price),
-      stock: Number(sizes[s].stock),
-    }));
-
-    const { error: insertVariantError } = await supabase
-      .from(VARIANT_TABLE)
-      .insert(variantPayload);
-
-    if (insertVariantError) {
-      throw new Error(
-        "Produk utama tersimpan, tetapi varian gagal disimpan: " +
-          insertVariantError.message
-      );
-    }
-
-    setModalVisible(false);
-    await loadProducts();
-
-    showMessage(
-      "Berhasil",
-      editingId !== null
-        ? "Produk berhasil diperbarui."
-        : "Produk baru berhasil ditambahkan."
-    );
-  } catch (error: any) {
-    console.error("Gagal menyimpan produk:", error);
-
-    showMessage(
-      "Gagal Menyimpan",
-      error?.message ?? "Terjadi kesalahan saat menyimpan produk."
-    );
-  } finally {
-    setSaving(false);
-  }
-};
-
+  };
 
   const deleteProduct = (product: ProductItem) => {
     Alert.alert(
@@ -430,7 +429,6 @@ const saveProduct = async () => {
           style: "destructive",
           onPress: async () => {
             try {
-              // Hapus varian dahulu jika foreign key tidak memakai CASCADE.
               const { error: variantError } = await supabase
                 .from(VARIANT_TABLE)
                 .delete()
@@ -493,110 +491,100 @@ const saveProduct = async () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.brand}>ra_scrafts.id Admin</Text>
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={() => router.push("/admin/profil_admin" as any)}
-        >
-          <Ionicons name="person-outline" size={21} color={COLORS.primary} />
-        </TouchableOpacity>
+      <View style={styles.headerContainer}>
+        <View style={styles.brandAndAccount}>
+          <Text style={styles.appTitle}>ra_scrafts.id Admin</Text>
+          <TouchableOpacity
+            style={styles.adminProfile}
+            onPress={() => router.push("/admin/profil_admin" as any)}
+          >
+            <Ionicons name="person-outline" size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.headerDivider} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.page}>
-        <Text style={styles.pageTitle}>Kelola Toko</Text>
-        <Text style={styles.subtitle}>Kelola produk, harga, dan stok.</Text>
-
-        <View style={styles.tabs}>
-          {[
-            { label: "Kelola Produk", route: "/admin/produk_admin" },
-            { label: "Kelola Pesanan", route: "/admin/kelola_pesanan_admin" },
-            { label: "Verifikasi", route: "/admin/verifikasi_admin" },
-            { label: "Update Status", route: "/admin/status_admin" },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.route}
-              style={[
-                styles.tab,
-                tab.route === "/admin/produk_admin" && styles.activeTab,
-              ]}
-              onPress={() => router.push(tab.route as any)}
-            >
-              <Text style={styles.tabText}>{tab.label}</Text>
-            </TouchableOpacity>
-          ))}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.pageIntro}>
+          <Text style={styles.pageTitle}>Kelola Toko</Text>
+          <Text style={styles.pageSubtitle}>Kelola Produk & Pesanan</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => openModal()}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={COLORS.white} />
-          <Text style={styles.addButtonText}>Tambah Buket Baru</Text>
-        </TouchableOpacity>
+        {/* PANGGILAN ADMIN SUB-NAV */}
+        <AdminSubNav />
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Koleksi Buket</Text>
-          <Text style={styles.subtitle}>{products.length} produk</Text>
-        </View>
+        <View style={styles.workspace}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => openModal()}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={COLORS.white} />
+            <Text style={styles.addButtonText}>Tambah Buket Baru</Text>
+          </TouchableOpacity>
 
-        {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={COLORS.primary}
-            style={{ marginTop: 30 }}
-          />
-        ) : products.length === 0 ? (
-          <Text style={styles.emptyText}>Belum ada produk di database.</Text>
-        ) : (
-          products.map((item) => (
-            <View key={String(item.id)} style={styles.productCard}>
-              <Image
-                source={{ uri: item.photo || DEFAULT_PHOTO }}
-                style={styles.productImage}
-              />
+          <View style={styles.sectionHeading}>
+            <Text style={styles.sectionTitle}>Koleksi Buket</Text>
+            <Text style={styles.sectionContext}>{products.length} produk</Text>
+          </View>
 
-              <View style={styles.productInfo}>
-                <Text style={styles.category}>{item.category}</Text>
-                <Text style={styles.productTitle}>{item.title}</Text>
-                <Text style={styles.priceText}>
-                  Mulai {rupiah(item.price)}
-                </Text>
+          {loading ? (
+            <ActivityIndicator
+              size="large"
+              color={COLORS.primary}
+              style={{ marginTop: 30 }}
+            />
+          ) : products.length === 0 ? (
+            <Text style={styles.emptyText}>Belum ada produk di database.</Text>
+          ) : (
+            products.map((item) => (
+              <View key={String(item.id)} style={styles.productCard}>
+                <Image
+                  source={{ uri: item.photo || DEFAULT_PHOTO }}
+                  style={styles.productImage}
+                />
 
-                {VARIANTS.map((s) => (
-                  <Text style={styles.stockText} key={s}>
-                    {s}: {rupiah(item.sizes[s].price)} · Stok{" "}
-                    {item.sizes[s].stock || "0"}
+                <View style={styles.productInfo}>
+                  <Text style={styles.category}>{item.category}</Text>
+                  <Text style={styles.productTitle}>{item.title}</Text>
+                  <Text style={styles.priceText}>
+                    Mulai {rupiah(item.price)}
                   </Text>
-                ))}
 
-                <View style={styles.actions}>
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={() => openModal(item)}
-                  >
-                    <Ionicons
-                      name="create-outline"
-                      size={20}
-                      color={COLORS.primary}
-                    />
-                  </TouchableOpacity>
+                  {VARIANTS.map((s) => (
+                    <Text style={styles.stockText} key={s}>
+                      {s}: {rupiah(item.sizes[s].price)} · Stok{" "}
+                      {item.sizes[s].stock || "0"}
+                    </Text>
+                  ))}
 
-                  <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={() => deleteProduct(item)}
-                  >
-                    <Ionicons
-                      name="trash-outline"
-                      size={20}
-                      color={COLORS.primary}
-                    />
-                  </TouchableOpacity>
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => openModal(item)}
+                    >
+                      <Ionicons
+                        name="create-outline"
+                        size={20}
+                        color={COLORS.primary}
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => deleteProduct(item)}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={20}
+                        color={COLORS.primary}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-            </View>
-          ))
-        )}
+            ))
+          )}
+        </View>
       </ScrollView>
 
       <Modal
@@ -712,46 +700,73 @@ const saveProduct = async () => {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  header: {
-    height: 65,
-    paddingHorizontal: 20,
+  container: { flex: 1, backgroundColor: COLORS.bgApp },
+  headerContainer: { width: "100%", backgroundColor: COLORS.bgApp },
+  brandAndAccount: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderColor: COLORS.border,
+    paddingHorizontal: 20,
+    height: 72,
   },
-  brand: { fontSize: 22, fontWeight: "700", color: COLORS.primary },
-  profileButton: {
+  appTitle: {
+    fontFamily: "Playfair Display",
+    fontWeight: "700",
+    fontSize: 26,
+    color: COLORS.primary,
+  },
+  adminProfile: {
     width: 40,
     height: 40,
     backgroundColor: COLORS.white,
-    borderRadius: 25,
+    borderRadius: 100,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#7E3E55",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.13,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  page: { padding: 20, paddingBottom: 50 },
-  pageTitle: { fontSize: 27, fontWeight: "700", color: COLORS.primary },
-  subtitle: { fontSize: 12, color: COLORS.muted, marginTop: 4 },
-  tabs: {
+  headerDivider: { width: "100%", height: 1, backgroundColor: COLORS.border },
+  scrollContent: { paddingBottom: 35 },
+  pageIntro: { paddingHorizontal: 20, paddingVertical: 12, gap: 4 },
+  pageTitle: {
+    fontFamily: "Playfair Display",
+    fontWeight: "700",
+    fontSize: 28,
+    color: COLORS.primary,
+  },
+  pageSubtitle: {
+    fontFamily: "Poppins",
+    fontWeight: "400",
+    fontSize: 12,
+    color: COLORS.textMuted,
+  },
+  subtitle: {
+    fontFamily: "Poppins",
+    fontWeight: "400",
+    fontSize: 12,
+    color: COLORS.textMuted,
+  },
+  workspace: { paddingHorizontal: 20, paddingTop: 18, gap: 14 },
+  sectionHeading: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    backgroundColor: COLORS.lightPink,
-    borderRadius: 14,
-    padding: 5,
-    marginTop: 18,
-    gap: 4,
-  },
-  tab: {
-    flexGrow: 1,
-    flexBasis: "45%",
-    padding: 10,
+    justifyContent: "space-between",
     alignItems: "center",
-    borderRadius: 10,
   },
-  activeTab: { backgroundColor: COLORS.pink },
-  tabText: { color: COLORS.primary, fontSize: 11, fontWeight: "600" },
+  sectionTitle: {
+    fontFamily: "Playfair Display",
+    fontWeight: "600",
+    fontSize: 20,
+    color: COLORS.primary,
+  },
+  sectionContext: {
+    fontFamily: "Poppins",
+    fontWeight: "400",
+    fontSize: 12,
+    color: COLORS.textMuted,
+  },
   addButton: {
     backgroundColor: COLORS.primary,
     borderRadius: 13,
@@ -760,23 +775,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
-    marginTop: 20,
+    marginTop: 4,
   },
   addButtonText: { color: COLORS.white, fontWeight: "700" },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 18,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: COLORS.primary },
   emptyText: { color: COLORS.muted, textAlign: "center", marginTop: 30 },
   productCard: {
     flexDirection: "row",
     backgroundColor: COLORS.white,
     padding: 12,
     borderRadius: 16,
-    marginBottom: 12,
+    marginBottom: 4,
     gap: 12,
   },
   productImage: { width: 100, height: 125, borderRadius: 12 },

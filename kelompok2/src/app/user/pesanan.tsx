@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import PageHeader from "@/components/PageHeader";
+import { supabase } from "../../../lib/supabase";
 
 const colors = {
   background: "#FFF8F0",
@@ -15,7 +16,7 @@ const colors = {
 };
 
 type Order = {
-  id: string;
+  id: string | number;
   product: string;
   price: string;
   pickupDate: string;
@@ -25,55 +26,8 @@ type Order = {
   completed: boolean;
   highlightPaymentStatus?: boolean;
   highlightWorkStatus?: boolean;
-  image: number;
+  image: string;
 };
-
-const orders: Order[] = [
-  {
-    id: "RA-0012",
-    product: "Blush Rose Bouquet",
-    price: "Rp185.000",
-    pickupDate: "24 Okt 2026",
-    paymentStatus: "Menunggu Pembayaran",
-    workStatus: "Belum diproses",
-    completed: false,
-    image: 0,
-  },
-  {
-    id: "RA-0011",
-    product: "Sweet Peony",
-    price: "Rp250.000",
-    pickupDate: "23 Okt 2026",
-    paymentStatus: "Menunggu Verifikasi",
-    workStatus: "Sedang Dibuat",
-    note: "DP diterima · pelunasan ditinjau",
-    completed: false,
-    highlightWorkStatus: true,
-    image: 1,
-  },
-  {
-    id: "RA-0010",
-    product: "Lili Putih",
-    price: "Rp210.000",
-    pickupDate: "22 Okt 2026",
-    paymentStatus: "Sudah Dibayar",
-    workStatus: "Siap Diambil",
-    completed: false,
-    image: 0,
-  },
-  {
-    id: "RA-0009",
-    product: "Buket Mawar Merah",
-    price: "Rp195.000",
-    pickupDate: "20 Okt 2026",
-    paymentStatus: "Lunas",
-    workStatus: "Selesai",
-    completed: true,
-    highlightPaymentStatus: true,
-    highlightWorkStatus: true,
-    image: 0,
-  },
-];
 
 const filters = ["Semua", "Aktif", "Selesai"] as const;
 type Filter = (typeof filters)[number];
@@ -81,14 +35,58 @@ type Filter = (typeof filters)[number];
 export default function PesananScreen() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<Filter>("Semua");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchUserOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .order("id", { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedOrders: Order[] = data.map((item: any) => {
+          const isCompleted = item.status === "Selesai" || item.work_status === "Selesai";
+          return {
+            id: item.order_number || `RA-${item.id}`,
+            product: item.bouquet_name || "Buket Bunga",
+            price: item.quantity_price || `Rp ${Number(item.total_price || 0).toLocaleString("id-ID")}`,
+            pickupDate: `${item.delivery_date || ""} (${item.delivery_time || ""})`,
+            paymentStatus: item.status === "Verifikasi" ? "Menunggu Verifikasi" : "Sudah Dibayar",
+            workStatus: item.status || "Belum diproses",
+            note: item.card_message ? `Pesan: "${item.card_message}"` : undefined,
+            completed: isCompleted,
+            highlightPaymentStatus: item.status !== "Verifikasi",
+            highlightWorkStatus: isCompleted,
+            image: item.photo || "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
+          };
+        });
+        setOrders(formattedOrders);
+      }
+    } catch (error) {
+      console.error("Gagal memuat pesanan user:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUserOrders();
+  }, [fetchUserOrders]);
+
   const counts = useMemo(
     () => ({
       Semua: orders.length,
       Aktif: orders.filter((order) => !order.completed).length,
       Selesai: orders.filter((order) => order.completed).length,
     }),
-    []
+    [orders]
   );
+
   const visibleOrders = useMemo(
     () =>
       orders.filter((order) => {
@@ -96,7 +94,7 @@ export default function PesananScreen() {
         if (activeFilter === "Selesai") return order.completed;
         return true;
       }),
-    [activeFilter]
+    [orders, activeFilter]
   );
 
   return (
@@ -122,13 +120,15 @@ export default function PesananScreen() {
           })}
         </View>
 
-        {visibleOrders.length ? (
-          visibleOrders.map((order) => <OrderCard key={order.id} order={order} />)
+        {loading ? (
+          <ActivityIndicator size="large" color={colors.berry} style={{ marginTop: 40 }} />
+        ) : visibleOrders.length ? (
+          visibleOrders.map((order) => <OrderCard key={String(order.id)} order={order} />)
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="flower-outline" size={34} color={colors.pink} />
             <Text style={styles.emptyTitle}>Belum ada pesanan</Text>
-            <Text style={styles.emptyCopy}>Pesanan dengan status ini akan muncul di sini.</Text>
+            <Text style={styles.emptyCopy}>Pesanan yang kamu buat akan muncul di sini.</Text>
           </View>
         )}
       </ScrollView>
@@ -150,7 +150,7 @@ function OrderCard({ order }: { order: Order }) {
 
       <View style={styles.productRow}>
         <Image
-          source={order.image === 0 ? require("../../../assets/images/order-photo-1.jpg") : require("../../../assets/images/order-photo-2.jpg")}
+          source={{ uri: typeof order.image === "string" ? order.image : "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300" }}
           style={styles.productImage}
           resizeMode="cover"
           accessibilityLabel={`Foto ${order.product}`}
@@ -171,7 +171,7 @@ function OrderCard({ order }: { order: Order }) {
       {expanded ? (
         <View style={styles.detailPanel}>
           <Text style={styles.detailText}>Nomor pesanan: {order.id}</Text>
-          <Text style={styles.detailText}>{order.completed ? "Pesanan telah selesai. Terima kasih sudah berbelanja!" : `Pesanan dijadwalkan untuk diambil pada ${order.pickupDate}.`}</Text>
+          <Text style={styles.detailText}>{order.completed ? "Pesanan telah selesai. Terima kasih sudah berbelanja!" : `Pesanan dijadwalkan untuk diambil sesuai jadwal.`}</Text>
         </View>
       ) : null}
     </View>
@@ -214,6 +214,7 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 14,
     marginBottom: 14,
+    backgroundColor: "#FFFFFF",
   },
   orderTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   orderId: { color: colors.berry, fontSize: 13, fontWeight: "700" },
@@ -227,10 +228,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.palePink,
   },
   productInfo: { flex: 1, paddingLeft: 12, justifyContent: "center" },
-  productName: { color: colors.berry, fontFamily: "serif", fontSize: 18, lineHeight: 23, fontWeight: "700" },
-  price: { color: colors.berry, fontSize: 14, marginTop: 3 },
+  productName: { color: colors.berry, fontSize: 16, lineHeight: 21, fontWeight: "700" },
+  price: { color: colors.berry, fontSize: 14, marginTop: 3, fontWeight: "600" },
   pickupLabel: { color: colors.muted, fontSize: 11, marginTop: 7 },
-  pickupDate: { color: colors.berry, fontSize: 14, marginTop: 1 },
+  pickupDate: { color: colors.berry, fontSize: 13, marginTop: 1 },
   divider: { height: 1, backgroundColor: colors.line, marginTop: 12, marginBottom: 10 },
   statusRow: {
     minHeight: 32,
@@ -258,24 +259,4 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: "center", padding: 36, gap: 8 },
   emptyTitle: { color: colors.berry, fontSize: 16, fontWeight: "700" },
   emptyCopy: { color: colors.muted, fontSize: 12, textAlign: "center" },
-  // Style untuk Bottom Navigation
-  bottomNavContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 84,
-    borderTopWidth: 1,
-    borderTopColor: "#F1D2DC",
-    backgroundColor: "#FFF8F0",
-    alignItems: "center",
-    paddingTop: 8,
-    paddingHorizontal: 20,
-  },
-  navTabs: { flexDirection: "row", width: "100%", height: 48, gap: 16 },
-  tabActive: { flex: 1, height: 48, backgroundColor: "#FFF0F6", borderRadius: 4, justifyContent: "center", alignItems: "center", gap: 3 },
-  tabInactive: { flex: 1, height: 48, justifyContent: "center", alignItems: "center", gap: 3 },
-  tabLabelActive: { fontSize: 10, color: colors.berry, fontWeight: "600" },
-  tabLabelInactive: { fontSize: 10, color: "#999999" },
-  homeIndicator: { width: 120, height: 4, backgroundColor: colors.berry, borderRadius: 2, marginTop: 12 },
 });

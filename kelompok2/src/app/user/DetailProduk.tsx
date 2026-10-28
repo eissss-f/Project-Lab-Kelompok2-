@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -9,8 +8,10 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ArrowLeft,
   ShoppingCart,
@@ -20,10 +21,13 @@ import {
 
 import CustomButton from '../../components/CustomButton';
 
+const CART_STORAGE_KEY = '@ra_scrafts_cart';
+
 export default function DetailProduk() {
   const router = useRouter();
 
-  const { name, price, imageUrl } = useLocalSearchParams<{
+  const { id, name, price, imageUrl } = useLocalSearchParams<{
+    id?: string;
     name: string;
     price: string;
     imageUrl: string;
@@ -39,7 +43,87 @@ export default function DetailProduk() {
     'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80';
 
   const displayName = name || 'Buket Mawar Premium';
-  const displayPrice = price || 'Rp 150.000';
+  
+  // Membersihkan format harga string (misal: "Rp 150.000" jadi angka 150000)
+  const parsePrice = (priceStr: string) => {
+    if (!priceStr) return 150000;
+    const numeric = Number(priceStr.replace(/[^0-9]/g, ''));
+    return isNaN(numeric) ? 150000 : numeric;
+  };
+
+  const numericPrice = parsePrice(price);
+
+  // Fungsi untuk kembali ke halaman sebelumnya atau ke katalog
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/user/Katalog');
+    }
+  };
+
+  // 1. Fungsi untuk Memasukkan ke Keranjang
+  const handleAddToCart = async () => {
+    try {
+      const newItem = {
+        id: id ? Number(id) : Date.now(),
+        name: displayName,
+        variant: `${selectedSize} · ra_scrafts`,
+        price: numericPrice,
+        quantity: quantity,
+        image: displayImage,
+        selected: true,
+      };
+
+      // Ambil data keranjang sebelumnya
+      const existingCart = await AsyncStorage.getItem(CART_STORAGE_KEY);
+      let cartArray = existingCart ? JSON.parse(existingCart) : [];
+
+      // Cek apakah produk dengan ukuran yang sama sudah ada di keranjang
+      const existingIndex = cartArray.findIndex(
+        (item: any) => item.name === newItem.name && item.variant === newItem.variant
+      );
+
+      if (existingIndex > -1) {
+        cartArray[existingIndex].quantity += quantity;
+      } else {
+        cartArray.push(newItem);
+      }
+
+      // Simpan kembali ke AsyncStorage
+      await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartArray));
+
+      Alert.alert('Berhasil', 'Produk berhasil dimasukkan ke keranjang!', [
+        { text: 'Lihat Keranjang', onPress: () => router.push('/user/keranjang') },
+        { text: 'Lanjut Belanja', style: 'cancel' },
+      ]);
+    } catch (error) {
+      console.error('Gagal tambah ke keranjang:', error);
+      Alert.alert('Kesalahan', 'Gagal menyimpan produk ke keranjang.');
+    }
+  };
+
+  // 2. Fungsi untuk Pesan Sekarang (Langsung ke Checkout)
+  const handleBuyNow = () => {
+    const singleCheckoutItem = [
+      {
+        id: id ? Number(id) : Date.now(),
+        name: displayName,
+        variant: `${selectedSize} · ra_scrafts`,
+        price: numericPrice,
+        quantity: quantity,
+        image: displayImage,
+        selected: true,
+      },
+    ];
+
+    router.push({
+      pathname: '/user/checkout',
+      params: {
+        cartItems: JSON.stringify(singleCheckoutItem),
+      },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -52,7 +136,7 @@ export default function DetailProduk() {
       <View style={styles.detailHeader}>
         <TouchableOpacity
           style={styles.iconBtn}
-          onPress={() => router.back()}
+          onPress={handleBack}
         >
           <ArrowLeft size={20} color="#A83F68" />
         </TouchableOpacity>
@@ -87,7 +171,7 @@ export default function DetailProduk() {
 
         <View style={styles.priceRow}>
           <Text style={styles.productPrice}>
-            {displayPrice}
+            {price || `Rp ${numericPrice.toLocaleString('id-ID')}`}
           </Text>
 
           <View style={styles.stockBadge}>
@@ -162,23 +246,24 @@ export default function DetailProduk() {
           </View>
         </View>
 
-        {/* Tombol Reusable */}
+        {/* Tombol Masukkan ke Keranjang */}
         <View style={styles.buttonWrapper}>
-          <CustomButton
-            title="Masukkan ke Keranjang"
-            onPress={() =>
-              router.push('/user/keranjang')
-            }
-          />
+          <TouchableOpacity activeOpacity={0.8} onPress={handleAddToCart} style={{ width: '100%' }}>
+            <CustomButton
+              title="Masukkan ke Keranjang"
+              onPress={handleAddToCart}
+            />
+          </TouchableOpacity>
         </View>
 
+        {/* Tombol Pesan Sekarang */}
         <View style={styles.buttonWrapper}>
-          <CustomButton
-            title="Pesan Sekarang"
-            onPress={() =>
-              router.push('/user/checkout')
-            }
-          />
+          <TouchableOpacity activeOpacity={0.8} onPress={handleBuyNow} style={{ width: '100%' }}>
+            <CustomButton
+              title="Pesan Sekarang"
+              onPress={handleBuyNow}
+            />
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
