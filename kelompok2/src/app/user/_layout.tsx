@@ -10,6 +10,7 @@ export default function AppLayout() {
   const hideBottomNav =
     pathname.includes("/DetailProduk") ||
     pathname.includes("/keranjang") ||
+    pathname.includes("/checkout") ||
     pathname === "/user/keamanan-akun" ||
     pathname === "/user/bantuan";
 

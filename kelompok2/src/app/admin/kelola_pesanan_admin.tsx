@@ -1,7 +1,9 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, useWindowDimensions } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import AdminSubNav from "../../components/AdminSubNav";
+import { supabase } from "../../../lib/supabase"; // Sesuaikan path file supabase kamu
 
 const COLORS = {
   bgApp: "#FFF8F0",
@@ -14,28 +16,62 @@ const COLORS = {
   white: "#FFFFFF",
 };
 
+interface OrderItem {
+  id: number | string;
+  orderNumber: string;
+  customerName: string;
+  status: string;
+  statusBg: string;
+  statusColor: string;
+  bouquetName: string;
+  quantityPrice: string;
+  pickupTime: string;
+  greetingMessage: string;
+  photo: string;
+}
+
 export default function KelolaPesananScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const isSmallScreen = width < 360;
-  const tabFontSize = isSmallScreen ? 10 : 11;
+  const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const orders = [
-    {
-      id: "1", orderNumber: "#RS-1048", customerName: "Nadia Putri", status: "Verifikasi",
-      statusBg: "#FFF2DD", statusColor: "#986E2F", bouquetName: "Pink Romance",
-      quantityPrice: "1 buket · Rp185.000", pickupTime: "18 Okt 2026 - 14.00 WIB",
-      greetingMessage: "“Selamat ulang tahun, Mama. Terima kasih untuk cinta yang tak pernah habis. 🤍”",
-      photo: "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
-    },
-    {
-      id: "2", orderNumber: "#RS-1047", customerName: "Alya Rahma", status: "Siap diambil",
-      statusBg: "#EAF1E8", statusColor: "#557153", bouquetName: "Peach Bloom",
-      quantityPrice: "1 buket · Rp165.000", pickupTime: "18 Okt 2026 - 16.30 WIB",
-      greetingMessage: "“Untuk hari istimewamu. Semoga bahagia selalu, sahabat terbaikku!”",
-      photo: "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=300",
-    },
-  ];
+  // Ambil data pesanan dari database Supabase saat halaman dibuka
+  useEffect(() => {
+    fetchOrdersFromSupabase();
+  }, []);
+
+  const fetchOrdersFromSupabase = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("orders") // Pastikan tabel ini sudah dibuat di Supabase
+        .select("*")
+        .order("id", { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedOrders = data.map((item: any) => ({
+          id: item.id,
+          orderNumber: item.order_number || `#RS-${item.id}`,
+          customerName: item.recipient_name || "Pelanggan",
+          status: item.status || "Verifikasi",
+          statusBg: item.status === "Siap diambil" ? "#EAF1E8" : "#FFF2DD",
+          statusColor: item.status === "Siap diambil" ? "#557153" : "#986E2F",
+          bouquetName: item.bouquet_name || "Buket Bunga",
+          quantityPrice: item.quantity_price || "1 buket",
+          pickupTime: `${item.delivery_date || ""} - ${item.delivery_time || ""}`,
+          greetingMessage: item.card_message || "Tidak ada pesan khusus.",
+          photo: item.photo || "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
+        }));
+        setOrders(formattedOrders);
+      }
+    } catch (error) {
+      console.error("Gagal memuat pesanan:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -55,66 +91,56 @@ export default function KelolaPesananScreen() {
           <Text style={styles.pageSubtitle}>Kelola Produk & Pesanan</Text>
         </View>
 
-        <View style={styles.managementTabs}>
-          {[
-            { label: "Kelola Produk", route: "/admin/produk_admin" },
-            { label: "Kelola Pesanan", route: "/admin/kelola_pesanan_admin" },
-            { label: "Verifikasi", route: "/admin/verifikasi_admin" },
-            { label: "Update Status", route: "/admin/status_admin" },
-          ].map((tab) => {
-            const isActive = tab.route === "/admin/kelola_pesanan_admin";
-            return (
-              <TouchableOpacity key={tab.route} style={[styles.managementTab, isActive && styles.activeTabBg]} onPress={() => router.push(tab.route as any)}>
-                <Text style={[styles.tabLabel, { fontSize: tabFontSize }, isActive && styles.activeTabLabel]} numberOfLines={2}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <AdminSubNav />
 
         <View style={styles.workspace}>
           <View style={styles.sectionHeading}>
             <Text style={styles.sectionTitle}>Pesanan masuk</Text>
-            <Text style={styles.sectionContext}>12 pesanan</Text>
+            <Text style={styles.sectionContext}>{orders.length} pesanan</Text>
           </View>
 
-          <View style={styles.orderList}>
-            {orders.map((order) => (
-              <View key={order.id} style={styles.orderCard}>
-                <View style={styles.customerAndStatus}>
-                  <View style={styles.customerIdentity}>
-                    <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-                    <Text style={styles.customerName}>{order.customerName}</Text>
+          {loading ? (
+            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+          ) : orders.length === 0 ? (
+            <Text style={styles.emptyText}>Belum ada pesanan masuk dari pelanggan.</Text>
+          ) : (
+            <View style={styles.orderList}>
+              {orders.map((order) => (
+                <View key={String(order.id)} style={styles.orderCard}>
+                  <View style={styles.customerAndStatus}>
+                    <View style={styles.customerIdentity}>
+                      <Text style={styles.orderNumber}>{order.orderNumber}</Text>
+                      <Text style={styles.customerName}>{order.customerName}</Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: order.statusBg }]}>
+                      <Text style={[styles.statusLabel, { color: order.statusColor }]}>{order.status}</Text>
+                    </View>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: order.statusBg }]}>
-                    <Text style={[styles.statusLabel, { color: order.statusColor }]}>{order.status}</Text>
-                  </View>
-                </View>
 
-                <View style={styles.orderedBouquet}>
-                  <Image source={{ uri: order.photo }} style={styles.bouquetPhotograph} />
-                  <View style={styles.bouquetDetails}>
-                    <Text style={styles.bouquetName}>{order.bouquetName}</Text>
-                    <Text style={styles.quantityPrice}>{order.quantityPrice}</Text>
+                  <View style={styles.orderedBouquet}>
+                    <Image source={{ uri: order.photo }} style={styles.bouquetPhotograph} />
+                    <View style={styles.bouquetDetails}>
+                      <Text style={styles.bouquetName}>{order.bouquetName}</Text>
+                      <Text style={styles.quantityPrice}>{order.quantityPrice}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.scheduledPickup}>
+                    <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+                    <View style={styles.pickupDetails}>
+                      <Text style={styles.pickupLabel}>Jadwal Pengambilan</Text>
+                      <Text style={styles.pickupTime}>{order.pickupTime}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.greetingCardMessage}>
+                    <Text style={styles.greetingLabel}>Pesan Kartu Ucapan</Text>
+                    <Text style={styles.customGreeting}>{order.greetingMessage}</Text>
                   </View>
                 </View>
-
-                <View style={styles.scheduledPickup}>
-                  <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
-                  <View style={styles.pickupDetails}>
-                    <Text style={styles.pickupLabel}>Jadwal Pengambilan</Text>
-                    <Text style={styles.pickupTime}>{order.pickupTime}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.greetingCardMessage}>
-                  <Text style={styles.greetingLabel}>Pesan Kartu Ucapan</Text>
-                  <Text style={styles.customGreeting}>{order.greetingMessage}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -127,29 +153,39 @@ const styles = StyleSheet.create({
   brandAndAccount: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, height: 72 },
   appTitle: { fontFamily: "Playfair Display", fontWeight: "700", fontSize: 26, color: COLORS.primary },
   adminProfile: {
-    width: 40, height: 40, backgroundColor: COLORS.white, borderRadius: 100, justifyContent: "center", alignItems: "center",
-    shadowColor: "#7E3E55", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.13, shadowRadius: 10, elevation: 3,
+    width: 40,
+    height: 40,
+    backgroundColor: COLORS.white,
+    borderRadius: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#7E3E55",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.13,
+    shadowRadius: 10,
+    elevation: 3,
   },
   headerDivider: { width: "100%", height: 1, backgroundColor: COLORS.border },
   scrollContent: { paddingBottom: 35 },
   pageIntro: { paddingHorizontal: 20, paddingVertical: 12, gap: 4 },
   pageTitle: { fontFamily: "Playfair Display", fontWeight: "700", fontSize: 28, color: COLORS.primary },
   pageSubtitle: { fontFamily: "Poppins", fontWeight: "400", fontSize: 12, color: COLORS.textMuted },
-  managementTabs: {
-    flexDirection: "row", backgroundColor: COLORS.lightPink, marginHorizontal: 20, padding: 5, borderRadius: 16, gap: 4, minHeight: 56,
-  },
-  managementTab: { flex: 1, justifyContent: "center", alignItems: "center", borderRadius: 12, paddingHorizontal: 4, paddingVertical: 8 },
-  activeTabBg: { backgroundColor: COLORS.accentPink },
-  tabLabel: { fontFamily: "Poppins", fontWeight: "500", textAlign: "center", color: "#986678" },
-  activeTabLabel: { fontFamily: "Poppins", fontWeight: "700", color: COLORS.primary },
   workspace: { paddingHorizontal: 20, paddingTop: 18, gap: 14 },
   sectionHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sectionTitle: { fontFamily: "Playfair Display", fontWeight: "600", fontSize: 20, color: COLORS.primary },
   sectionContext: { fontFamily: "Poppins", fontWeight: "400", fontSize: 12, color: COLORS.textMuted },
+  emptyText: { textAlign: "center", color: COLORS.textMuted, marginTop: 30, fontFamily: "Poppins" },
   orderList: { gap: 14 },
   orderCard: {
-    backgroundColor: COLORS.white, padding: 16, borderRadius: 18, gap: 12,
-    shadowColor: "#7E3E55", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 2,
+    backgroundColor: COLORS.white,
+    padding: 16,
+    borderRadius: 18,
+    gap: 12,
+    shadowColor: "#7E3E55",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   customerAndStatus: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   customerIdentity: { gap: 2 },

@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, useWindowDimensions } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, ActivityIndicator } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { supabase } from "../../../lib/supabase"; // Sesuaikan path file supabase kamu
 
 const COLORS = {
   bgApp: "#FFF8F0",
@@ -14,32 +15,93 @@ const COLORS = {
   white: "#FFFFFF",
 };
 
+interface OrderItem {
+  id: number | string;
+  customer: string;
+  product: string;
+  date: string;
+  status: string;
+  statusBg: string;
+  statusColor: string;
+  photo: string;
+}
+
 export default function AdminDashboardScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const [loading, setLoading] = useState(true);
   const [showAllOrders, setShowAllOrders] = useState<boolean>(false);
 
+  // State untuk metrik ringkasan
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [pendingVerification, setPendingVerification] = useState(0);
+  const [readyToPickup, setReadyToPickup] = useState(0);
+  const [recentOrders, setRecentOrders] = useState<OrderItem[]>([]);
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      // 1. Ambil jumlah total produk
+      const { count: productCount, error: productError } = await supabase
+        .from("products")
+        .select("*", { count: "exact", head: true });
+
+      if (!productError && productCount !== null) {
+        setTotalProducts(productCount);
+      }
+
+      // 2. Ambil semua data pesanan untuk statistik & daftar terbaru
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("orders")
+        .select("*")
+        .order("id", { ascending: false });
+
+      if (ordersError) throw ordersError;
+
+      if (ordersData) {
+        setTotalOrders(ordersData.length);
+
+        // Hitung jumlah berdasarkan status
+        const pending = ordersData.filter((o: any) => o.status === "Verifikasi" || !o.status).length;
+        const ready = ordersData.filter((o: any) => o.status === "Siap Diambil").length;
+
+        setPendingVerification(pending);
+        setReadyToPickup(ready);
+
+        // Format daftar pesanan terbaru
+        const formattedOrders = ordersData.map((item: any) => ({
+          id: item.id,
+          customer: item.recipient_name || "Pelanggan",
+          product: `${item.bouquet_name || "Buket"} - 1 buket`,
+          date: item.delivery_date ? `${item.delivery_date}` : "Baru saja",
+          status: item.status || "Verifikasi",
+          statusBg: item.status === "Siap Diambil" ? "#EAF1E8" : "#FFF2DD",
+          statusColor: item.status === "Siap Diambil" ? "#557153" : "#986E2F",
+          photo: item.photo || "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
+        }));
+
+        setRecentOrders(formattedOrders);
+      }
+    } catch (error) {
+      console.error("Gagal memuat data dashboard admin:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
   const summaryItems = [
-    { value: "48", title: "Jumlah Produk", desc: "Buket & hadiah aktif", icon: "cube-outline" as const, route: "/admin/produk_admin" },
-    { value: "12", title: "Pesanan Masuk", desc: "+3 pesanan hari ini", icon: "bag-outline" as const, route: "/admin/kelola_pesanan_admin" },
-    { value: "05", title: "Menunggu Verifikasi", desc: "Perlu cek pembayaran", icon: "receipt-outline" as const, route: "/admin/verifikasi_admin" },
-    { value: "07", title: "Siap Diambil", desc: "Siap membawa senyum", icon: "gift-outline" as const, route: "/admin/status_admin" },
+    { value: String(totalProducts), title: "Jumlah Produk", desc: "Buket & hadiah aktif", icon: "cube-outline" as const, route: "/admin/produk_admin" },
+    { value: String(totalOrders), title: "Pesanan Masuk", desc: "Total pesanan pelanggan", icon: "bag-outline" as const, route: "/admin/kelola_pesanan_admin" },
+    { value: String(pendingVerification), title: "Menunggu Verifikasi", desc: "Perlu cek pembayaran", icon: "receipt-outline" as const, route: "/admin/verifikasi_admin" },
+    { value: String(readyToPickup), title: "Siap Diambil", desc: "Siap membawa senyum", icon: "gift-outline" as const, route: "/admin/status_admin" },
   ];
 
-  const orderItems = [
-    {
-      id: "1", customer: "Nadia Putri", product: "Buket Mawar • Pink Romance", date: "19 Okt, 14.00",
-      status: "Verifikasi", statusBg: "#FFF2DD", statusColor: "#986E2F",
-      photo: "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
-    },
-    {
-      id: "2", customer: "Alya Rahma", product: "Buket Tulip • Peach Bloom", date: "18 Okt, 16.30",
-      status: "Siap diambil", statusBg: "#EAF1E8", statusColor: "#557153",
-      photo: "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=300",
-    },
-  ];
-
-  const visibleOrders = showAllOrders ? orderItems : orderItems.slice(0, 3);
+  const visibleOrders = showAllOrders ? recentOrders : recentOrders.slice(0, 3);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -66,7 +128,7 @@ export default function AdminDashboardScreen() {
           <View style={styles.ringkasanSection}>
             <View style={styles.sectionHeading}>
               <Text style={styles.sectionTitle}>Ringkasan</Text>
-              <Text style={styles.reportingDate}>Minggu, 18 Okt 2026</Text>
+              <Text style={styles.reportingDate}>Sistem Toko Aktif</Text>
             </View>
 
             <View style={styles.metricsGrid}>
@@ -110,38 +172,46 @@ export default function AdminDashboardScreen() {
         <View style={styles.recentOrdersSection}>
           <View style={styles.sectionHeading}>
             <Text style={styles.sectionTitle}>Pesanan Terbaru</Text>
-            <TouchableOpacity onPress={() => router.push("/admin/kelola_pesanan_admin" as any)} style={styles.allOrdersBtn}>
-              <Text style={styles.viewAllText}>{showAllOrders ? "Tutup" : "Lihat semua"}</Text>
-              <Ionicons name="arrow-forward" size={13} color={COLORS.primary} />
-            </TouchableOpacity>
+            {recentOrders.length > 3 && (
+              <TouchableOpacity onPress={() => setShowAllOrders(!showAllOrders)} style={styles.allOrdersBtn}>
+                <Text style={styles.viewAllText}>{showAllOrders ? "Tutup" : "Lihat semua"}</Text>
+                <Ionicons name="arrow-forward" size={13} color={COLORS.primary} />
+              </TouchableOpacity>
+            )}
           </View>
 
-          <View style={styles.orderList}>
-            {visibleOrders.map((order) => (
-              <View key={order.id} style={styles.orderCard}>
-                <TouchableOpacity style={styles.orderDetails} onPress={() => router.push("/admin/kelola_pesanan_admin" as any)}>
-                  <Image source={{ uri: order.photo }} style={styles.bouquetPhoto} />
-                  <View style={styles.customerAndBouquet}>
-                    <View style={styles.customerHeading}>
-                      <Text style={styles.customerName}>{order.customer}</Text>
-                      <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-                    </View>
-                    <Text style={styles.bouquetType}>{order.product}</Text>
-
-                    <View style={styles.pickupAndStatus}>
-                      <View style={styles.pickupDate}>
-                        <Ionicons name="calendar-outline" size={12} color={COLORS.textMuted} />
-                        <Text style={styles.pickupTime}>{order.date}</Text>
+          {loading ? (
+            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 20 }} />
+          ) : recentOrders.length === 0 ? (
+            <Text style={styles.emptyText}>Belum ada pesanan terbaru dari user.</Text>
+          ) : (
+            <View style={styles.orderList}>
+              {visibleOrders.map((order) => (
+                <View key={String(order.id)} style={styles.orderCard}>
+                  <TouchableOpacity style={styles.orderDetails} onPress={() => router.push("/admin/kelola_pesanan_admin" as any)}>
+                    <Image source={{ uri: order.photo }} style={styles.bouquetPhoto} />
+                    <View style={styles.customerAndBouquet}>
+                      <View style={styles.customerHeading}>
+                        <Text style={styles.customerName}>{order.customer}</Text>
+                        <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
                       </View>
-                      <TouchableOpacity style={[styles.orderStatus, { backgroundColor: order.statusBg }]} onPress={() => router.push("/admin/status_admin" as any)}>
-                        <Text style={[styles.statusLabel, { color: order.statusColor }]}>{order.status}</Text>
-                      </TouchableOpacity>
+                      <Text style={styles.bouquetType}>{order.product}</Text>
+
+                      <View style={styles.pickupAndStatus}>
+                        <View style={styles.pickupDate}>
+                          <Ionicons name="calendar-outline" size={12} color={COLORS.textMuted} />
+                          <Text style={styles.pickupTime}>{order.date}</Text>
+                        </View>
+                        <TouchableOpacity style={[styles.orderStatus, { backgroundColor: order.statusBg }]} onPress={() => router.push("/admin/status_admin" as any)}>
+                          <Text style={[styles.statusLabel, { color: order.statusColor }]}>{order.status}</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -183,6 +253,7 @@ const styles = StyleSheet.create({
   recentOrdersSection: { gap: 10, paddingBottom: 24 },
   allOrdersBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
   viewAllText: { fontFamily: "Poppins", fontWeight: "600", fontSize: 11, color: COLORS.primary },
+  emptyText: { textAlign: "center", color: COLORS.textMuted, marginTop: 10, fontFamily: "Poppins" },
   orderList: { gap: 10 },
   orderCard: {
     backgroundColor: COLORS.white, padding: 14, borderRadius: 18,

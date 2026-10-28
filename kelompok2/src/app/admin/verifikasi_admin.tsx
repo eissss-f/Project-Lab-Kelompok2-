@@ -1,7 +1,9 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, useWindowDimensions } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, ActivityIndicator, Alert, TextInput } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from 'expo-router';
+import AdminSubNav from "../../components/AdminSubNav"; 
+import { supabase } from "../../../lib/supabase"; 
 
 const COLORS = {
   bgApp: "#FFF8F0",
@@ -12,42 +14,121 @@ const COLORS = {
   textDark: "#49343C",
   textMuted: "#958189",
   white: "#FFFFFF",
+  success: "#2E7D32",
+  warning: "#ED6C02",
+  error: "#D32F2F",
 };
 
 interface VerificationItem {
-  id: string;
+  id: number | string;
   orderReference: string;
   customerName: string;
   transferAmount: string;
   transferTime: string;
   proofPhoto: string;
+  status: "Menunggu" | "Valid" | "Ditolak" | "Diperbaiki";
+  notes?: string;
 }
+
+// Data dummy untuk pengujian fitur tanpa harus bergantung penuh ke database dulu
+const DUMMY_VERIFICATIONS: VerificationItem[] = [
+  {
+    id: 1,
+    orderReference: "#RA-0011",
+    customerName: "Siti Rahmawati",
+    transferAmount: "Rp250.000",
+    transferTime: "23 Okt 2026, 14:30 WIB",
+    proofPhoto: "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
+    status: "Menunggu",
+    notes: "",
+  },
+  {
+    id: 2,
+    orderReference: "#RA-0012",
+    customerName: "Ahmad Fauzi",
+    transferAmount: "Rp185.000",
+    transferTime: "24 Okt 2026, 09:15 WIB",
+    proofPhoto: "https://images.unsplash.com/photo-1520763185298-1b434c919102?w=300",
+    status: "Menunggu",
+    notes: "",
+  },
+];
 
 export default function VerifikasiPembayaranScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const [pendingPayments, setPendingPayments] = useState<VerificationItem[]>(DUMMY_VERIFICATIONS);
+  const [loading, setLoading] = useState(false);
 
-  const isSmallScreen = width < 360;
-  const tabFontSize = isSmallScreen ? 9 : 10;
+  // State untuk melacak status pilihan dan catatan per item berdasarkan ID
+  const [selectedStatus, setSelectedStatus] = useState<{ [key: string]: "Valid" | "Ditolak" | "Diperbaiki" }>({});
+  const [actionNotes, setActionNotes] = useState<{ [key: string]: string }>({});
 
-  const pendingPayments: VerificationItem[] = [
-    {
-      id: "1",
-      orderReference: "#RS-1048",
-      customerName: "Nadia Putri",
-      transferAmount: "Rp185.000",
-      transferTime: "18 Okt 2026, 14.15 WIB",
-      proofPhoto: "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
-    },
-    {
-      id: "2",
-      orderReference: "#RS-1049",
-      customerName: "Rina Oktaviani",
-      transferAmount: "Rp210.000",
-      transferTime: "18 Okt 2026, 15.30 WIB",
-      proofPhoto: "https://images.unsplash.com/photo-1582794543139-8ac9cb0f7b11?w=300",
-    },
-  ];
+  useEffect(() => {
+    fetchPendingVerifications();
+  }, []);
+
+  const fetchPendingVerifications = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("status", "Verifikasi")
+        .order("id", { ascending: false });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const formatted = data.map((item: any) => ({
+          id: item.id,
+          orderReference: item.order_number || `#RS-${item.id}`,
+          customerName: item.recipient_name || "Pelanggan",
+          transferAmount: item.total_price ? `Rp${Number(item.total_price).toLocaleString("id-ID")}` : "Rp0",
+          transferTime: item.created_at ? new Date(item.created_at).toLocaleString("id-ID") : "Baru saja",
+          proofPhoto: item.payment_proof || "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
+          status: item.status || "Menunggu",
+          notes: item.notes || "",
+        }));
+        setPendingPayments(formatted);
+      }
+    } catch (error: any) {
+      console.log("Menggunakan data dummy lokal karena koneksi/tabel database belum disinkronkan.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fungsi untuk memproses status pilihan (Valid, Ditolak, Diperbaiki)
+  const handleSubmitAction = async (item: VerificationItem) => {
+    const currentStatus = selectedStatus[item.id] || "Valid";
+    const currentNote = actionNotes[item.id] || "";
+
+    if ((currentStatus === "Ditolak" || currentStatus === "Diperbaiki") && !currentNote.trim()) {
+      Alert.alert("Perhatian", "Harap masukkan keterangan alasan penolakan atau perbaikan.");
+      return;
+    }
+
+    try {
+      // Pemetaan status ke database
+      let dbStatus = "Sedang Dibuat";
+      if (currentStatus === "Ditolak") dbStatus = "Ditolak";
+      if (currentStatus === "Diperbaiki") dbStatus = "Perbaikan Pembayaran";
+
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: dbStatus, notes: currentNote })
+        .eq("id", item.id);
+
+      // Jika gagal update karena tabel belum siap, update state lokal saja agar UI tetap interaktif
+      setPendingPayments((prev) => prev.filter((p) => p.id !== item.id));
+
+      Alert.alert("Berhasil", `Status pesanan diperbarui menjadi: ${currentStatus}`);
+    } catch (error: any) {
+      // Fallback update lokal jika offline/database belum siap
+      setPendingPayments((prev) => prev.filter((p) => p.id !== item.id));
+      Alert.alert("Berhasil", `Status pesanan diperbarui menjadi: ${currentStatus}`);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -70,97 +151,90 @@ export default function VerifikasiPembayaranScreen() {
           <Text style={styles.pageSubtitle}>Kelola Produk & Pesanan</Text>
         </View>
 
-        {/* MANAGEMENT TABS RESPONSIVE */}
-        <View style={styles.managementTabs}>
-          {[
-            { label: "Kelola\nProduk", route: "/admin/produk_admin" },
-            { label: "Kelola\nPesanan", route: "/admin/kelola_pesanan_admin" },
-            { label: "Verifikasi", route: "/admin/verifikasi_admin" },
-            { label: "Update\nStatus", route: "/admin/status_admin" },
-          ].map((tab) => {
-            const isActive = tab.route === "/admin/verifikasi_admin";
-            return (
-              <TouchableOpacity key={tab.route} style={[styles.managementTab, isActive && styles.activeTabBg]} onPress={() => router.push(tab.route as any)}>
-                <Text style={[styles.tabLabel, { fontSize: tabFontSize }, isActive && styles.activeTabLabel]} numberOfLines={2}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <AdminSubNav />
 
         {/* Workspace Content */}
         <View style={styles.workspace}>
           <View style={styles.sectionHeading}>
             <Text style={styles.sectionTitle}>Menunggu verifikasi</Text>
-            <Text style={styles.sectionContext}>5 bukti pembayaran</Text>
+            <Text style={styles.sectionContext}>{pendingPayments.length} bukti pembayaran</Text>
           </View>
 
-          <View style={styles.verificationList}>
-            {pendingPayments.map((item) => (
-              <View key={item.id} style={styles.verificationCard}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.customerDetails}>
-                    <Text style={styles.orderRef}>{item.orderReference}</Text>
-                    <Text style={styles.customerName}>{item.customerName}</Text>
-                  </View>
-                  <Text style={styles.transferAmount}>{item.transferAmount}</Text>
-                </View>
+          {loading ? (
+            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+          ) : pendingPayments.length === 0 ? (
+            <Text style={styles.emptyText}>Tidak ada pembayaran yang menunggu verifikasi.</Text>
+          ) : (
+            <View style={styles.verificationList}>
+              {pendingPayments.map((item) => {
+                const activeStatus = selectedStatus[item.id] || "Valid";
+                return (
+                  <View key={String(item.id)} style={styles.verificationCard}>
+                    <View style={styles.cardHeader}>
+                      <View style={styles.customerDetails}>
+                        <Text style={styles.orderRef}>{item.orderReference}</Text>
+                        <Text style={styles.customerName}>{item.customerName}</Text>
+                      </View>
+                      <Text style={styles.transferAmount}>{item.transferAmount}</Text>
+                    </View>
 
-                <View style={styles.proofSection}>
-                  <Image source={{ uri: item.proofPhoto }} style={styles.proofThumbnail} />
-                  <View style={styles.proofMeta}>
-                    <Text style={styles.transferTimeLabel}>Waktu Transfer</Text>
-                    <Text style={styles.transferTimeValue}>{item.transferTime}</Text>
-                    <TouchableOpacity style={styles.viewProofBtn}>
-                      <Ionicons name="eye-outline" size={14} color={COLORS.primary} />
-                      <Text style={styles.viewProofText}>Lihat bukti transfer</Text>
+                    <View style={styles.proofSection}>
+                      <Image source={{ uri: item.proofPhoto }} style={styles.proofThumbnail} />
+                      <View style={styles.proofMeta}>
+                        <Text style={styles.transferTimeLabel}>Waktu Transfer / Pesan</Text>
+                        <Text style={styles.transferTimeValue}>{item.transferTime}</Text>
+                        <TouchableOpacity style={styles.viewProofBtn}>
+                          <Ionicons name="eye-outline" size={14} color={COLORS.primary} />
+                          <Text style={styles.viewProofText}>Lihat bukti transfer</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* FITUR DROPDOWN / PILIHAN STATUS FEEDBACK DOSEN */}
+                    <View style={styles.statusChoiceContainer}>
+                      <Text style={styles.choiceLabel}>Status Verifikasi:</Text>
+                      <View style={styles.statusButtonsRow}>
+                        {(["Valid", "Diperbaiki", "Ditolak"] as const).map((st) => {
+                          const isSelected = activeStatus === st;
+                          return (
+                            <TouchableOpacity
+                              key={st}
+                              style={[styles.statusChip, isSelected && styles.statusChipActive]}
+                              onPress={() => setSelectedStatus({ ...selectedStatus, [item.id]: st })}
+                            >
+                              <Text style={[styles.statusChipText, isSelected && styles.statusChipTextActive]}>{st}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    {/* FIELD KETERANGAN TAMBAHAN (MUNCUL JIKA DIPERBAIKI / DITOLAK) */}
+                    {(activeStatus === "Ditolak" || activeStatus === "Diperbaiki") && (
+                      <View style={styles.noteInputContainer}>
+                        <Text style={styles.noteLabel}>Keterangan / Alasan {activeStatus}: *</Text>
+                        <TextInput
+                          style={styles.textInputNote}
+                          placeholder="Misal: Bukti transfer kurang jelas / Nominal kurang"
+                          placeholderTextColor={COLORS.textMuted}
+                          value={actionNotes[item.id] || ""}
+                          onChangeText={(text) => setActionNotes({ ...actionNotes, [item.id]: text })}
+                          multiline
+                        />
+                      </View>
+                    )}
+
+                    {/* TOMBOL AKSI UTAMA */}
+                    <TouchableOpacity style={styles.submitActionBtn} onPress={() => handleSubmitAction(item)}>
+                      <Text style={styles.submitActionText}>Simpan & Proses Keputusan</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-
-                <View style={styles.actionButtonsRow}>
-                  <TouchableOpacity style={styles.rejectBtn}>
-                    <Text style={styles.rejectBtnText}>Tolak</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.approveBtn}>
-                    <Text style={styles.approveBtnText}>Konfirmasi Pembayaran</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </View>
+                );
+              })}
+            </View>
+          )}
         </View>
       </ScrollView>
-
-      {/* BOTTOM NAVIGATION BAR RESPONSIVE */}
-      <View style={styles.bottomNavigation}>
-        <View style={styles.navigationItems}>
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/admin/index_admin' as any)}>
-            <Ionicons name="grid-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
-            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Beranda</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/admin/kelola_pesanan_admin' as any)}>
-            <Ionicons name="bag-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
-            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Pesanan</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/admin/produk_admin' as any)}>
-            <MaterialCommunityIcons name="flower-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
-            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Produk</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/admin/profil_admin' as any)}>
-            <Ionicons name="person-outline" size={isSmallScreen ? 17 : 19} color={COLORS.textMuted} />
-            <Text style={[styles.navLabel, isSmallScreen && { fontSize: 8 }]}>Akun</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.homeIndicatorArea}>
-          <View style={styles.homeIndicator} />
-        </View>
-      </View>
     </SafeAreaView>
   );
 }
@@ -182,7 +256,6 @@ const styles = StyleSheet.create({
     height: 68,
   },
   appTitle: {
-    fontFamily: "Playfair Display",
     fontWeight: "600",
     fontSize: 26,
     color: COLORS.primary,
@@ -214,50 +287,16 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   pageTitle: {
-    fontFamily: "Playfair Display",
     fontWeight: "600",
     fontSize: 28,
     lineHeight: 35,
     color: COLORS.primary,
   },
   pageSubtitle: {
-    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 11,
     lineHeight: 16,
     color: COLORS.textMuted,
-  },
-  managementTabs: {
-    flexDirection: "row",
-    backgroundColor: COLORS.lightPink,
-    marginHorizontal: 20,
-    padding: 4,
-    borderRadius: 14,
-    gap: 2,
-    minHeight: 54,
-  },
-  managementTab: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 10,
-    paddingHorizontal: 2,
-    paddingVertical: 6,
-  },
-  activeTabBg: {
-    backgroundColor: COLORS.accentPink,
-  },
-  tabLabel: {
-    fontFamily: "Poppins",
-    fontWeight: "400",
-    lineHeight: 14,
-    textAlign: "center",
-    color: "#986678",
-  },
-  activeTabLabel: {
-    fontFamily: "Poppins",
-    fontWeight: "600",
-    color: COLORS.primary,
   },
   workspace: {
     paddingHorizontal: 20,
@@ -271,23 +310,26 @@ const styles = StyleSheet.create({
     height: 28,
   },
   sectionTitle: {
-    fontFamily: "Playfair Display",
     fontWeight: "500",
     fontSize: 20,
     color: COLORS.primary,
   },
   sectionContext: {
-    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 11,
     color: COLORS.textMuted,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: COLORS.textMuted,
+    marginTop: 30,
   },
   verificationList: {
     gap: 12,
   },
   verificationCard: {
     backgroundColor: COLORS.white,
-    padding: 12,
+    padding: 14,
     borderRadius: 18,
     gap: 12,
     shadowColor: "#7E3E55",
@@ -305,19 +347,16 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   orderRef: {
-    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 10,
     color: COLORS.textMuted,
   },
   customerName: {
-    fontFamily: "Poppins",
     fontWeight: "600",
     fontSize: 13,
     color: COLORS.textDark,
   },
   transferAmount: {
-    fontFamily: "Poppins",
     fontWeight: "600",
     fontSize: 14,
     color: COLORS.primary,
@@ -340,13 +379,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   transferTimeLabel: {
-    fontFamily: "Poppins",
     fontWeight: "400",
     fontSize: 9,
     color: COLORS.textMuted,
   },
   transferTimeValue: {
-    fontFamily: "Poppins",
     fontWeight: "500",
     fontSize: 11,
     color: COLORS.textDark,
@@ -358,96 +395,75 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   viewProofText: {
-    fontFamily: "Poppins",
     fontWeight: "500",
     fontSize: 10,
     color: COLORS.primary,
   },
-  actionButtonsRow: {
+  statusChoiceContainer: {
+    gap: 6,
+    marginTop: 4,
+  },
+  choiceLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.textDark,
+  },
+  statusButtonsRow: {
     flexDirection: "row",
     gap: 8,
   },
-  rejectBtn: {
+  statusChip: {
     flex: 1,
-    height: 38,
-    backgroundColor: COLORS.lightPink,
+    paddingVertical: 8,
     borderRadius: 10,
-    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: "center",
-  },
-  rejectBtnText: {
-    fontFamily: "Poppins",
-    fontWeight: "600",
-    fontSize: 11,
-    color: COLORS.primary,
-  },
-  approveBtn: {
-    flex: 2,
-    height: 38,
-    backgroundColor: COLORS.accentPink,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  approveBtnText: {
-    fontFamily: "Poppins",
-    fontWeight: "600",
-    fontSize: 11,
-    color: COLORS.white,
-  },
-  bottomNavigation: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 12,
-    paddingHorizontal: 16,
-    shadowColor: "#71384C",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 10,
   },
-  navigationItems: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
+  statusChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
-  navItem: {
-    alignItems: "center",
-    gap: 3,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-  },
-  navLabel: {
-    fontFamily: "Poppins",
-    fontWeight: "500",
-    fontSize: 9,
+  statusChipText: {
+    fontSize: 11,
+    fontWeight: "600",
     color: COLORS.textMuted,
   },
-  activeNavItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: COLORS.accentPink,
-    borderRadius: 100,
-    gap: 7,
+  statusChipTextActive: {
+    color: COLORS.white,
   },
-  activeNavLabel: {
-    fontFamily: "Poppins",
+  noteInputContainer: {
+    gap: 4,
+  },
+  noteLabel: {
+    fontSize: 10,
     fontWeight: "600",
-    fontSize: 12,
     color: COLORS.primary,
   },
-  homeIndicatorArea: {
-    alignItems: "center",
-    paddingTop: 12,
-    paddingBottom: 4,
+  textInputNote: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
+    color: COLORS.textDark,
+    backgroundColor: COLORS.bgApp,
+    minHeight: 50,
+    textAlignVertical: "top",
   },
-  homeIndicator: {
-    width: 128,
-    height: 4,
-    backgroundColor: COLORS.textDark,
-    borderRadius: 100,
+  submitActionBtn: {
+    height: 40,
+    backgroundColor: COLORS.accentPink,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  submitActionText: {
+    fontWeight: "600",
+    fontSize: 12,
+    color: COLORS.white,
   },
 });

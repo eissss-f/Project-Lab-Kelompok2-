@@ -1,811 +1,473 @@
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import * as React from "react";
+import { useMemo, useState, useEffect } from "react";
+// @ts-ignore
+import { Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, Modal } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
+import { ArrowLeft, CalendarDays, Clock3, Upload, X } from "lucide-react-native";
+import { supabase } from "../../../lib/supabase"; // Sesuaikan path file supabase kamu
 
-interface CartSummaryItem {
-    id: number;
-    name: string;
-    variant: string;
-    qty: number;
-    price: number;
-    image: string;
+interface CartItem {
+  id: number | string;
+  name: string;
+  variant?: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  selected?: boolean;
 }
 
-export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => void }) {
-    const router = useRouter();
+const ROSE = "#A83F68";
+const PINK = "#E8A6BD";
+const CREAM = "#FFF8F0";
+const BORDER = "#F0CED9";
 
-    useEffect(() => {
-        if (typeof document !== 'undefined') {
-            const linkId = 'google-fonts-ra-scrafts';
-            if (!document.getElementById(linkId)) {
-                const link = document.createElement('link');
-                link.id = linkId;
-                link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@300;400;500;600;700&display=swap';
-                link.rel = 'stylesheet';
-                document.head.appendChild(link);
-            }
-        }
-    }, []);
-
-    // Form States
-    const [isCardActive, setIsCardActive] = useState<boolean>(true);
-    const [recipientName, setRecipientName] = useState<string>('Ayu Maharani');
-    const [cardMessage, setCardMessage] = useState<string>('');
-    const [pickupDate, setPickupDate] = useState<string>('Sabtu, 24 Mei 2025');
-    const [pickupTime, setPickupTime] = useState<string>('13:30 WIB');
-    const [paymentMethod, setPaymentMethod] = useState<'DANA' | 'GoPay' | 'SeaBank'>('DANA');
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
-    const [orderNumber, setOrderNumber] = useState<string>('#RS-1049');
-
-    // Cart summary matching screenshot
-    const cartSummary: CartSummaryItem[] = [
-        {
-            id: 1,
-            name: 'Buket Bunga Rose Premium',
-            variant: 'Pink · Wrapping ivory',
-            qty: 1,
-            price: 150000,
-            image: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?q=80&w=400&auto=format&fit=crop',
-        },
-        {
-            id: 2,
-            name: 'Buket Tulip Sweet Pink',
-            variant: 'Pink · Wrapping pink',
-            qty: 2,
-            price: 95000,
-            image: 'https://images.unsplash.com/photo-1520763185298-1b434c919102?q=80&w=400&auto=format&fit=crop',
-        },
-        {
-            id: 3,
-            name: 'Buket Baby’s Breath',
-            variant: 'Putih · Wrapping kraft',
-            qty: 1,
-            price: 85000,
-            image: 'https://images.unsplash.com/photo-1508610048659-a06b669e3321?q=80&w=400&auto=format&fit=crop',
-        },
-    ];
-
-    const totalBouquets = cartSummary.reduce((sum, item) => sum + item.qty, 0);
-    const totalPrice = cartSummary.reduce((sum, item) => sum + item.price * item.qty, 0);
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setSelectedFile(file);
-            setPreviewUrl(URL.createObjectURL(file));
-        }
-    };
-
-    const handleRemoveFile = () => {
-        setSelectedFile(null);
-        if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
-            setPreviewUrl(null);
-        }
-    };
-
-    const handleBack = () => {
-        if (onBackToCart) {
-            onBackToCart();
-        } else {
-            try {
-                router.back();
-            } catch {
-                try {
-                    router.push('/user/keranjang');
-                } catch {
-                    // fallback
-                }
-            }
-        }
-    };
-
-    const handleSubmitOrder = () => {
-        if (!selectedFile) {
-            alert('Mohon unggah bukti pembayaran terlebih dahulu!');
-            return;
-        }
-        const randomCode = Math.floor(1000 + Math.random() * 9000);
-        setOrderNumber(`#RS-${randomCode}`);
-        setShowSuccessModal(true);
-    };
-
-    return (
-        <div style={{
-            maxWidth: '430px',
-            margin: '0 auto',
-            height: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: '#FFF8F0',
-            fontFamily: "'Poppins', sans-serif",
-            boxSizing: 'border-box',
-            overflow: 'hidden',
-            position: 'relative',
-            boxShadow: '0 0 25px rgba(168, 63, 104, 0.08)'
-        }}>
-
-
-
-            {/* Header */}
-            <div style={{
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: '12px 16px 12px 16px',
-                borderBottom: '1px solid #EED7D8',
-                backgroundColor: '#FFF8F0',
-                flexShrink: 0
-            }}>
-                <button
-                    onClick={handleBack}
-                    style={{
-                        position: 'absolute',
-                        left: '16px',
-                        top: '12px',
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '50%',
-                        border: '1px solid #E8A6BD',
-                        backgroundColor: '#FFF8F0',
-                        color: '#A83F68',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '20px',
-                        paddingBottom: '2px',
-                        boxSizing: 'border-box'
-                    }}
-                >
-                    &#8249;
-                </button>
-                <h1 style={{
-                    fontSize: '25px',
-                    fontFamily: "'Playfair Display', serif",
-                    fontWeight: 600,
-                    color: '#A83F68',
-                    margin: 0,
-                    letterSpacing: '-0.3px'
-                }}>
-                    Checkout
-                </h1>
-                <span style={{ fontSize: '12px', color: '#A83F68', opacity: 0.85, marginTop: '2px' }}>
-                    ra_scrafts.id
-                </span>
-            </div>
-
-            {/* Scrollable Form Body */}
-            <div style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '14px 16px 20px 16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '14px',
-                boxSizing: 'border-box'
-            }}>
-
-                {/* 1. Data Pemesan */}
-                <div style={{
-                    backgroundColor: '#FFFFFF',
-                    padding: '16px',
-                    borderRadius: '20px',
-                    border: '1px solid #E8A6BD',
-                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
-                }}>
-                    <h2 style={{
-                        fontSize: '16px',
-                        fontFamily: "'Playfair Display', serif",
-                        fontWeight: 600,
-                        color: '#A83F68',
-                        margin: '0 0 8px 0'
-                    }}>
-                        Data Pemesan
-                    </h2>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', color: '#A83F68', opacity: 0.8 }}>Nama Pemesan</span>
-                        <span style={{
-                            backgroundColor: '#E8A6BD',
-                            color: '#FFF8F0',
-                            padding: '2px 8px',
-                            borderRadius: '10px',
-                            fontSize: '10px',
-                            fontWeight: 600
-                        }}>
-                            Dari akun
-                        </span>
-                    </div>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#A83F68', margin: '3px 0 8px 0' }}>
-                        Ayu Maharani
-                    </p>
-                    <span style={{ fontSize: '11px', color: '#A83F68', display: 'block', opacity: 0.8 }}>No. HP</span>
-                    <p style={{ fontSize: '13px', fontWeight: 500, color: '#A83F68', margin: '3px 0 0 0' }}>
-                        +62 812 3456 7890
-                    </p>
-                </div>
-
-                {/* 2. Ringkasan Pesanan */}
-                <div style={{
-                    backgroundColor: '#FFFFFF',
-                    padding: '16px',
-                    borderRadius: '20px',
-                    border: '1px solid #E8A6BD',
-                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
-                }}>
-                    <h2 style={{
-                        fontSize: '16px',
-                        fontFamily: "'Playfair Display', serif",
-                        fontWeight: 600,
-                        color: '#A83F68',
-                        margin: '0 0 12px 0'
-                    }}>
-                        Ringkasan Pesanan
-                    </h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {cartSummary.map((item) => (
-                            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <img
-                                    src={item.image}
-                                    alt={item.name}
-                                    style={{
-                                        width: '48px',
-                                        height: '48px',
-                                        objectFit: 'cover',
-                                        borderRadius: '10px',
-                                        flexShrink: 0,
-                                        backgroundColor: '#F7E6E6'
-                                    }}
-                                />
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <h3 style={{
-                                        fontSize: '13px',
-                                        fontFamily: "'Playfair Display', serif",
-                                        fontWeight: 600,
-                                        color: '#A83F68',
-                                        margin: 0,
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis'
-                                    }}>
-                                        {item.name}
-                                    </h3>
-                                    <p style={{ fontSize: '10px', color: '#A83F68', margin: '2px 0 0 0', opacity: 0.8 }}>
-                                        {item.variant}
-                                    </p>
-                                    <p style={{ fontSize: '11px', color: '#A83F68', margin: '2px 0 0 0' }}>
-                                        {item.qty}x · Rp {item.price.toLocaleString('id-ID')}
-                                    </p>
-                                </div>
-                                <span style={{ fontSize: '12px', fontWeight: 600, color: '#A83F68', flexShrink: 0 }}>
-                                    Rp {(item.price * item.qty).toLocaleString('id-ID')}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div style={{
-                        borderTop: '1px solid #EED7D8',
-                        marginTop: '12px',
-                        paddingTop: '10px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                    }}>
-                        <span style={{ fontSize: '11px', color: '#A83F68', opacity: 0.8 }}>
-                            Total {totalBouquets} buket
-                        </span>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#A83F68' }}>
-                            Rp {totalPrice.toLocaleString('id-ID')}
-                        </span>
-                    </div>
-                </div>
-
-                {/* 3. Kartu Ucapan */}
-                <div style={{
-                    backgroundColor: '#FFFFFF',
-                    padding: '16px',
-                    borderRadius: '20px',
-                    border: '1px solid #E8A6BD',
-                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
-                }}>
-                    <h2 style={{
-                        fontSize: '16px',
-                        fontFamily: "'Playfair Display', serif",
-                        fontWeight: 600,
-                        color: '#A83F68',
-                        margin: '0 0 8px 0'
-                    }}>
-                        Kartu Ucapan
-                    </h2>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', color: '#A83F68', opacity: 0.85 }}>Tambah Kartu Ucapan</span>
-                        <button
-                            onClick={() => setIsCardActive(!isCardActive)}
-                            style={{
-                                border: 'none',
-                                backgroundColor: isCardActive ? '#A83F68' : '#D0C2C7',
-                                color: '#FFF8F0',
-                                padding: '3px 12px',
-                                borderRadius: '12px',
-                                fontSize: '10px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'background-color 0.2s ease'
-                            }}
-                        >
-                            {isCardActive ? 'Aktif' : 'Nonaktif'}
-                        </button>
-                    </div>
-
-                    {isCardActive && (
-                        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <div>
-                                <label style={{ fontSize: '10px', color: '#A83F68', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
-                                    Nama Penerima
-                                </label>
-                                <input
-                                    type="text"
-                                    value={recipientName}
-                                    onChange={(e) => setRecipientName(e.target.value)}
-                                    placeholder="Nama penerima..."
-                                    style={{
-                                        width: '100%',
-                                        padding: '8px 12px',
-                                        fontSize: '11px',
-                                        borderRadius: '10px',
-                                        border: '1px solid #E8A6BD',
-                                        backgroundColor: '#FFF8F0',
-                                        color: '#A83F68',
-                                        boxSizing: 'border-box',
-                                        outline: 'none',
-                                        fontFamily: "'Poppins', sans-serif"
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: '10px', color: '#A83F68', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
-                                    Pesan Ucapan
-                                </label>
-                                <textarea
-                                    rows={2}
-                                    value={cardMessage}
-                                    onChange={(e) => setCardMessage(e.target.value)}
-                                    placeholder="Tulis ucapan manis di sini.."
-                                    style={{
-                                        width: '100%',
-                                        padding: '8px 12px',
-                                        fontSize: '11px',
-                                        borderRadius: '10px',
-                                        border: '1px solid #E8A6BD',
-                                        backgroundColor: '#FFF8F0',
-                                        color: '#A83F68',
-                                        resize: 'none',
-                                        boxSizing: 'border-box',
-                                        outline: 'none',
-                                        fontFamily: "'Poppins', sans-serif"
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* 4. Jadwal Pengambilan di Toko */}
-                <div style={{
-                    backgroundColor: '#FFFFFF',
-                    padding: '16px',
-                    borderRadius: '20px',
-                    border: '1px solid #E8A6BD',
-                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
-                }}>
-                    <h2 style={{
-                        fontSize: '16px',
-                        fontFamily: "'Playfair Display', serif",
-                        fontWeight: 600,
-                        color: '#A83F68',
-                        margin: '0 0 10px 0'
-                    }}>
-                        Jadwal Pengambilan di Toko
-                    </h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <div>
-                            <label style={{ fontSize: '10px', color: '#A83F68', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
-                                Tanggal Pengambilan
-                            </label>
-                            <div style={{
-                                border: '1px solid #E8A6BD',
-                                padding: '8px 10px',
-                                borderRadius: '10px',
-                                fontSize: '10px',
-                                color: '#A83F68',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                backgroundColor: '#FFF8F0'
-                            }}>
-                                <span style={{ fontWeight: 500 }}>{pickupDate}</span>
-                                <span style={{ fontSize: '12px' }}>📅</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label style={{ fontSize: '10px', color: '#A83F68', display: 'block', marginBottom: '3px', opacity: 0.8 }}>
-                                Jam Pengambilan
-                            </label>
-                            <div style={{
-                                border: '1px solid #E8A6BD',
-                                padding: '8px 10px',
-                                borderRadius: '10px',
-                                fontSize: '10px',
-                                color: '#A83F68',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                backgroundColor: '#FFF8F0'
-                            }}>
-                                <span style={{ fontWeight: 500 }}>{pickupTime}</span>
-                                <span style={{ fontSize: '12px' }}>⏰</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 5. Metode Pembayaran */}
-                <div style={{
-                    backgroundColor: '#FFFFFF',
-                    padding: '16px',
-                    borderRadius: '20px',
-                    border: '1px solid #E8A6BD',
-                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
-                }}>
-                    <h2 style={{
-                        fontSize: '16px',
-                        fontFamily: "'Playfair Display', serif",
-                        fontWeight: 600,
-                        color: '#A83F68',
-                        margin: '0 0 10px 0'
-                    }}>
-                        Metode Pembayaran (Transfer Manual)
-                    </h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {(['DANA', 'GoPay', 'SeaBank'] as const).map((method) => {
-                            const isSelected = paymentMethod === method;
-                            return (
-                                <div
-                                    key={method}
-                                    onClick={() => setPaymentMethod(method)}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        padding: '10px 14px',
-                                        borderRadius: '12px',
-                                        border: isSelected ? '1px solid #A83F68' : '1px solid #E8A6BD',
-                                        backgroundColor: isSelected ? '#F7E6E6' : '#FFFFFF',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                >
-                                    <div style={{
-                                        width: '16px',
-                                        height: '16px',
-                                        borderRadius: '50%',
-                                        border: isSelected ? '2px solid #A83F68' : '2px solid #C4B5BC',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        boxSizing: 'border-box',
-                                        flexShrink: 0
-                                    }}>
-                                        {isSelected && (
-                                            <div style={{
-                                                width: '8px',
-                                                height: '8px',
-                                                borderRadius: '50%',
-                                                backgroundColor: '#A83F68'
-                                            }} />
-                                        )}
-                                    </div>
-                                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#A83F68' }}>
-                                        {method}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Nomor Tujuan */}
-                    <div style={{ marginTop: '12px' }}>
-                        <span style={{ fontSize: '11px', color: '#A83F68', display: 'block', marginBottom: '4px', opacity: 0.8 }}>
-                            Nomor tujuan
-                        </span>
-                        <div style={{
-                            border: '1px solid #E8A6BD',
-                            padding: '10px 14px',
-                            borderRadius: '12px',
-                            backgroundColor: '#FFF8F0'
-                        }}>
-                            <span style={{ fontWeight: 600, color: '#A83F68', fontSize: '13px', display: 'block' }}>
-                                08xx xxxx xxxx
-                            </span>
-                            <span style={{ fontSize: '10px', color: '#A83F68', opacity: 0.75, display: 'block', marginTop: '2px' }}>
-                                Nomor tujuan akan diisi admin
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 6. Unggah Bukti Pembayaran */}
-                <div style={{
-                    backgroundColor: '#FFFFFF',
-                    padding: '16px',
-                    borderRadius: '20px',
-                    border: '1px solid #E8A6BD',
-                    boxShadow: '0 2px 6px rgba(168, 63, 104, 0.03)'
-                }}>
-                    <h2 style={{
-                        fontSize: '16px',
-                        fontFamily: "'Playfair Display', serif",
-                        fontWeight: 600,
-                        color: '#A83F68',
-                        margin: '0 0 10px 0'
-                    }}>
-                        Unggah Bukti Pembayaran
-                    </h2>
-                    <div style={{
-                        border: '1.5px dashed #A83F68',
-                        padding: '16px',
-                        borderRadius: '16px',
-                        textAlign: 'center',
-                        backgroundColor: '#FFFFFF'
-                    }}>
-                        {/* Upload round icon */}
-                        <div style={{
-                            width: '38px',
-                            height: '38px',
-                            borderRadius: '50%',
-                            backgroundColor: '#F7E6E6',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 8px auto',
-                            color: '#A83F68'
-                        }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A83F68" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="17 8 12 3 7 8"></polyline>
-                                <line x1="12" y1="3" x2="12" y2="15"></line>
-                            </svg>
-                        </div>
-
-                        {/* File Choose Button */}
-                        <label style={{
-                            display: 'inline-block',
-                            backgroundColor: '#A83F68',
-                            color: '#FFF8F0',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            padding: '7px 20px',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 6px rgba(168, 63, 104, 0.2)'
-                        }}>
-                            Pilih Gambar
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                                style={{ display: 'none' }}
-                            />
-                        </label>
-
-                        {/* Preview / Status Box */}
-                        <div style={{
-                            border: '1px dashed #E8A6BD',
-                            borderRadius: '12px',
-                            padding: '12px',
-                            backgroundColor: '#F7E6E6',
-                            marginTop: '12px',
-                            minHeight: '65px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            {previewUrl ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                                    <img
-                                        src={previewUrl}
-                                        alt="Bukti Transfer"
-                                        style={{ maxHeight: '90px', maxWidth: '100%', borderRadius: '8px', objectFit: 'contain' }}
-                                    />
-                                    <span style={{ fontSize: '10px', color: '#A83F68', fontWeight: 600 }}>
-                                        {selectedFile?.name}
-                                    </span>
-                                    <button
-                                        onClick={handleRemoveFile}
-                                        style={{
-                                            border: 'none',
-                                            background: 'none',
-                                            color: '#A83F68',
-                                            fontSize: '10px',
-                                            textDecoration: 'underline',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        Hapus gambar
-                                    </button>
-                                </div>
-                            ) : (
-                                <span style={{ fontSize: '11px', color: '#A83F68', opacity: 0.6 }}>
-                                    Belum ada gambar terpilih
-                                </span>
-                            )}
-                        </div>
-
-                        <p style={{ fontSize: '10px', color: '#A83F68', margin: '8px 0 0 0', opacity: 0.8 }}>
-                            Pastikan nominal dan bukti transfer terlihat jelas.
-                        </p>
-                    </div>
-                </div>
-
-            </div>
-
-            {/* Bottom Sticky Footer */}
-            <div style={{
-                backgroundColor: '#FFF8F0',
-                borderTop: '1px solid #EED7D8',
-                padding: '12px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                boxSizing: 'border-box',
-                flexShrink: 0
-            }}>
-                <div>
-                    <span style={{ fontSize: '10px', color: '#A83F68', display: 'block', opacity: 0.85 }}>
-                        Total Pembayaran
-                    </span>
-                    <span style={{ fontSize: '18px', fontWeight: 700, color: '#A83F68', display: 'block', marginTop: '1px' }}>
-                        Rp {totalPrice.toLocaleString('id-ID')}
-                    </span>
-                </div>
-
-                <button
-                    onClick={handleSubmitOrder}
-                    style={{
-                        backgroundColor: '#A83F68',
-                        color: '#FFF8F0',
-                        border: 'none',
-                        padding: '12px 26px',
-                        borderRadius: '14px',
-                        fontWeight: 600,
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(168, 63, 104, 0.3)',
-                        transition: 'transform 0.1s ease'
-                    }}
-                >
-                    Buat Pesanan
-                </button>
-            </div>
-
-            {/* Success Popup Modal */}
-            {showSuccessModal && (
-                <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '20px',
-                    zIndex: 99,
-                    backdropFilter: 'blur(3px)'
-                }}>
-                    <div style={{
-                        backgroundColor: '#FFF8F0',
-                        borderRadius: '24px',
-                        padding: '24px 20px',
-                        width: '100%',
-                        maxWidth: '340px',
-                        textAlign: 'center',
-                        boxShadow: '0 10px 30px rgba(168, 63, 104, 0.25)',
-                        border: '1px solid #E8A6BD',
-                        boxSizing: 'border-box'
-                    }}>
-                        <div style={{
-                            width: '56px',
-                            height: '56px',
-                            borderRadius: '50%',
-                            backgroundColor: '#F7E6E6',
-                            border: '2px solid #E8A6BD',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 14px auto',
-                            fontSize: '26px'
-                        }}>
-                            🌸
-                        </div>
-                        <h3 style={{
-                            fontFamily: "'Playfair Display', serif",
-                            fontSize: '20px',
-                            fontWeight: 700,
-                            color: '#A83F68',
-                            margin: 0
-                        }}>
-                            Pesanan Berhasil!
-                        </h3>
-                        <p style={{
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: '#A83F68',
-                            marginTop: '4px',
-                            marginBottom: '10px'
-                        }}>
-                            {orderNumber}
-                        </p>
-                        <p style={{
-                            fontSize: '12px',
-                            color: '#A83F68',
-                            lineHeight: 1.5,
-                            margin: '0 0 18px 0',
-                            opacity: 0.85
-                        }}>
-                            Terima kasih, <strong>{recipientName || 'Ayu Maharani'}</strong>. Admin kami akan segera memverifikasi bukti pembayaran Anda.
-                        </p>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <button
-                                onClick={() => {
-                                    setShowSuccessModal(false);
-                                    try {
-                                        router.push('/user/pesanan');
-                                    } catch {
-                                        // fallback
-                                    }
-                                }}
-                                style={{
-                                    backgroundColor: '#A83F68',
-                                    color: '#FFF8F0',
-                                    border: 'none',
-                                    padding: '11px',
-                                    borderRadius: '12px',
-                                    fontWeight: 600,
-                                    fontSize: '12px',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Lihat Status Pesanan
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowSuccessModal(false);
-                                    try {
-                                        router.push('/');
-                                    } catch {
-                                        // fallback
-                                    }
-                                }}
-                                style={{
-                                    backgroundColor: 'transparent',
-                                    color: '#A83F68',
-                                    border: '1px solid #E8A6BD',
-                                    padding: '10px',
-                                    borderRadius: '12px',
-                                    fontWeight: 600,
-                                    fontSize: '12px',
-                                    cursor: 'pointer'
-                                }}>
-                                Kembali ke Beranda
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+interface SectionProps {
+  title: string;
+  children?: React.ReactNode;
 }
+
+const Section = ({ title, children }: SectionProps) => (
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    {children}
+  </View>
+);
+
+const rupiah = (value: number) => {
+  const num = Number.isFinite(value) ? Math.round(value) : 0;
+  return `Rp ${num.toLocaleString("id-ID")}`;
+};
+
+const PAYMENT_METHODS = [
+  {
+    id: "transfer",
+    name: "Transfer Bank",
+    description: "BCA · 1234567890",
+    accountName: "a.n. Ra S Crafts",
+  },
+  {
+    id: "ewallet",
+    name: "E-Wallet",
+    description: "DANA · 081234567890",
+    accountName: "a.n. Ra S Crafts",
+  },
+  {
+    id: "cod",
+    name: "Bayar di Tempat",
+    description: "Pembayaran saat pesanan diterima",
+    accountName: "",
+  },
+];
+
+export default function CheckoutPage() {
+  const router = useRouter();
+
+  const { cartItems: cartItemsParam } = useLocalSearchParams<{
+    cartItems?: string | string[];
+  }>();
+
+  const selectedCartItems = useMemo<CartItem[]>(() => {
+    try {
+      const raw = Array.isArray(cartItemsParam) ? cartItemsParam[0] : cartItemsParam;
+
+      if (!raw) return [];
+
+      const parsed: unknown = JSON.parse(raw);
+
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed
+        .filter((item): item is Record<string, any> => item !== null && typeof item === "object" && "id" in item && "name" in item)
+        .map((item) => {
+          const price = Number(item.price);
+          const quantity = Number(item.quantity);
+
+          return {
+            id: item.id,
+            name: String(item.name || ""),
+            variant: typeof item.variant === "string" ? item.variant : "",
+            price: Number.isFinite(price) && price >= 0 ? price : 0,
+            quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+            image: typeof item.image === "string" ? item.image : "",
+            selected: Boolean(item.selected),
+          };
+        });
+    } catch {
+      return [];
+    }
+  }, [cartItemsParam]);
+
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [cardMessage, setCardMessage] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryTime, setDeliveryTime] = useState("");
+  const [selectedPayment, setSelectedPayment] = useState("transfer");
+  const [paymentProof, setPaymentProof] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Otomatis ambil data user yang sedang login saat halaman dimuat
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+
+      if (user) {
+        // Jika ada nama di metadata akun, gunakan itu. Jika tidak, gunakan nama dari depan email.
+        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "";
+        setRecipientName(fullName);
+
+        // Jika nomor telepon tersimpan di metadata auth
+        if (user.user_metadata?.phone) {
+          setRecipientPhone(user.user_metadata.phone);
+        }
+      }
+    } catch (error) {
+      console.error("Gagal memuat profil pengguna:", error);
+    }
+  };
+
+  const subtotal = selectedCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const deliveryFee = 0;
+  const total = subtotal + deliveryFee;
+
+  const formatDate = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) {
+      return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    }
+
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  };
+
+  const choosePaymentProof = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert("Izin diperlukan", "Izinkan akses galeri untuk memilih bukti pembayaran.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions ? ImagePicker.MediaTypeOptions.Images : ["images"],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0].uri) {
+        setPaymentProof(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert("Gagal membuka galeri", "Silakan coba kembali.");
+    }
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/user/keranjang");
+    }
+  };
+
+  const handlePlaceOrder = () => {
+    if (selectedCartItems.length === 0) {
+      Alert.alert("Keranjang kosong", "Silakan kembali ke keranjang dan pilih produk terlebih dahulu.", [
+        {
+          text: "Kembali ke Keranjang",
+          onPress: () => router.replace("/user/keranjang"),
+        },
+        {
+          text: "Tutup",
+          style: "cancel",
+        },
+      ]);
+      return;
+    }
+
+    if (!recipientName.trim()) {
+      Alert.alert("Data belum lengkap", "Masukkan nama pemesan.");
+      return;
+    }
+
+    if (!recipientPhone.trim()) {
+      Alert.alert("Data belum lengkap", "Masukkan nomor telepon.");
+      return;
+    }
+
+    if (!deliveryDate.trim()) {
+      Alert.alert("Data belum lengkap", "Masukkan tanggal pengambilan.");
+      return;
+    }
+
+    if (!deliveryTime.trim()) {
+      Alert.alert("Data belum lengkap", "Masukkan waktu pengambilan.");
+      return;
+    }
+
+    if (selectedPayment !== "cod" && !paymentProof) {
+      Alert.alert("Bukti pembayaran belum ada", "Pilih gambar bukti pembayaran terlebih dahulu.");
+      return;
+    }
+
+    setShowSuccess(true);
+  };
+
+  const handleFinish = async () => {
+    setShowSuccess(false);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const orderPayload = {
+        user_id: user ? user.id : null,
+        order_number: `RA-${Math.floor(1000 + Math.random() * 9000)}`,
+        recipient_name: recipientName,
+        recipient_phone: recipientPhone,
+        bouquet_name: selectedCartItems.map(i => `${i.name} (${i.quantity}x)`).join(", "),
+        quantity_price: rupiah(total),
+        total_price: total,
+        delivery_date: deliveryDate,
+        delivery_time: deliveryTime,
+        card_message: cardMessage,
+        payment_method: selectedPayment,
+        payment_proof: paymentProof,
+        status: "Verifikasi",
+        photo: selectedCartItems[0]?.image || "",
+      };
+
+      const { error } = await supabase.from("orders").insert([orderPayload]);
+
+      if (error) throw error;
+
+      Alert.alert("Pesanan Dibuat", "Pesanan kamu berhasil disimpan dan dikirim ke sistem toko.", [
+        {
+          text: "Lihat Pesanan Saya",
+          onPress: () => router.replace("/user/pesanan"),
+        },
+      ]);
+    } catch (error: any) {
+      console.error("Gagal menyimpan pesanan:", error);
+      Alert.alert("Gagal", "Terjadi kesalahan saat menyimpan pesanan ke database.");
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.page}>
+        <View style={styles.header}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Kembali ke keranjang" onPress={handleBack} style={styles.backButton}>
+            <ArrowLeft size={22} color={ROSE} />
+          </Pressable>
+
+          <Text style={styles.headerTitle}>Checkout</Text>
+          <Text style={styles.brand}>ra_scrafts.id</Text>
+        </View>
+
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Section title="Ringkasan Pesanan">
+            {selectedCartItems.map((item, index) => (
+              <View key={`${item.id}-${item.variant || index}`} style={styles.productRow}>
+                <Image source={item.image ? { uri: item.image } : undefined} style={styles.productImage} resizeMode="cover" />
+                <View style={styles.productInfo}>
+                  <Text style={styles.productName}>{item.name}</Text>
+                  {item.variant ? <Text style={styles.variant}>{item.variant}</Text> : null}
+                  <Text style={styles.quantityText}>Jumlah: {item.quantity}</Text>
+                  <Text style={styles.productPrice}>{rupiah(item.price * item.quantity)}</Text>
+                </View>
+              </View>
+            ))}
+          </Section>
+
+          <Section title="Informasi Pemesan">
+            <Text style={styles.label}>Nama Pemesan</Text>
+            <TextInput 
+              value={recipientName} 
+              editable={false} 
+              style={[styles.input, styles.disabledInput]} 
+            />
+
+            <Text style={styles.label}>Nomor Telepon</Text>
+            <TextInput 
+              value={recipientPhone} 
+              editable={false} 
+              style={[styles.input, styles.disabledInput]} 
+            />
+          </Section>
+
+          <Section title="Jadwal Pengambilan ke Toko">
+            <Text style={styles.label}>Tanggal Pengambilan *</Text>
+            <View style={styles.iconInputContainer}>
+              <CalendarDays size={18} color={ROSE} />
+              <TextInput value={deliveryDate} onChangeText={(value: string) => setDeliveryDate(formatDate(value))} placeholder="DD/MM/YYYY" placeholderTextColor="#B58B9B" keyboardType="number-pad" style={styles.iconInput} maxLength={10} />
+            </View>
+
+            <Text style={styles.label}>Waktu Pengambilan *</Text>
+            <View style={styles.iconInputContainer}>
+              <Clock3 size={18} color={ROSE} />
+              <TextInput value={deliveryTime} onChangeText={setDeliveryTime} placeholder="Contoh: 14:00 - 16:00 WIB" placeholderTextColor="#B58B9B" style={styles.iconInput} maxLength={30} />
+            </View>
+          </Section>
+
+          <Section title="Pesan pada Kartu (Opsional)">
+            <TextInput value={cardMessage} onChangeText={setCardMessage} placeholder="Tuliskan pesan untuk penerima..." placeholderTextColor="#B58B9B" multiline numberOfLines={3} textAlignVertical="top" style={[styles.input, styles.multilineInput]} maxLength={300} />
+          </Section>
+
+          <Section title="Metode Pembayaran">
+            {PAYMENT_METHODS.map((method) => {
+              const selected = selectedPayment === method.id;
+              return (
+                <Pressable
+                  key={method.id}
+                  onPress={() => {
+                    setSelectedPayment(method.id);
+                    if (method.id === "cod") setPaymentProof(null);
+                  }}
+                  style={[styles.paymentOption, selected && styles.paymentOptionSelected]}
+                >
+                  <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>{selected && <View style={styles.radioInner} />}</View>
+                  <View style={styles.paymentInfo}>
+                    <Text style={styles.paymentName}>{method.name}</Text>
+                    <Text style={styles.paymentDescription}>{method.description}</Text>
+                    {method.accountName ? <Text style={styles.accountName}>{method.accountName}</Text> : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </Section>
+
+          {selectedPayment !== "cod" && (
+            <Section title="Bukti Pembayaran">
+              <Text style={styles.muted}>Pilih gambar bukti transfer dari galeri HP.</Text>
+              {paymentProof ? (
+                <View style={styles.proofPreviewContainer}>
+                  <Image source={{ uri: paymentProof }} style={styles.proofPreview} resizeMode="cover" />
+                  <Pressable onPress={() => setPaymentProof(null)} style={styles.removeProofButton}>
+                    <X size={18} color="#FFFFFF" />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable onPress={choosePaymentProof} style={styles.uploadButton}>
+                  <Upload size={20} color={ROSE} />
+                  <Text style={styles.uploadText}>Pilih Bukti Pembayaran</Text>
+                </Pressable>
+              )}
+            </Section>
+          )}
+
+          <Section title="Rincian Pembayaran">
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Subtotal</Text>
+              <Text style={styles.priceValue}>{rupiah(subtotal)}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.priceRow}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>{rupiah(total)}</Text>
+            </View>
+          </Section>
+
+          <Pressable onPress={handlePlaceOrder} style={[styles.orderButton, selectedCartItems.length === 0 && styles.disabledButton]}>
+            <Text style={styles.orderButtonText}>Buat Pesanan · {rupiah(total)}</Text>
+          </Pressable>
+        </ScrollView>
+
+        <Modal visible={showSuccess} transparent animationType="fade" onRequestClose={() => setShowSuccess(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.successIcon}>
+                <Text style={styles.successCheck}>✓</Text>
+              </View>
+              <Text style={styles.modalTitle}>Pesanan Siap Dikonfirmasi!</Text>
+              <Text style={styles.modalMessage}>Total pembayaran kamu {rupiah(total)}. Pastikan semua informasi sudah benar.</Text>
+              <Pressable onPress={handleFinish} style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>Lanjutkan</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowSuccess(false)} style={styles.cancelButton}>
+                <Text style={styles.cancelButtonText}>Periksa Kembali</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: CREAM },
+  page: { flex: 1, backgroundColor: CREAM },
+  header: { alignItems: "center", justifyContent: "center", paddingTop: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: BORDER },
+  backButton: { position: "absolute", left: 16, top: 14, width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: PINK, alignItems: "center", justifyContent: "center" },
+  headerTitle: { color: ROSE, fontSize: 25, fontWeight: "700" },
+  brand: { color: ROSE, fontSize: 12, marginTop: 2 },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 30, gap: 14 },
+  section: { padding: 14, borderRadius: 16, borderWidth: 1, borderColor: BORDER, backgroundColor: "#FFFFFF", gap: 10 },
+  sectionTitle: { color: ROSE, fontSize: 17, fontWeight: "700", marginBottom: 2 },
+  productRow: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F8E8ED", gap: 12 },
+  productImage: { width: 76, height: 88, borderRadius: 10, backgroundColor: "#F7E6E6" },
+  productInfo: { flex: 1, gap: 3 },
+  productName: { color: ROSE, fontSize: 14, fontWeight: "700" },
+  variant: { color: "#966579", fontSize: 11 },
+  quantityText: { color: "#966579", fontSize: 11 },
+  productPrice: { color: ROSE, fontSize: 14, fontWeight: "800", marginTop: 3 },
+  label: { color: ROSE, fontSize: 12, fontWeight: "600", marginTop: 2 },
+  input: { minHeight: 44, borderWidth: 1, borderColor: BORDER, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: "#50313D", fontSize: 13, backgroundColor: "#FFFCFA" },
+  multilineInput: { minHeight: 86, textAlignVertical: "top" },
+  iconInputContainer: { minHeight: 46, borderWidth: 1, borderColor: BORDER, borderRadius: 10, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFCFA" },
+  iconInput: { flex: 1, paddingVertical: 10, color: "#50313D", fontSize: 13 },
+  paymentOption: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12, borderWidth: 1, borderColor: BORDER, gap: 10 },
+  paymentOptionSelected: { borderColor: ROSE, backgroundColor: "#FFF5F8" },
+  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: PINK, alignItems: "center", justifyContent: "center" },
+  radioOuterSelected: { borderColor: ROSE },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: ROSE },
+  paymentInfo: { flex: 1, gap: 3 },
+  paymentName: { color: ROSE, fontSize: 13, fontWeight: "700" },
+  paymentDescription: { color: "#966579", fontSize: 11 },
+  accountName: { color: "#966579", fontSize: 10 },
+  muted: { color: "#966579", fontSize: 11, lineHeight: 17 },
+  uploadButton: { minHeight: 54, borderWidth: 1, borderStyle: "dashed", borderColor: ROSE, borderRadius: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 9, backgroundColor: "#FFF8FA" },
+  uploadText: { color: ROSE, fontSize: 12, fontWeight: "700" },
+  proofPreviewContainer: { position: "relative", alignSelf: "flex-start" },
+  proofPreview: { width: 190, height: 150, borderRadius: 12, backgroundColor: "#F7E6E6" },
+  removeProofButton: { position: "absolute", top: 6, right: 6, width: 30, height: 30, borderRadius: 15, backgroundColor: ROSE, alignItems: "center", justifyContent: "center" },
+  changeProofButton: { alignSelf: "flex-start", paddingVertical: 6 },
+  changeProofText: { color: ROSE, fontSize: 12, fontWeight: "700" },
+  priceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  priceLabel: { color: "#966579", fontSize: 12 },
+  priceValue: { color: ROSE, fontSize: 12, fontWeight: "600" },
+  divider: { height: 1, backgroundColor: BORDER, marginVertical: 3 },
+  totalLabel: { color: ROSE, fontSize: 15, fontWeight: "800" },
+  totalValue: { color: ROSE, fontSize: 18, fontWeight: "800" },
+  orderButton: { minHeight: 50, borderRadius: 13, backgroundColor: ROSE, alignItems: "center", justifyContent: "center", paddingHorizontal: 16 },
+  disabledButton: { opacity: 0.55 },
+  orderButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
+  disclaimer: { color: "#966579", fontSize: 10, lineHeight: 16, textAlign: "center", paddingHorizontal: 8 },
+  emptyCard: { alignItems: "center", paddingVertical: 14, gap: 10 },
+  emptyTitle: { color: ROSE, fontSize: 14, fontWeight: "700", textAlign: "center" },
+  primaryButton: { width: "100%", minHeight: 44, borderRadius: 11, backgroundColor: ROSE, alignItems: "center", justifyContent: "center", paddingHorizontal: 14, marginTop: 4 },
+  primaryButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+  cancelButton: { paddingVertical: 10, alignItems: "center" },
+  cancelButtonText: { color: ROSE, fontSize: 12, fontWeight: "600" },
+  modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(45, 20, 32, 0.45)", alignItems: "center", justifyContent: "center", padding: 24 },
+  modalCard: { width: "100%", maxWidth: 360, padding: 22, borderRadius: 20, backgroundColor: CREAM, alignItems: "center", gap: 12 },
+  successIcon: { width: 58, height: 58, borderRadius: 29, backgroundColor: "#F5DCE5", alignItems: "center", justifyContent: "center" },
+  successCheck: { color: ROSE, fontSize: 32, fontWeight: "800" },
+  modalTitle: { color: ROSE, fontSize: 18, fontWeight: "800", textAlign: "center" },
+  modalMessage: { color: "#966579", fontSize: 12, lineHeight: 19, textAlign: "center" },
+  disabledInput: {
+    backgroundColor: "#F2E4E5",
+    color: "#806A72",
+  },
+});

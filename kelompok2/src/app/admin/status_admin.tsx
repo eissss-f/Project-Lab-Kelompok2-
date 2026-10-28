@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, useWindowDimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import AdminSubNav from '../../components/AdminSubNav'; 
+import { supabase } from '../../../lib/supabase'; 
 
 const COLORS = {
   bgApp: '#FFF8F0',
@@ -15,7 +17,7 @@ const COLORS = {
 };
 
 interface OrderStatusItem {
-  id: string;
+  id: number | string;
   customerName: string;
   orderDescription: string;
   orderReference: string;
@@ -27,23 +29,60 @@ interface OrderStatusItem {
 
 export default function UpdateStatusScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const isSmallScreen = width < 360;
-  const tabFontSize = isSmallScreen ? 10 : 11;
+  const [orders, setOrders] = useState<OrderStatusItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [orders, setOrders] = useState<OrderStatusItem[]>([
-    {
-      id: '1', customerName: 'Alya Rahma', orderDescription: 'Peach Bloom - 1 buket', orderReference: '#RS-1047',
-      pickupTime: '18 Okt, 16.30 WIB', selectedStatus: 'Siap Diambil', photo: 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=300',
-    },
-    {
-      id: '2', customerName: 'Dinda Maharani', orderDescription: 'Sweet Lilac - 1 buket', orderReference: '#RS-1046',
-      pickupTime: '19 Okt, 10.00 WIB', selectedStatus: 'Sedang Dibuat', photo: 'https://images.unsplash.com/photo-1582794543139-8ac9cb0f7b11?w=300',
-    },
-  ]);
+  // Ambil data pesanan dari Supabase saat halaman dibuka
+  useEffect(() => {
+    fetchActiveOrders();
+  }, []);
 
-  const handleStatusChange = (id: string, newStatus: 'Sedang Dibuat' | 'Siap Diambil' | 'Selesai') => {
-    setOrders((prev) => prev.map((ord) => (ord.id === id ? { ...ord, selectedStatus: newStatus } : ord)));
+  const fetchActiveOrders = async () => {
+    try {
+      setLoading(true);
+      // Mengambil pesanan yang sedang diproses atau siap diambil
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .in("status", ["Sedang Dibuat", "Siap Diambil", "Selesai"])
+        .order("id", { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const formatted = data.map((item: any) => ({
+          id: item.id,
+          customerName: item.recipient_name || "Pelanggan",
+          orderDescription: `${item.bouquet_name || "Buket"} - 1 buket`,
+          orderReference: item.order_number || `#RS-${item.id}`,
+          pickupTime: `${item.delivery_date || ""} - ${item.delivery_time || ""}`,
+          selectedStatus: item.status || "Sedang Dibuat",
+          photo: item.photo || "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=300",
+        }));
+        setOrders(formatted);
+      }
+    } catch (error: any) {
+      console.error("Gagal memuat status pesanan:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fungsi untuk mengubah status pesanan langsung di database Supabase
+  const handleStatusChange = async (id: number | string, newStatus: 'Sedang Dibuat' | 'Siap Diambil' | 'Selesai') => {
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: newStatus })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      // Update state lokal agar UI berubah instan
+      setOrders((prev) => prev.map((ord) => (ord.id === id ? { ...ord, selectedStatus: newStatus } : ord)));
+    } catch (error: any) {
+      Alert.alert("Gagal", error?.message || "Gagal memperbarui status pesanan.");
+    }
   };
 
   return (
@@ -64,23 +103,8 @@ export default function UpdateStatusScreen() {
           <Text style={styles.pageSubtitle}>Kelola Produk & Pesanan</Text>
         </View>
 
-        <View style={styles.managementTabs}>
-          {[
-            { label: 'Kelola Produk', route: '/admin/produk_admin' },
-            { label: 'Kelola Pesanan', route: '/admin/kelola_pesanan_admin' },
-            { label: 'Verifikasi', route: '/admin/verifikasi_admin' },
-            { label: 'Update Status', route: '/admin/status_admin' },
-          ].map((tab) => {
-            const isActive = tab.route === '/admin/status_admin';
-            return (
-              <TouchableOpacity key={tab.route} style={[styles.managementTab, isActive && styles.activeTabBg]} onPress={() => router.push(tab.route as any)}>
-                <Text style={[styles.tabLabel, { fontSize: tabFontSize }, isActive && styles.activeTabLabel]} numberOfLines={2}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* MENGGUNAKAN KOMPONEN ADMIN SUB-NAV */}
+        <AdminSubNav />
 
         <View style={styles.workspace}>
           <View style={styles.sectionHeading}>
@@ -90,48 +114,54 @@ export default function UpdateStatusScreen() {
           <View style={styles.readyOrdersSummary}>
             <Ionicons name="gift-outline" size={24} color={COLORS.primary} />
             <View style={styles.readyOrdersInformation}>
-              <Text style={styles.readyOrderCount}>3 pesanan siap diambil</Text>
+              <Text style={styles.readyOrderCount}>{orders.length} pesanan aktif</Text>
               <Text style={styles.statusGuidance}>Perbarui status sesuai progres buket.</Text>
             </View>
           </View>
 
-          <View style={styles.cardList}>
-            {orders.map((order) => (
-              <View key={order.id} style={styles.orderStatusCard}>
-                <View style={styles.orderIdentity}>
-                  <Image source={{ uri: order.photo }} style={styles.bouquetPhotograph} />
-                  <View style={styles.customerAndBouquet}>
-                    <Text style={styles.customerName}>{order.customerName}</Text>
-                    <Text style={styles.orderDescription}>{order.orderDescription}</Text>
+          {loading ? (
+            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+          ) : orders.length === 0 ? (
+            <Text style={styles.emptyText}>Belum ada pesanan aktif untuk diperbarui.</Text>
+          ) : (
+            <View style={styles.cardList}>
+              {orders.map((order) => (
+                <View key={String(order.id)} style={styles.orderStatusCard}>
+                  <View style={styles.orderIdentity}>
+                    <Image source={{ uri: order.photo }} style={styles.bouquetPhotograph} />
+                    <View style={styles.customerAndBouquet}>
+                      <Text style={styles.customerName}>{order.customerName}</Text>
+                      <Text style={styles.orderDescription}>{order.orderDescription}</Text>
+                    </View>
+                    <Text style={styles.orderReference}>{order.orderReference}</Text>
                   </View>
-                  <Text style={styles.orderReference}>{order.orderReference}</Text>
-                </View>
 
-                <View style={styles.pickupSchedule}>
-                  <Ionicons name="calendar-outline" size={13} color={COLORS.textMuted} />
-                  <Text style={styles.pickupTime}>{order.pickupTime}</Text>
-                  {order.completionContext && <Text style={styles.completionContext}>{order.completionContext}</Text>}
-                </View>
+                  <View style={styles.pickupSchedule}>
+                    <Ionicons name="calendar-outline" size={13} color={COLORS.textMuted} />
+                    <Text style={styles.pickupTime}>{order.pickupTime}</Text>
+                    {order.completionContext && <Text style={styles.completionContext}>{order.completionContext}</Text>}
+                  </View>
 
-                <View style={styles.statusChoices}>
-                  {(['Sedang Dibuat', 'Siap Diambil', 'Selesai'] as const).map((statusOption) => {
-                    const isSelected = order.selectedStatus === statusOption;
-                    return (
-                      <TouchableOpacity
-                        key={statusOption}
-                        style={[styles.statusChoiceChip, isSelected && styles.statusChoiceChipActive]}
-                        onPress={() => handleStatusChange(order.id, statusOption)}
-                      >
-                        <Text style={[styles.statusChoiceLabel, isSelected && styles.statusChoiceLabelActive]}>
-                          {statusOption}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  <View style={styles.statusChoices}>
+                    {(['Sedang Dibuat', 'Siap Diambil', 'Selesai'] as const).map((statusOption) => {
+                      const isSelected = order.selectedStatus === statusOption;
+                      return (
+                        <TouchableOpacity
+                          key={statusOption}
+                          style={[styles.statusChoiceChip, isSelected && styles.statusChoiceChipActive]}
+                          onPress={() => handleStatusChange(order.id, statusOption)}
+                        >
+                          <Text style={[styles.statusChoiceLabel, isSelected && styles.statusChoiceLabelActive]}>
+                            {statusOption}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -152,13 +182,6 @@ const styles = StyleSheet.create({
   pageIntro: { paddingHorizontal: 20, paddingVertical: 12, gap: 4 },
   pageTitle: { fontFamily: 'Playfair Display', fontWeight: '700', fontSize: 28, color: COLORS.primary },
   pageSubtitle: { fontFamily: 'Poppins', fontWeight: '400', fontSize: 12, color: COLORS.textMuted },
-  managementTabs: {
-    flexDirection: 'row', backgroundColor: COLORS.lightPink, marginHorizontal: 20, padding: 5, borderRadius: 16, gap: 4, minHeight: 56,
-  },
-  managementTab: { flex: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 12, paddingHorizontal: 4, paddingVertical: 8 },
-  activeTabBg: { backgroundColor: COLORS.accentPink },
-  tabLabel: { fontFamily: 'Poppins', fontWeight: '500', textAlign: 'center', color: '#986678' },
-  activeTabLabel: { fontFamily: 'Poppins', fontWeight: '700', color: COLORS.primary },
   workspace: { paddingHorizontal: 20, paddingTop: 18, gap: 14 },
   sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: { fontFamily: 'Playfair Display', fontWeight: '600', fontSize: 20, color: COLORS.primary },
@@ -166,6 +189,7 @@ const styles = StyleSheet.create({
   readyOrdersInformation: { flex: 1, gap: 3 },
   readyOrderCount: { fontFamily: 'Poppins', fontWeight: '700', fontSize: 13, color: COLORS.primary },
   statusGuidance: { fontFamily: 'Poppins', fontWeight: '400', fontSize: 11, color: '#986678' },
+  emptyText: { textAlign: 'center', color: COLORS.textMuted, marginTop: 30, fontFamily: 'Poppins' },
   cardList: { gap: 14 },
   orderStatusCard: {
     backgroundColor: COLORS.white, padding: 16, borderRadius: 18, gap: 10,
