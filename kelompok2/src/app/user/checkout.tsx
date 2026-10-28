@@ -223,44 +223,111 @@ export default function CheckoutPage() {
     setShowSuccess(true);
   };
 
-  const handleFinish = async () => {
-    setShowSuccess(false);
+  
+const handleFinish = async () => {
+  setShowSuccess(false);
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-      const orderPayload = {
-        user_id: user ? user.id : null,
-        order_number: `RA-${Math.floor(1000 + Math.random() * 9000)}`,
-        recipient_name: recipientName,
-        recipient_phone: recipientPhone,
-        bouquet_name: selectedCartItems.map(i => `${i.name} (${i.quantity}x)`).join(", "),
-        quantity_price: rupiah(total),
+    if (userError) throw userError;
+
+    if (!user) {
+      Alert.alert("Login diperlukan", "Silakan login kembali sebelum membuat pesanan.");
+      return;
+    }
+
+    // Pastikan semua varian sesuai constraint tabel order_items
+    const itemsToSave = selectedCartItems.map((item) => {
+      const rawVariant = String(item.variant || "").trim().toUpperCase();
+
+const size = ["S", "M", "XL"].includes(rawVariant)
+  ? rawVariant
+  : "M";
+
+      const rawId = String(item.id);
+      const productId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
+        ? rawId
+        : null;
+
+      return {
+        product_id: productId,
+        product_title: item.name,
+        product_photo: item.image || null,
+        size_name: size,
+        quantity: item.quantity,
+        price: item.price,
+      };
+    });
+
+    const notes = [
+      `Tanggal pengambilan: ${deliveryDate}`,
+      `Waktu pengambilan: ${deliveryTime}`,
+      cardMessage.trim() ? `Pesan kartu: ${cardMessage.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    // Simpan data utama pesanan
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        user_id: user.id,
         total_price: total,
-        delivery_date: deliveryDate,
-        delivery_time: deliveryTime,
-        card_message: cardMessage,
+        shipping_address: "Ambil langsung di toko ra_scrafts.id",
+        recipient_name: recipientName.trim(),
+        recipient_phone: recipientPhone.trim(),
         payment_method: selectedPayment,
         payment_proof: paymentProof,
-        status: "Verifikasi",
-        photo: selectedCartItems[0]?.image || "",
-      };
+        status:
+          selectedPayment === "cod"
+            ? "menunggu_pembayaran"
+            : "menunggu_verifikasi",
+        notes,
+      })
+      .select("id, order_number")
+      .single();
 
-      const { error } = await supabase.from("orders").insert([orderPayload]);
+    if (orderError) throw orderError;
 
-      if (error) throw error;
+    // Simpan semua produk yang dipesan
+    const orderItems = itemsToSave.map((item) => ({
+      ...item,
+      order_id: order.id,
+    }));
 
-      Alert.alert("Pesanan Dibuat", "Pesanan kamu berhasil disimpan dan dikirim ke sistem toko.", [
-        {
-          text: "Lihat Pesanan Saya",
-          onPress: () => router.replace("/user/pesanan"),
-        },
-      ]);
-    } catch (error: any) {
-      console.error("Gagal menyimpan pesanan:", error);
-      Alert.alert("Gagal", "Terjadi kesalahan saat menyimpan pesanan ke database.");
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .insert(orderItems);
+
+    if (itemsError) {
+      // Hindari meninggalkan pesanan utama tanpa detail produk
+      await supabase.from("orders").delete().eq("id", order.id);
+      throw itemsError;
     }
-  };
+
+    Alert.alert(
+  "Pesanan Berhasil Dibuat",
+  `Nomor pesanan: ${order.order_number}`,
+  [
+    {
+      text: "OK",
+      onPress: () => router.back(),
+    },
+  ]
+);
+  } catch (error: any) {
+    console.error("Gagal menyimpan pesanan:", error);
+
+    Alert.alert(
+      "Gagal Membuat Pesanan",
+      error?.message || "Terjadi kesalahan saat menyimpan pesanan."
+    );
+  }
+};
 
   return (
     <SafeAreaView style={styles.safe}>

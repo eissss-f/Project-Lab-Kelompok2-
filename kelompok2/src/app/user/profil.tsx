@@ -1,184 +1,917 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { supabase } from '../../../lib/supabase'; 
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import PageHeader from "@/components/PageHeader";
+import { supabase } from "../../../lib/supabase";
 
-const COLORS = {
-  bgApp: '#FFF8F0',
-  primary: '#A83F68',
-  accentPink: '#E8A6BD',
-  lightPink: '#FBEAF0',
-  border: '#F2E4E5',
-  textDark: '#49343C',
-  textMuted: '#806A72',
-  white: '#FFFFFF',
+const colors = {
+  background: "#FFF8F0",
+  berry: "#A83F68",
+  pink: "#E8A6BD",
+  palePink: "#F7E6E6",
+  muted: "#A17B84",
+  line: "#EED7D8",
+  error: "#A83232",
+  success: "#287A4B",
+  successBackground: "#E8F5EC",
 };
 
-export default function ProfilAdminScreen() {
+type ProfileFieldErrors = {
+  name?: string;
+  phone?: string;
+};
+
+const accountMenu: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  href: "/user/keamanan-akun";
+}[] = [
+  {
+    icon: "shield-checkmark-outline",
+    label: "Keamanan akun",
+    href: "/user/keamanan-akun",
+  },
+];
+
+export default function ProfilScreen() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [adminEmail, setAdminEmail] = useState<string>('');
-  const [adminName, setAdminName] = useState<string>('Admin ra_scrafts.id');
 
+  const [userId, setUserId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const [draftName, setDraftName] = useState("");
+  const [draftPhone, setDraftPhone] = useState("");
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLogoutConfirmationVisible, setIsLogoutConfirmationVisible] =
+    useState(false);
+
+  const [fieldErrors, setFieldErrors] = useState<ProfileFieldErrors>({});
+  const [profileMessage, setProfileMessage] = useState("");
+
+  // Mengambil akun yang benar-benar sedang login.
   useEffect(() => {
-    fetchAdminData();
-  }, []);
+    let isMounted = true;
 
-  const fetchAdminData = async () => {
+    const loadProfile = async () => {
+      try {
+        setIsLoading(true);
+
+        const {
+  data: { session },
+  error: sessionError,
+} = await supabase.auth.getSession();
+
+if (sessionError) {
+  throw sessionError;
+}
+
+if (!session?.user) {
+  if (isMounted) {
+    setUserId(null);
+    setEmail("");
+    setName("");
+    setPhone("");
+    router.replace("/login");
+  }
+  return;
+}
+
+const user = session.user;
+        // Email selalu berasal dari akun Supabase Auth aktif.
+        const accountEmail = user.email ?? "";
+
+        // Mengambil profil berdasarkan ID akun yang sedang login.
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, phone")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (!isMounted) return;
+
+        setUserId(user.id);
+        setEmail(accountEmail);
+
+        setName(
+          data?.full_name ??
+            user.user_metadata?.full_name ??
+            user.user_metadata?.name ??
+            ""
+        );
+
+        setPhone(
+          data?.phone ??
+            user.user_metadata?.phone ??
+            ""
+        );
+      } catch (error) {
+        console.error("Gagal memuat profil:", error);
+
+        if (isMounted) {
+          Alert.alert(
+            "Gagal memuat profil",
+            error instanceof Error
+              ? error.message
+              : "Tidak dapat mengambil data profil. Coba lagi."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  const openEditProfile = () => {
+    setDraftName(name);
+    setDraftPhone(phone);
+    setFieldErrors({});
+    setProfileMessage("");
+    setIsEditing(true);
+  };
+
+  // Menyimpan profil untuk akun yang sedang login.
+  const saveProfile = async () => {
+    const errors: ProfileFieldErrors = {};
+    const trimmedName = draftName.trim();
+    const trimmedPhone = draftPhone.trim();
+
+    if (!trimmedName) {
+      errors.name = "Nama lengkap wajib diisi.";
+    }
+
+    if (!trimmedPhone) {
+      errors.phone = "Nomor telepon wajib diisi.";
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) return;
+
+    setIsSaving(true);
+    setProfileMessage("");
+
     try {
-      setLoading(true);
-      // 1. Ambil data user yang sedang login dari Supabase Auth
-      const { data: { user }, error } = await supabase.auth.getUser();
+      // Periksa ulang identitas pengguna sebelum menyimpan.
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) throw authError;
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      // Jangan menyimpan profil untuk ID pengguna yang berbeda.
+      if (userId && user.id !== userId) {
+        throw new Error(
+          "Akun login berubah. Muat ulang halaman profil."
+        );
+      }
+
+      // Upsert: buat baris jika belum ada, update jika sudah ada.
+      const { data, error } = await supabase
+        .from("profiles")
+        .upsert(
+          {
+            id: user.id,
+            full_name: trimmedName,
+            phone: trimmedPhone,
+          },
+          { onConflict: "id" }
+        )
+        .select("id, full_name, phone")
+        .single();
 
       if (error) throw error;
 
-      if (user) {
-        setAdminEmail(user.email || '');
-        
-        // (Opsional) Jika kamu menyimpan nama lengkap di metadata auth atau tabel profil database:
-        // Contoh dari user_metadata: user.user_metadata?.full_name
-        if (user.user_metadata?.full_name) {
-          setAdminName(user.user_metadata.full_name);
-        } else if (user.email) {
-          // Jadikan bagian depan email sebagai nama jika metadata kosong
-          const nameFromEmail = user.email.split('@')[0];
-          setAdminName(nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1));
-        }
-      }
+      setUserId(data.id);
+      setName(data.full_name ?? "");
+      setPhone(data.phone ?? "");
+      setIsEditing(false);
+      setProfileMessage("Profil berhasil diperbarui.");
     } catch (error) {
-      console.error('Gagal memuat profil admin:', error);
+      console.error("Gagal menyimpan profil:", error);
+
+      Alert.alert(
+        "Gagal menyimpan profil",
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat menyimpan profil."
+      );
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
   const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+
     try {
-      await supabase.auth.signOut();
-      router.replace('/login' as any);
+      const { error } = await supabase.auth.signOut();
+
+      if (error) throw error;
+
+      setIsLogoutConfirmationVisible(false);
+      router.replace("/login");
     } catch (error) {
-      console.error('Gagal keluar:', error);
+      Alert.alert(
+        "Gagal keluar",
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat keluar dari akun."
+      );
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.container, styles.centerLoading]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </SafeAreaView>
-    );
-  }
+  const initials =
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "?";
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <View style={styles.brandAndAccount}>
-          <Text style={styles.appTitle}>ra_scrafts.id Admin</Text>
-          <View style={styles.adminProfile}>
-            <Ionicons name="person-outline" size={20} color={COLORS.primary} />
-          </View>
-        </View>
-        <View style={styles.headerDivider} />
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <PageHeader
+          title="Profil"
+          subtitle="Ruang kecil untuk cerita indahmu."
+          onBack={() => router.replace("/user/Katalog")}
+          backAccessibilityLabel="Kembali ke Beranda"
+        />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileHeaderCard}>
-          <View style={styles.avatarIconContainer}>
-            <Ionicons name="person" size={32} color={COLORS.primary} />
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.berry} />
+            <Text style={styles.loadingText}>Memuat profil...</Text>
           </View>
-          <View style={styles.profileMeta}>
-            <Text style={styles.adminName}>{adminName}</Text>
-            {/* Menampilkan email yang sedang login secara dinamis */}
-            <Text style={styles.adminRole}>{adminEmail || 'Owner & Manager • ra_scrafts.id'}</Text>
-            <View style={styles.statusBadge}>
-              <View style={styles.activeDot} />
-              <Text style={styles.statusText}>Sistem Toko Aktif</Text>
+        ) : (
+          <>
+            {/* Informasi akun aktif */}
+            <View style={styles.accountCard}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+
+              <View style={styles.accountText}>
+                <Text style={styles.name}>
+                  {name || "Nama pengguna"}
+                </Text>
+                <Text style={styles.customerLabel}>
+                  TES PROFIL PELANGGAN 123
+                </Text>
+              </View>
+            </View>
+
+            {/* Informasi kontak */}
+            <View style={styles.sectionHeading}>
+              <Text style={styles.sectionTitle}>INFORMASI AKUN</Text>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit profil"
+                onPress={openEditProfile}
+                style={({ pressed }) => [
+                  styles.editProfileButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={16}
+                  color={colors.berry}
+                />
+                <Text style={styles.editProfileText}>Edit profil</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.contactList}>
+              <View style={styles.contactRow}>
+                <Ionicons
+                  name="mail-outline"
+                  size={22}
+                  color={colors.berry}
+                />
+                <Text style={styles.contactText}>
+                  {email || "Email tidak tersedia"}
+                </Text>
+              </View>
+
+              <View style={styles.contactRow}>
+                <Ionicons
+                  name="call-outline"
+                  size={22}
+                  color={colors.berry}
+                />
+                <Text style={styles.contactText}>
+                  {phone || "Nomor telepon belum diisi"}
+                </Text>
+              </View>
+            </View>
+
+            {profileMessage ? (
+              <Text
+                accessibilityRole="alert"
+                style={styles.profileMessage}
+              >
+                {profileMessage}
+              </Text>
+            ) : null}
+
+            {/* Menu akun */}
+            <View style={styles.menuCard}>
+              {accountMenu.map((item, index) => (
+                <Pressable
+                  key={item.label}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.label}
+                  onPress={() => router.push(item.href)}
+                  style={[
+                    styles.menuRow,
+                    index < accountMenu.length - 1 &&
+                      styles.menuDivider,
+                  ]}
+                >
+                  <View style={styles.menuLeft}>
+                    <Ionicons
+                      name={item.icon}
+                      size={21}
+                      color={colors.berry}
+                    />
+                    <Text style={styles.menuLabel}>{item.label}</Text>
+                  </View>
+
+                  <Ionicons
+                    name="chevron-forward"
+                    size={19}
+                    color={colors.berry}
+                  />
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Bantuan pelanggan */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Bantuan pelanggan"
+              onPress={() => router.push("/user/bantuan")}
+              style={({ pressed }) => [
+                styles.supportCard,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.supportIcon}>
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={25}
+                  color={colors.berry}
+                />
+              </View>
+
+              <View style={styles.supportCopy}>
+                <Text style={styles.supportTitle}>
+                  Ada yang bisa kami bantu?
+                </Text>
+                <Text style={styles.supportSub}>
+                  Panduan singkat untuk pesanan dan jadwal pengambilan.
+                </Text>
+              </View>
+
+              <Ionicons
+                name="arrow-forward"
+                size={21}
+                color={colors.berry}
+              />
+            </Pressable>
+
+            {/* Logout */}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setIsLogoutConfirmationVisible(true)}
+              style={({ pressed }) => [
+                styles.logout,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons
+                name="log-out-outline"
+                size={21}
+                color={colors.berry}
+              />
+              <Text style={styles.logoutText}>Keluar dari akun</Text>
+            </Pressable>
+          </>
+        )}
+      </ScrollView>
+
+      {/* Modal edit profil */}
+      <Modal
+        visible={isEditing}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isSaving) setIsEditing(false);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.editCard}>
+            <Text style={styles.editTitle}>Edit profil</Text>
+            <Text style={styles.editSubtitle}>
+              Perbarui nama dan nomor teleponmu.
+            </Text>
+
+            <Text style={styles.inputLabel}>Nama lengkap</Text>
+            <TextInput
+              accessibilityLabel="Nama lengkap"
+              value={draftName}
+              onChangeText={(value) => {
+                setDraftName(value);
+                setFieldErrors((current) => ({
+                  ...current,
+                  name: undefined,
+                }));
+              }}
+              placeholder="Nama lengkap"
+              placeholderTextColor={colors.muted}
+              style={[
+                styles.editInput,
+                fieldErrors.name && styles.editInputError,
+              ]}
+              autoCapitalize="words"
+              returnKeyType="next"
+              editable={!isSaving}
+            />
+
+            {fieldErrors.name ? (
+              <Text accessibilityRole="alert" style={styles.editError}>
+                {fieldErrors.name}
+              </Text>
+            ) : null}
+
+            <Text style={styles.inputLabel}>Email akun</Text>
+            <Text style={styles.readOnlyEmail}>
+              {email || "Email tidak tersedia"}
+            </Text>
+
+            <Text style={styles.inputLabel}>Nomor telepon</Text>
+            <TextInput
+              accessibilityLabel="Nomor telepon"
+              value={draftPhone}
+              onChangeText={(value) => {
+                setDraftPhone(value);
+                setFieldErrors((current) => ({
+                  ...current,
+                  phone: undefined,
+                }));
+              }}
+              placeholder="Nomor telepon"
+              placeholderTextColor={colors.muted}
+              style={[
+                styles.editInput,
+                fieldErrors.phone && styles.editInputError,
+              ]}
+              keyboardType="phone-pad"
+              returnKeyType="done"
+              editable={!isSaving}
+            />
+
+            {fieldErrors.phone ? (
+              <Text accessibilityRole="alert" style={styles.editError}>
+                {fieldErrors.phone}
+              </Text>
+            ) : null}
+
+            <View style={styles.editActions}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSaving}
+                onPress={() => setIsEditing(false)}
+                style={styles.cancelEditButton}
+              >
+                <Text style={styles.cancelEditText}>Batal</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSaving}
+                onPress={saveProfile}
+                style={[
+                  styles.saveEditButton,
+                  isSaving && styles.disabledButton,
+                ]}
+              >
+                <Text style={styles.saveEditText}>
+                  {isSaving ? "Menyimpan..." : "Simpan"}
+                </Text>
+              </Pressable>
             </View>
           </View>
         </View>
+      </Modal>
 
-        <View style={styles.menuSection}>
-          <Text style={styles.sectionTitle}>Akses Cepat Admin</Text>
-          
-          <View style={styles.menuCard}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/admin/kelola_pesanan_admin' as any)}>
-              <View style={styles.menuIconContainer}><Ionicons name="bag-handle-outline" size={21} color={COLORS.primary} /></View>
-              <Text style={styles.menuLabel}>Kelola Pesanan Masuk</Text>
-              <Ionicons name="chevron-forward" size={17} color={COLORS.textMuted} />
-            </TouchableOpacity>
+      {/* Modal konfirmasi logout */}
+      <Modal
+        visible={isLogoutConfirmationVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isLoggingOut) setIsLogoutConfirmationVisible(false);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.editCard}>
+            <Text style={styles.editTitle}>
+              Yakin ingin keluar dari akun?
+            </Text>
+            <Text style={styles.editSubtitle}>
+              Kamu bisa masuk kembali kapan saja.
+            </Text>
 
-            <View style={styles.itemDivider} />
+            <View style={styles.editActions}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isLoggingOut}
+                onPress={() =>
+                  setIsLogoutConfirmationVisible(false)
+                }
+                style={styles.cancelEditButton}
+              >
+                <Text style={styles.cancelEditText}>Batal</Text>
+              </Pressable>
 
-            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/admin/produk_admin' as any)}>
-              <View style={styles.menuIconContainer}><MaterialCommunityIcons name="flower-outline" size={21} color={COLORS.primary} /></View>
-              <Text style={styles.menuLabel}>Kelola Koleksi Buket</Text>
-              <Ionicons name="chevron-forward" size={17} color={COLORS.textMuted} />
-            </TouchableOpacity>
-
-            <View style={styles.itemDivider} />
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/admin/verifikasi_admin' as any)}>
-              <View style={styles.menuIconContainer}><Ionicons name="receipt-outline" size={21} color={COLORS.primary} /></View>
-              <Text style={styles.menuLabel}>Verifikasi Pembayaran</Text>
-              <Ionicons name="chevron-forward" size={17} color={COLORS.textMuted} />
-            </TouchableOpacity>
-
-            <View style={styles.itemDivider} />
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/admin/status_admin' as any)}>
-              <View style={styles.menuIconContainer}><Ionicons name="gift-outline" size={21} color={COLORS.primary} /></View>
-              <Text style={styles.menuLabel}>Update Progres Buket</Text>
-              <Ionicons name="chevron-forward" size={17} color={COLORS.textMuted} />
-            </TouchableOpacity>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isLoggingOut}
+                onPress={handleLogout}
+                style={[
+                  styles.saveEditButton,
+                  isLoggingOut && styles.disabledButton,
+                ]}
+              >
+                <Text style={styles.saveEditText}>
+                  {isLoggingOut ? "Keluar..." : "Ya, Keluar"}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color={COLORS.primary} />
-          <Text style={styles.logoutText}>Keluar dari Mode Admin</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bgApp },
-  centerLoading: { justifyContent: 'center', alignItems: 'center' },
-  headerContainer: { width: '100%', backgroundColor: COLORS.bgApp },
-  brandAndAccount: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, height: 72 },
-  appTitle: { fontFamily: 'Playfair Display', fontWeight: '700', fontSize: 26, color: COLORS.primary },
-  adminProfile: {
-    width: 40, height: 40, backgroundColor: COLORS.white, borderRadius: 100, justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#7E3E55', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.13, shadowRadius: 10, elevation: 3,
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  headerDivider: { width: '100%', height: 1, backgroundColor: COLORS.border },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 35, gap: 22 },
-  profileHeaderCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, padding: 18, borderRadius: 20, gap: 16,
-    shadowColor: '#7E3E55', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 2,
+
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 18,
+    paddingBottom: 110,
   },
-  avatarIconContainer: { width: 60, height: 60, borderRadius: 100, backgroundColor: COLORS.lightPink, justifyContent: 'center', alignItems: 'center' },
-  profileMeta: { flex: 1, gap: 4 },
-  adminName: { fontFamily: 'Playfair Display', fontWeight: '700', fontSize: 19, color: COLORS.textDark },
-  adminRole: { fontFamily: 'Poppins', fontWeight: '400', fontSize: 12, color: COLORS.textMuted },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
-  activeDot: { width: 8, height: 8, backgroundColor: '#557153', borderRadius: 100 },
-  statusText: { fontFamily: 'Poppins', fontWeight: '600', fontSize: 11, color: '#557153' },
-  menuSection: { gap: 12 },
-  sectionTitle: { fontFamily: 'Playfair Display', fontWeight: '600', fontSize: 19, color: COLORS.primary },
+
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 30,
+    gap: 10,
+  },
+
+  loadingText: {
+    color: colors.muted,
+    textAlign: "center",
+  },
+
+  accountCard: {
+    minHeight: 94,
+    borderRadius: 20,
+    backgroundColor: colors.palePink,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+
+  avatar: {
+    height: 64,
+    width: 64,
+    borderRadius: 32,
+    backgroundColor: colors.pink,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  avatarText: {
+    color: colors.background,
+    fontFamily: "serif",
+    fontSize: 25,
+  },
+
+  accountText: {
+    marginLeft: 14,
+    flex: 1,
+  },
+
+  name: {
+    color: colors.berry,
+    fontFamily: "serif",
+    fontSize: 21,
+    fontWeight: "700",
+  },
+
+  customerLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+
+  sectionTitle: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  sectionHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+
+  editProfileButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: colors.palePink,
+  },
+
+  editProfileText: {
+    color: colors.berry,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  contactList: {
+    marginBottom: 4,
+  },
+
+  contactRow: {
+    minHeight: 39,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  contactText: {
+    color: colors.berry,
+    fontSize: 15,
+    flex: 1,
+  },
+
+  profileMessage: {
+    color: colors.success,
+    backgroundColor: colors.successBackground,
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    fontSize: 12,
+    marginBottom: 8,
+  },
+
   menuCard: {
-    backgroundColor: COLORS.white, borderRadius: 18, paddingVertical: 6,
-    shadowColor: '#7E3E55', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.pink,
+    borderRadius: 19,
+    paddingHorizontal: 15,
+    paddingVertical: 2,
   },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, gap: 14 },
-  menuIconContainer: { width: 40, height: 40, backgroundColor: COLORS.lightPink, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  menuLabel: { flex: 1, fontFamily: 'Poppins', fontWeight: '500', fontSize: 13, color: COLORS.textDark },
-  itemDivider: { height: 1, backgroundColor: COLORS.border, marginHorizontal: 16 },
-  logoutButton: {
-    flexDirection: 'row', height: 50, backgroundColor: COLORS.lightPink, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center', gap: 8,
+
+  menuRow: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  logoutText: { fontFamily: 'Poppins', fontWeight: '700', fontSize: 13, color: COLORS.primary },
+
+  menuDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
+
+  menuLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  menuLabel: {
+    color: colors.berry,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  supportCard: {
+    minHeight: 72,
+    backgroundColor: colors.palePink,
+    borderRadius: 19,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  supportIcon: {
+    height: 40,
+    width: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.berry,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  supportCopy: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+
+  supportTitle: {
+    color: colors.berry,
+    fontFamily: "serif",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  supportSub: {
+    color: colors.muted,
+    fontSize: 10,
+    marginTop: 3,
+  },
+
+  logout: {
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 18,
+    padding: 8,
+  },
+
+  logoutText: {
+    color: colors.berry,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  pressed: {
+    opacity: 0.7,
+  },
+
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(40, 20, 28, 0.4)",
+    padding: 24,
+  },
+
+  editCard: {
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    padding: 20,
+  },
+
+  editTitle: {
+    color: colors.berry,
+    fontFamily: "serif",
+    fontSize: 23,
+    fontWeight: "700",
+  },
+
+  editSubtitle: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+
+  inputLabel: {
+    color: colors.berry,
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+
+  readOnlyEmail: {
+    color: colors.berry,
+    fontSize: 14,
+    backgroundColor: colors.palePink,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+
+  editInput: {
+    color: colors.berry,
+    fontSize: 14,
+    backgroundColor: colors.palePink,
+    borderWidth: 1,
+    borderColor: colors.pink,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    marginBottom: 10,
+  },
+
+  editInputError: {
+    borderColor: colors.error,
+  },
+
+  editError: {
+    color: colors.error,
+    fontSize: 12,
+    marginBottom: 10,
+  },
+
+  editActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 4,
+  },
+
+  cancelEditButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+
+  cancelEditText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  saveEditButton: {
+    backgroundColor: colors.berry,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+
+  disabledButton: {
+    opacity: 0.6,
+  },
+
+  saveEditText: {
+    color: colors.background,
+    fontSize: 13,
+    fontWeight: "700",
+  },
 });

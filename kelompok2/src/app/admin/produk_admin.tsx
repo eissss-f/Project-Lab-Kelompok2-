@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../../lib/supabase";
 import AdminSubNav from "../../components/AdminSubNav"; 
+import { uploadProductPhoto } from '../../../lib/productStorage';
 
 const COLORS = {
   bgApp: "#FFF8F0",
@@ -130,11 +131,13 @@ export default function KelolaProdukScreen() {
 
       if (ids.length > 0) {
         const { data: variants, error: variantError } = await supabase
-          .from(VARIANT_TABLE)
-          .select("*")
-          .in("product_id", ids);
+        .from("product_variants")
+        .select("product_id, size_name, price, stock")
+        .in("product_id", ids);
 
         if (variantError) throw variantError;
+        console.log("ID produk:", ids);
+        console.log("Data varian:", variants);
         variantRows = variants ?? [];
       }
 
@@ -333,17 +336,34 @@ export default function KelolaProdukScreen() {
 
     const basePrice = Math.min(...prices);
 
+    
     setSaving(true);
 
     try {
+      // TAMBAHAN: upload foto lokal ke Supabase Storage
+      let photoUrl = photo;
+
+      const isLocalPhoto =
+        photo.startsWith("blob:") ||
+        photo.startsWith("file:") ||
+        photo.startsWith("content:");
+
+      if (isLocalPhoto) {
+        photoUrl = await uploadProductPhoto(photo);
+      }
+
+      // Data produk tetap seperti sebelumnya
       const productPayload = {
         title: title.trim(),
         category,
-        photo,
+        photo: photoUrl, // menggunakan URL hasil upload
         description: description.trim(),
         price: basePrice,
         stock: totalStock,
       };
+
+      // Lanjutkan kode lama kamu di bawah ini,
+      // mulai dari: let productId = editingId;
 
       let productId = editingId;
 
@@ -408,6 +428,7 @@ export default function KelolaProdukScreen() {
       );
     } catch (error: any) {
       console.error("Gagal menyimpan produk:", error);
+      console.log("Detail error penyimpanan:", error);
 
       showMessage(
         "Gagal Menyimpan",
@@ -418,44 +439,80 @@ export default function KelolaProdukScreen() {
     }
   };
 
-  const deleteProduct = (product: ProductItem) => {
-    Alert.alert(
-      "Hapus Produk",
-      `Yakin ingin menghapus "${product.title}"?`,
-      [
-        { text: "Batal", style: "cancel" },
-        {
-          text: "Hapus",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const { error: variantError } = await supabase
-                .from(VARIANT_TABLE)
-                .delete()
-                .eq("product_id", product.id);
+ 
+const deleteProduct = (product: ProductItem) => {
+  const performDelete = async () => {
+    try {
+      setLoading(true);
 
-              if (variantError) throw variantError;
+      // Hapus varian produk terlebih dahulu.
+      const { error: variantError } = await supabase
+        .from(VARIANT_TABLE)
+        .delete()
+        .eq("product_id", product.id);
 
-              const { error } = await supabase
-                .from(PRODUCT_TABLE)
-                .delete()
-                .eq("id", product.id);
+      if (variantError) throw variantError;
 
-              if (error) throw error;
+      // Setelah varian berhasil dihapus, hapus produk.
+      const { data, error } = await supabase
+        .from(PRODUCT_TABLE)
+        .delete()
+        .eq("id", product.id)
+        .select("id");
 
-              await loadProducts();
-              Alert.alert("Berhasil", "Produk berhasil dihapus.");
-            } catch (error: any) {
-              Alert.alert(
-                "Gagal Menghapus",
-                error?.message ?? "Produk tidak bisa dihapus."
-              );
-            }
-          },
-        },
-      ]
-    );
+      if (error) throw error;
+
+      // Jika tidak ada baris yang terhapus, kemungkinan
+      // akses DELETE ditolak atau produk tidak ditemukan.
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Produk tidak terhapus. Periksa policy DELETE pada tabel products."
+        );
+      }
+
+      await loadProducts();
+      showMessage("Berhasil", `Produk "${product.title}" berhasil dihapus.`);
+    } catch (error: any) {
+      console.error("Gagal menghapus produk:", error);
+
+      showMessage(
+        "Gagal Menghapus",
+        error?.message ??
+          "Produk tidak bisa dihapus. Periksa izin database."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (Platform.OS === "web") {
+    const confirmed = window.confirm(
+      `Yakin ingin menghapus "${product.title}"?`
+    );
+
+    if (confirmed) {
+      void performDelete();
+    }
+
+    return;
+  }
+
+  Alert.alert(
+    "Hapus Produk",
+    `Yakin ingin menghapus "${product.title}"?`,
+    [
+      { text: "Batal", style: "cancel" },
+      {
+        text: "Hapus",
+        style: "destructive",
+        onPress: () => {
+          void performDelete();
+        },
+      },
+    ]
+  );
+};
+
 
   const renderSizeForm = (sizeName: SizeName) => (
     <View style={styles.sizeBox} key={sizeName}>

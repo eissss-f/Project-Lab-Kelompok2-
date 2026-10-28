@@ -26,103 +26,142 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const handleRegister = async () => {
-    setErrorMessage('');
+  
+const handleRegister = async () => {
+  setErrorMessage('');
+  setSuccessMessage('');
 
-    const namaTrim = namaLengkap.trim();
-    const emailTrim = email.trim().toLowerCase();
+  const namaTrim = namaLengkap.trim();
+  const emailTrim = email.trim().toLowerCase();
+  const nomorHpTrim = nomorHp.trim();
 
-    if (!namaTrim) {
-      setErrorMessage('Nama lengkap wajib diisi.');
-      return;
-    }
+  // Validasi nama
+  if (!namaTrim) {
+    setErrorMessage('Nama lengkap wajib diisi.');
+    return;
+  }
 
-    if (!emailTrim) {
-      setErrorMessage('Email wajib diisi.');
-      return;
-    }
+  // Validasi email
+  if (!emailTrim) {
+    setErrorMessage('Email wajib diisi.');
+    return;
+  }
 
-    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
-    if (!emailValid) {
-      setErrorMessage('Format email tidak valid.');
-      return;
-    }
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
 
-    if (!password) {
-      setErrorMessage('Password wajib diisi.');
-      return;
-    }
+  if (!emailValid) {
+    setErrorMessage('Format email tidak valid. Contoh: nama@email.com');
+    return;
+  }
 
-    if (password.length < 8) {
-      setErrorMessage('Password minimal harus 8 karakter.');
-      return;
-    }
+  // Validasi password
+  if (!password) {
+    setErrorMessage('Password wajib diisi.');
+    return;
+  }
 
-    if (!confirmPassword) {
-      setErrorMessage('Konfirmasi password wajib diisi.');
-      return;
-    }
+  if (password.length < 8) {
+    setErrorMessage('Password minimal harus 8 karakter.');
+    return;
+  }
 
-    if (password !== confirmPassword) {
-      setErrorMessage('Password dan konfirmasi password tidak sama.');
-      return;
-    }
+  if (!confirmPassword) {
+    setErrorMessage('Konfirmasi password wajib diisi.');
+    return;
+  }
 
-    if (!agree) {
-      setErrorMessage('Silakan setujui Syarat & Ketentuan terlebih dahulu.');
-      return;
-    }
+  if (password !== confirmPassword) {
+    setErrorMessage('Password dan konfirmasi password tidak sama.');
+    return;
+  }
 
-    try {
-      setLoading(true);
+  if (!agree) {
+    setErrorMessage('Silakan setujui Syarat & Ketentuan terlebih dahulu.');
+    return;
+  }
 
-      const { data, error } = await supabase.auth.signUp({
-        email: emailTrim,
-        password,
-        options: {
-          data: {
-            full_name: namaTrim,
-            phone: nomorHp.trim(),
-          },
+  try {
+    setLoading(true);
+
+    const { data, error } = await supabase.auth.signUp({
+      email: emailTrim,
+      password,
+      options: {
+        data: {
+          full_name: namaTrim,
+          phone: nomorHpTrim,
         },
-      });
+      },
+    });
 
-      if (error) {
-        setErrorMessage(`Pendaftaran gagal: ${error.message}`);
-        return;
+    if (error) {
+      console.error('Register gagal:', error.message);
+
+      const message = error.message.toLowerCase();
+
+      if (
+        message.includes('already registered') ||
+        message.includes('already been registered') ||
+        message.includes('already exists')
+      ) {
+        setErrorMessage(
+          'Email ini sudah terdaftar. Silakan masuk menggunakan akun kamu.'
+        );
+      } else if (message.includes('password')) {
+        setErrorMessage(
+          'Password tidak memenuhi ketentuan. Periksa kembali password kamu.'
+        );
+      } else if (
+        message.includes('network') ||
+        message.includes('fetch')
+      ) {
+        setErrorMessage(
+          'Tidak dapat terhubung ke server. Periksa koneksi internet kamu.'
+        );
+      } else {
+        setErrorMessage(
+          'Pendaftaran gagal. ' + error.message
+        );
       }
 
-      // 1. Jika sesi login langsung ada (Confirm Email Nonaktif)
-      if (data.session || data.user) {
-        // Beri jeda 300ms agar token/sesi tersimpan sempurna di storage browser/device
-        setTimeout(() => {
-          router.replace('/user/Katalog');
-        }, 300);
-        return;
-      }
-
-      // 2. Jika Confirm Email di Supabase masih aktif
-      Alert.alert(
-        'Pendaftaran Berhasil',
-        'Silakan cek inbox email kamu untuk konfirmasi akun terlebih dahulu.',
-        [
-          {
-            text: 'Ke Halaman Login',
-            onPress: () => router.push('/login'),
-          },
-        ]
-      );
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Terjadi kesalahan saat menghubungi server.'
-      );
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    if (!data.user) {
+      setErrorMessage(
+        'Pendaftaran belum berhasil. Silakan coba kembali.'
+      );
+      return;
+    }
+
+    // Jika sesi tersedia, pengguna langsung login.
+    if (data.session) {
+      setSuccessMessage('Pendaftaran berhasil! Mengarahkan ke katalog...');
+
+      setTimeout(() => {
+        router.replace('/user/Katalog');
+      }, 1000);
+
+      return;
+    }
+
+    // Jika belum ada sesi, kemungkinan perlu konfirmasi email.
+    setSuccessMessage(
+      'Pendaftaran berhasil! Silakan cek email kamu untuk konfirmasi akun sebelum login.'
+    );
+  } catch (error: any) {
+    console.error('Kesalahan register:', error);
+
+    setErrorMessage(
+      'Terjadi kesalahan saat mendaftar. Periksa koneksi internet dan coba lagi.'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -151,6 +190,18 @@ export default function RegisterScreen() {
               <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           ) : null}
+          
+          {successMessage ? (
+            <View style={styles.successContainer}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={18}
+                color="#2E7D32"
+              />
+              <Text style={styles.successText}>{successMessage}</Text>
+            </View>
+          ) : null}
+
 
           <Text style={styles.label}>Nama Lengkap</Text>
           <View style={styles.inputWrapper}>
@@ -314,6 +365,23 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
+  
+successContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#E8F5E9',
+  padding: 10,
+  borderRadius: 8,
+  marginBottom: 12,
+},
+
+successText: {
+  color: '#2E7D32',
+  fontSize: 12,
+  marginLeft: 6,
+  flex: 1,
+},
+
   container: {
     flex: 1,
     backgroundColor: '#FFF8F0',

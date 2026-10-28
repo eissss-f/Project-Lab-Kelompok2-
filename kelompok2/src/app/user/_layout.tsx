@@ -1,46 +1,133 @@
+
 import React from "react";
-import { View, StyleSheet, TouchableOpacity, Text } from "react-native";
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+} from "react-native";
 import { Slot, useRouter, usePathname } from "expo-router";
-import { Store, ShoppingBag, User } from "lucide-react-native";
+import {
+  Store,
+  ShoppingBag,
+  User,
+} from "lucide-react-native";
 
 export default function AppLayout() {
   const router = useRouter();
   const pathname = usePathname();
+  const currentPath = pathname.toLowerCase();
 
   const hideBottomNav =
-    pathname.includes("/DetailProduk") ||
-    pathname.includes("/keranjang") ||
-    pathname.includes("/checkout") ||
-    pathname === "/user/keamanan-akun" ||
-    pathname === "/user/bantuan";
+    currentPath.includes("/detailproduk") ||
+    currentPath.includes("/keranjang") ||
+    currentPath.includes("/checkout") ||
+    currentPath === "/user/keamanan-akun" ||
+    currentPath === "/user/bantuan";
+
+  const isKatalog =
+    currentPath === "/user/katalog" ||
+    currentPath === "/katalog";
+
+  const isPesanan =
+    currentPath === "/user/pesanan" ||
+    currentPath === "/pesanan";
+
+  const isProfil =
+    currentPath === "/user/profil" ||
+    currentPath === "/profil";
 
   return (
     <View style={styles.container}>
-      {/* Slot untuk merender halaman aktif secara dinamis */}
       <View style={styles.contentContainer}>
         <Slot />
       </View>
 
-      {/* Bottom Navigation Kustom dengan Efek Kotak Pink */}
       {!hideBottomNav && (
         <View style={styles.bottomNavContainer}>
           <View style={styles.navTabs}>
-            {/* Menu Katalog / Produk */}
-            <TouchableOpacity style={pathname === "/user/Katalog" || pathname === "/Katalog" ? styles.tabActive : styles.tabInactive} onPress={() => router.push("/user/Katalog")} activeOpacity={0.8}>
-              <Store size={21} color={pathname === "/user/Katalog" || pathname === "/Katalog" ? "#A83F68" : "#999999"} strokeWidth={1.8} />
-              <Text style={pathname === "/user/Katalog" || pathname === "/Katalog" ? styles.tabLabelActive : styles.tabLabelInactive}>Produk</Text>
+            {/* Menu Produk */}
+            <TouchableOpacity
+              style={
+                isKatalog
+                  ? styles.tabActive
+                  : styles.tabInactive
+              }
+              onPress={() =>
+                router.replace("/user/Katalog")
+              }
+              activeOpacity={0.8}
+            >
+              <Store
+                size={21}
+                color={isKatalog ? "#A83F68" : "#999999"}
+                strokeWidth={1.8}
+              />
+              <Text
+                style={
+                  isKatalog
+                    ? styles.tabLabelActive
+                    : styles.tabLabelInactive
+                }
+              >
+                Produk
+              </Text>
             </TouchableOpacity>
 
             {/* Menu Pesanan */}
-            <TouchableOpacity style={pathname === "/user/pesanan" || pathname === "/pesanan" ? styles.tabActive : styles.tabInactive} onPress={() => router.push("/user/pesanan")} activeOpacity={0.8}>
-              <ShoppingBag size={21} color={pathname === "/user/pesanan" || pathname === "/pesanan" ? "#A83F68" : "#999999"} strokeWidth={1.8} />
-              <Text style={pathname === "/user/pesanan" || pathname === "/pesanan" ? styles.tabLabelActive : styles.tabLabelInactive}>Pesanan</Text>
+            <TouchableOpacity
+              style={
+                isPesanan
+                  ? styles.tabActive
+                  : styles.tabInactive
+              }
+              onPress={() =>
+                router.replace("/user/pesanan")
+              }
+              activeOpacity={0.8}
+            >
+              <ShoppingBag
+                size={21}
+                color={isPesanan ? "#A83F68" : "#999999"}
+                strokeWidth={1.8}
+              />
+              <Text
+                style={
+                  isPesanan
+                    ? styles.tabLabelActive
+                    : styles.tabLabelInactive
+                }
+              >
+                Pesanan
+              </Text>
             </TouchableOpacity>
 
-            {/* Menu Profil */}
-            <TouchableOpacity style={pathname === "/user/profil" || pathname === "/profil" ? styles.tabActive : styles.tabInactive} onPress={() => router.push("/user/profil")} activeOpacity={0.8}>
-              <User size={21} color={pathname === "/user/profil" || pathname === "/profil" ? "#A83F68" : "#999999"} strokeWidth={1.8} />
-              <Text style={pathname === "/user/profil" || pathname === "/profil" ? styles.tabLabelActive : styles.tabLabelInactive}>Profil</Text>
+            {/* Menu Profil Pengguna */}
+            <TouchableOpacity
+              style={
+                isProfil
+                  ? styles.tabActive
+                  : styles.tabInactive
+              }
+              onPress={() =>
+                router.replace("/user/profil")
+              }
+              activeOpacity={0.8}
+            >
+              <User
+                size={21}
+                color={isProfil ? "#A83F68" : "#999999"}
+                strokeWidth={1.8}
+              />
+              <Text
+                style={
+                  isProfil
+                    ? styles.tabLabelActive
+                    : styles.tabLabelInactive
+                }
+              >
+                Profil
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -74,7 +161,7 @@ const styles = StyleSheet.create({
   tabActive: {
     flex: 1,
     height: 48,
-    backgroundColor: "#FFF0F6", // Kotak latar belakang pink muda saat aktif
+    backgroundColor: "#FFF0F6",
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
@@ -96,13 +183,5 @@ const styles = StyleSheet.create({
   tabLabelInactive: {
     fontSize: 10,
     color: "#999999",
-  },
-  homeIndicator: {
-    width: 128,
-    height: 4,
-    backgroundColor: "#49343C",
-    borderRadius: 100,
-    alignSelf: "center",
-    marginTop: 10,
   },
 });

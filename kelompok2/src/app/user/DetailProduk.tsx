@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -19,41 +20,161 @@ import {
   Plus,
 } from 'lucide-react-native';
 
+import { supabase } from '../../../lib/supabase';
 import CustomButton from '../../components/CustomButton';
 
 const CART_STORAGE_KEY = '@ra_scrafts_cart';
 
+type ProductVariant = {
+  id: string | number;
+  product_id: string;
+  size_name: string;
+  price: number | string;
+  stock: number | string;
+};
+
 export default function DetailProduk() {
   const router = useRouter();
 
-  const { id, name, price, imageUrl } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     id?: string;
-    name: string;
-    price: string;
-    imageUrl: string;
+    name?: string;
+    price?: string;
+    imageUrl?: string;
   }>();
 
+  // ID produk dipertahankan sebagai string karena dapat berupa UUID.
+  const productId = Array.isArray(params.id)
+    ? params.id[0]
+    : params.id;
+
+  const name = Array.isArray(params.name)
+    ? params.name[0]
+    : params.name;
+
+  const imageUrl = Array.isArray(params.imageUrl)
+    ? params.imageUrl[0]
+    : params.imageUrl;
+
+  const [productDescription, setProductDescription] = useState('');
+  const [productVariants, setProductVariants] = useState<ProductVariant[]>([]);
   const [selectedSize, setSelectedSize] = useState('S');
   const [quantity, setQuantity] = useState(1);
+  const [loadingProduct, setLoadingProduct] = useState(true);
 
-  const sizes = ['S', 'M', 'L'];
+  const displayName = name || 'Buket Mawar Premium';
 
   const displayImage =
     imageUrl ||
     'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80';
 
-  const displayName = name || 'Buket Mawar Premium';
-  
-  // Membersihkan format harga string (misal: "Rp 150.000" jadi angka 150000)
-  const parsePrice = (priceStr: string) => {
-    if (!priceStr) return 150000;
-    const numeric = Number(priceStr.replace(/[^0-9]/g, ''));
-    return isNaN(numeric) ? 150000 : numeric;
-  };
+  // Mengambil deskripsi dan varian langsung dari Supabase.
+  useEffect(() => {
+    let isMounted = true;
 
-  const numericPrice = parsePrice(price);
+    const fetchProductDetail = async () => {
+      setLoadingProduct(true);
 
-  // Fungsi untuk kembali ke halaman sebelumnya atau ke katalog
+      try {
+        if (!productId) {
+          throw new Error('ID produk tidak ditemukan.');
+        }
+
+        // Ambil deskripsi produk.
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('description')
+          .eq('id', productId)
+          .single();
+
+        if (productError) throw productError;
+
+        // Ambil harga dan stok untuk setiap ukuran.
+        const { data: variants, error: variantsError } = await supabase
+          .from('product_variants')
+          .select('id, product_id, size_name, price, stock')
+          .eq('product_id', productId);
+
+        if (variantsError) throw variantsError;
+
+        if (!isMounted) return;
+
+        const availableVariants: ProductVariant[] = (variants ?? [])
+          .filter((variant) => variant.size_name)
+          .sort((a, b) => {
+            const order = ['S', 'M', 'L', 'XL', 'XXL'];
+            const indexA = order.indexOf(
+              String(a.size_name).trim().toUpperCase()
+            );
+            const indexB = order.indexOf(
+              String(b.size_name).trim().toUpperCase()
+            );
+
+            return (
+              (indexA === -1 ? 999 : indexA) -
+              (indexB === -1 ? 999 : indexB)
+            );
+          });
+
+        setProductDescription(product?.description ?? '');
+        setProductVariants(availableVariants);
+
+        // Pilih S jika tersedia, jika tidak pilih varian pertama.
+        const initialVariant =
+          availableVariants.find(
+            (variant) =>
+              String(variant.size_name).trim().toUpperCase() === 'S'
+          ) ?? availableVariants[0];
+
+        if (initialVariant) {
+          setSelectedSize(initialVariant.size_name);
+        }
+
+        setQuantity(1);
+      } catch (error) {
+        console.error('Gagal mengambil detail produk:', error);
+
+        if (isMounted) {
+          Alert.alert(
+            'Gagal Memuat Produk',
+            'Data produk tidak berhasil diambil. Periksa ID produk dan koneksi Supabase.'
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingProduct(false);
+        }
+      }
+    };
+
+    fetchProductDetail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [productId]);
+
+  // Mencari harga dan stok berdasarkan ukuran yang dipilih.
+  const selectedVariant = productVariants.find(
+    (variant) =>
+      String(variant.size_name).trim().toUpperCase() ===
+      selectedSize.trim().toUpperCase()
+  );
+
+  // Hanya gunakan harga dari varian database, bukan harga dari parameter katalog.
+  const numericPrice = Number(selectedVariant?.price ?? 0);
+  const selectedStock = Math.max(
+    0,
+    Number(selectedVariant?.stock ?? 0)
+  );
+
+  const sizes = productVariants.length
+    ? productVariants.map((variant) => variant.size_name)
+    : ['S', 'M', 'L', 'XL'];
+
+  const formatPrice = (value: number) =>
+    `Rp ${value.toLocaleString('id-ID')}`;
+
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -62,56 +183,125 @@ export default function DetailProduk() {
     }
   };
 
-  // 1. Fungsi untuk Memasukkan ke Keranjang
+  const handleSelectSize = (size: string) => {
+    setSelectedSize(size);
+    setQuantity(1);
+  };
+
+  const canOrder =
+    !loadingProduct &&
+    !!selectedVariant &&
+    selectedStock > 0 &&
+    numericPrice >= 0;
+
   const handleAddToCart = async () => {
+    if (!canOrder || !selectedVariant) {
+      Alert.alert(
+        'Produk Tidak Tersedia',
+        'Ukuran ini belum tersedia atau stoknya habis.'
+      );
+      return;
+    }
+
+    if (quantity > selectedStock) {
+      Alert.alert(
+        'Stok Tidak Cukup',
+        `Stok ukuran ${selectedSize} hanya ${selectedStock}.`
+      );
+      return;
+    }
+
     try {
       const newItem = {
-        id: id ? Number(id) : Date.now(),
+        id: productId,
+        variantId: selectedVariant.id,
         name: displayName,
         variant: `${selectedSize} · ra_scrafts`,
         price: numericPrice,
-        quantity: quantity,
+        quantity,
         image: displayImage,
         selected: true,
       };
 
-      // Ambil data keranjang sebelumnya
       const existingCart = await AsyncStorage.getItem(CART_STORAGE_KEY);
-      let cartArray = existingCart ? JSON.parse(existingCart) : [];
+      const cartArray = existingCart ? JSON.parse(existingCart) : [];
 
-      // Cek apakah produk dengan ukuran yang sama sudah ada di keranjang
       const existingIndex = cartArray.findIndex(
-        (item: any) => item.name === newItem.name && item.variant === newItem.variant
+        (item: any) =>
+          String(item.id) === String(newItem.id) &&
+          String(item.variant).toUpperCase() ===
+            newItem.variant.toUpperCase()
       );
 
       if (existingIndex > -1) {
-        cartArray[existingIndex].quantity += quantity;
+        const nextQuantity =
+          Number(cartArray[existingIndex].quantity) + quantity;
+
+        if (nextQuantity > selectedStock) {
+          Alert.alert(
+            'Stok Tidak Cukup',
+            `Total stok ukuran ${selectedSize} yang tersedia adalah ${selectedStock}.`
+          );
+          return;
+        }
+
+        cartArray[existingIndex].quantity = nextQuantity;
+        cartArray[existingIndex].price = numericPrice;
+        cartArray[existingIndex].variantId = selectedVariant.id;
       } else {
         cartArray.push(newItem);
       }
 
-      // Simpan kembali ke AsyncStorage
-      await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartArray));
+      await AsyncStorage.setItem(
+        CART_STORAGE_KEY,
+        JSON.stringify(cartArray)
+      );
 
-      Alert.alert('Berhasil', 'Produk berhasil dimasukkan ke keranjang!', [
-        { text: 'Lihat Keranjang', onPress: () => router.push('/user/keranjang') },
-        { text: 'Lanjut Belanja', style: 'cancel' },
-      ]);
+      Alert.alert(
+        'Berhasil',
+        'Produk berhasil dimasukkan ke keranjang!',
+        [
+          {
+            text: 'Lihat Keranjang',
+            onPress: () => router.push('/user/keranjang'),
+          },
+          { text: 'Lanjut Belanja', style: 'cancel' },
+        ]
+      );
     } catch (error) {
       console.error('Gagal tambah ke keranjang:', error);
-      Alert.alert('Kesalahan', 'Gagal menyimpan produk ke keranjang.');
+      Alert.alert(
+        'Kesalahan',
+        'Gagal menyimpan produk ke keranjang.'
+      );
     }
   };
 
-  // 2. Fungsi untuk Pesan Sekarang (Langsung ke Checkout)
   const handleBuyNow = () => {
+    if (!canOrder || !selectedVariant) {
+      Alert.alert(
+        'Produk Tidak Tersedia',
+        'Ukuran ini belum tersedia atau stoknya habis.'
+      );
+      return;
+    }
+
+    if (quantity > selectedStock) {
+      Alert.alert(
+        'Stok Tidak Cukup',
+        `Stok ukuran ${selectedSize} hanya ${selectedStock}.`
+      );
+      return;
+    }
+
     const singleCheckoutItem = [
       {
-        id: id ? Number(id) : Date.now(),
+        id: productId,
+        variantId: selectedVariant.id,
         name: displayName,
         variant: `${selectedSize} · ra_scrafts`,
         price: numericPrice,
-        quantity: quantity,
+        quantity,
         image: displayImage,
         selected: true,
       },
@@ -141,9 +331,7 @@ export default function DetailProduk() {
           <ArrowLeft size={20} color="#A83F68" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>
-          Detail Produk
-        </Text>
+        <Text style={styles.headerTitle}>Detail Produk</Text>
 
         <TouchableOpacity
           style={styles.iconBtn}
@@ -171,19 +359,25 @@ export default function DetailProduk() {
 
         <View style={styles.priceRow}>
           <Text style={styles.productPrice}>
-            {price || `Rp ${numericPrice.toLocaleString('id-ID')}`}
+            {loadingProduct
+              ? 'Memuat harga...'
+              : selectedVariant
+                ? formatPrice(numericPrice)
+                : 'Harga tidak tersedia'}
           </Text>
 
           <View style={styles.stockBadge}>
             <Text style={styles.stockText}>
-              Stok tersedia: 12
+              Stok tersedia: {loadingProduct ? '...' : selectedStock}
             </Text>
           </View>
         </View>
 
+        {/* Deskripsi dari database */}
         <Text style={styles.descriptionText}>
-          Dirangkai dengan cinta dan balutan elegan untuk
-          menyatakan momen istimewamu bersama orang tersayang.
+          {loadingProduct
+            ? 'Memuat deskripsi produk...'
+            : productDescription || 'Belum ada deskripsi produk.'}
         </Text>
 
         {/* Pilihan Ukuran */}
@@ -192,15 +386,27 @@ export default function DetailProduk() {
 
           <View style={styles.sizeGroup}>
             {sizes.map((size) => {
-              const isActive = selectedSize === size;
+              const isActive =
+                selectedSize.toUpperCase() === size.toUpperCase();
+
+              const variant = productVariants.find(
+                (item) =>
+                  item.size_name.trim().toUpperCase() ===
+                  size.trim().toUpperCase()
+              );
+
+              const outOfStock =
+                !variant || Number(variant.stock) <= 0;
 
               return (
                 <TouchableOpacity
                   key={size}
-                  onPress={() => setSelectedSize(size)}
+                  onPress={() => handleSelectSize(size)}
+                  disabled={loadingProduct}
                   style={[
                     styles.sizeChip,
                     isActive && styles.sizeChipActive,
+                    outOfStock && styles.sizeChipDisabled,
                   ]}
                 >
                   <Text
@@ -224,6 +430,7 @@ export default function DetailProduk() {
           <View style={styles.stepperContainer}>
             <TouchableOpacity
               style={styles.stepperBtn}
+              disabled={quantity <= 1 || !canOrder}
               onPress={() =>
                 setQuantity(Math.max(1, quantity - 1))
               }
@@ -237,8 +444,11 @@ export default function DetailProduk() {
 
             <TouchableOpacity
               style={styles.stepperBtn}
+              disabled={!canOrder || quantity >= selectedStock}
               onPress={() =>
-                setQuantity(Math.min(12, quantity + 1))
+                setQuantity(
+                  Math.min(selectedStock, quantity + 1)
+                )
               }
             >
               <Plus size={14} color="#A83F68" />
@@ -246,11 +456,28 @@ export default function DetailProduk() {
           </View>
         </View>
 
+        {/* Total Harga */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionLabel}>Total Harga</Text>
+          <Text style={styles.productPrice}>
+            {formatPrice(numericPrice * quantity)}
+          </Text>
+        </View>
+
         {/* Tombol Masukkan ke Keranjang */}
         <View style={styles.buttonWrapper}>
-          <TouchableOpacity activeOpacity={0.8} onPress={handleAddToCart} style={{ width: '100%' }}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleAddToCart}
+            disabled={!canOrder}
+            style={{ width: '100%', opacity: canOrder ? 1 : 0.6 }}
+          >
             <CustomButton
-              title="Masukkan ke Keranjang"
+              title={
+                loadingProduct
+                  ? 'Memuat Produk...'
+                  : 'Masukkan ke Keranjang'
+              }
               onPress={handleAddToCart}
             />
           </TouchableOpacity>
@@ -258,7 +485,12 @@ export default function DetailProduk() {
 
         {/* Tombol Pesan Sekarang */}
         <View style={styles.buttonWrapper}>
-          <TouchableOpacity activeOpacity={0.8} onPress={handleBuyNow} style={{ width: '100%' }}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleBuyNow}
+            disabled={!canOrder}
+            style={{ width: '100%', opacity: canOrder ? 1 : 0.6 }}
+          >
             <CustomButton
               title="Pesan Sekarang"
               onPress={handleBuyNow}
@@ -362,6 +594,9 @@ const styles = StyleSheet.create({
   },
   sizeChipActive: {
     backgroundColor: '#E8A6BD',
+  },
+  sizeChipDisabled: {
+    opacity: 0.45,
   },
   sizeText: {
     fontSize: 12,
