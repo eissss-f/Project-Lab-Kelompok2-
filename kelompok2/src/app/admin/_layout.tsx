@@ -21,6 +21,9 @@ export default function AdminLayout() {
   const isPesanan = pathname.includes("kelola_pesanan_admin");
   const isProduk = pathname.includes("produk_admin");
   const isProfil = pathname.includes("profil_admin");
+  pathname.includes("produk_admin") || 
+    pathname.includes("verifikasi_admin") || 
+    pathname.includes("status_admin");
 
   return (
     <View style={styles.container}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, ActivityIndicator, Alert, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from 'expo-router';
@@ -12,121 +12,144 @@ const COLORS = {
   lightPink: "#FBEAF0",
   border: "#F2E4E5",
   textDark: "#49343C",
-  textMuted: "#958189",
+  textMuted: "#806A72",
   white: "#FFFFFF",
-  success: "#2E7D32",
-  warning: "#ED6C02",
-  error: "#D32F2F",
 };
 
 interface VerificationItem {
-  id: number | string;
+  id: string | number;
   orderReference: string;
   customerName: string;
   transferAmount: string;
   transferTime: string;
   proofPhoto: string;
-  status: "Menunggu" | "Valid" | "Ditolak" | "Diperbaiki";
+  status: string;
   notes?: string;
 }
 
-// Data dummy untuk pengujian fitur tanpa harus bergantung penuh ke database dulu
-const DUMMY_VERIFICATIONS: VerificationItem[] = [
-  {
-    id: 1,
-    orderReference: "#RA-0011",
-    customerName: "Siti Rahmawati",
-    transferAmount: "Rp250.000",
-    transferTime: "23 Okt 2026, 14:30 WIB",
-    proofPhoto: "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
-    status: "Menunggu",
-    notes: "",
-  },
-  {
-    id: 2,
-    orderReference: "#RA-0012",
-    customerName: "Ahmad Fauzi",
-    transferAmount: "Rp185.000",
-    transferTime: "24 Okt 2026, 09:15 WIB",
-    proofPhoto: "https://images.unsplash.com/photo-1520763185298-1b434c919102?w=300",
-    status: "Menunggu",
-    notes: "",
-  },
-];
+const DEFAULT_PHOTO = "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300";
 
 export default function VerifikasiPembayaranScreen() {
   const router = useRouter();
-  const [pendingPayments, setPendingPayments] = useState<VerificationItem[]>(DUMMY_VERIFICATIONS);
-  const [loading, setLoading] = useState(false);
+  const [pendingPayments, setPendingPayments] = useState<VerificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // State untuk melacak status pilihan dan catatan per item berdasarkan ID
-  const [selectedStatus, setSelectedStatus] = useState<{ [key: string]: "Valid" | "Ditolak" | "Diperbaiki" }>({});
+  const [selectedStatus, setSelectedStatus] = useState<{ [key: string]: "Valid" | "Diperbaiki" | "Ditolak" }>({});
   const [actionNotes, setActionNotes] = useState<{ [key: string]: string }>({});
 
-  useEffect(() => {
-    fetchPendingVerifications();
-  }, []);
-
-  const fetchPendingVerifications = async () => {
+  const fetchPendingVerifications = useCallback(async () => {
     try {
       setLoading(true);
+      // Mengambil semua pesanan untuk memastikan data masuk, lalu difilter manual atau via query fleksibel
       const { data, error } = await supabase
         .from("orders")
-        .select("*")
-        .eq("status", "Verifikasi")
-        .order("id", { ascending: false });
+        .select(`
+          id,
+          order_number,
+          total_price,
+          recipient_name,
+          status,
+          notes,
+          payment_proof,
+          created_at,
+          order_items (
+            product_title,
+            size_name,
+            quantity,
+            product_photo
+          )
+        `)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        const formatted = data.map((item: any) => ({
-          id: item.id,
-          orderReference: item.order_number || `#RS-${item.id}`,
-          customerName: item.recipient_name || "Pelanggan",
-          transferAmount: item.total_price ? `Rp${Number(item.total_price).toLocaleString("id-ID")}` : "Rp0",
-          transferTime: item.created_at ? new Date(item.created_at).toLocaleString("id-ID") : "Baru saja",
-          proofPhoto: item.payment_proof || "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
-          status: item.status || "Menunggu",
-          notes: item.notes || "",
-        }));
+      if (data) {
+        // Filter fleksibel di sisi client agar tidak terlewat karena perbedaan format status
+        const filteredData = data.filter((item: any) => {
+          const st = (item.status || "").toLowerCase();
+          return st.includes("verifikasi") || st === "verifikasi" || st === "menunggu verifikasi";
+        });
+
+        const formatted: VerificationItem[] = filteredData.map((item: any) => {
+          const products = item.order_items ?? [];
+          const totalPrice = Number(item.total_price || 0);
+
+          const formattedPrice = totalPrice.toLocaleString("id-ID", {
+            style: "currency",
+            currency: "IDR",
+            maximumFractionDigits: 0,
+          });
+
+          const firstPhoto = products.find((p: any) => p.product_photo)?.product_photo || item.payment_proof || DEFAULT_PHOTO;
+
+          return {
+            id: item.id,
+            orderReference: item.order_number || `#RA-${item.id}`,
+            customerName: item.recipient_name || "Pelanggan",
+            transferAmount: formattedPrice,
+            transferTime: item.created_at ? new Date(item.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "Baru saja",
+            proofPhoto: firstPhoto,
+            status: item.status || "Verifikasi",
+            notes: item.notes || "",
+          };
+        });
+
         setPendingPayments(formatted);
       }
     } catch (error: any) {
-      console.log("Menggunakan data dummy lokal karena koneksi/tabel database belum disinkronkan.");
+      console.error("Gagal memuat data verifikasi:", error);
+      Alert.alert("Gagal", error?.message ?? "Terjadi kesalahan saat memuat data verifikasi.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Fungsi untuk memproses status pilihan (Valid, Ditolak, Diperbaiki)
+  useEffect(() => {
+    fetchPendingVerifications();
+
+    const channel = supabase
+      .channel("admin-verification-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        fetchPendingVerifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchPendingVerifications]);
+
   const handleSubmitAction = async (item: VerificationItem) => {
     const currentStatus = selectedStatus[item.id] || "Valid";
     const currentNote = actionNotes[item.id] || "";
 
     if ((currentStatus === "Ditolak" || currentStatus === "Diperbaiki") && !currentNote.trim()) {
-      Alert.alert("Perhatian", "Harap masukkan keterangan alasan penolakan atau perbaikan.");
+      Alert.alert("Perhatian", `Harap masukkan keterangan alasan ${currentStatus.toLowerCase()} pesanan.`);
       return;
     }
 
     try {
-      // Pemetaan status ke database
-      let dbStatus = "Sedang Dibuat";
-      if (currentStatus === "Ditolak") dbStatus = "Ditolak";
+      // Pastikan string status sama persis dengan yang dipanggil di status_admin.tsx (yaitu "Sedang Dibuat")
+      let dbStatus = "Sedang Dibuat"; 
+      if (currentStatus === "Ditolak") dbStatus = "Dibatalkan";
       if (currentStatus === "Diperbaiki") dbStatus = "Perbaikan Pembayaran";
 
       const { error } = await supabase
         .from("orders")
-        .update({ status: dbStatus, notes: currentNote })
+        .update({ 
+          status: dbStatus, 
+          notes: currentNote ? `[${currentStatus}] ${currentNote}` : item.notes 
+        } as any)
         .eq("id", item.id);
 
-      // Jika gagal update karena tabel belum siap, update state lokal saja agar UI tetap interaktif
-      setPendingPayments((prev) => prev.filter((p) => p.id !== item.id));
+      if (error) throw error;
 
-      Alert.alert("Berhasil", `Status pesanan diperbarui menjadi: ${currentStatus}`);
-    } catch (error: any) {
-      // Fallback update lokal jika offline/database belum siap
+      Alert.alert("Berhasil", `Keputusan disimpan. Status pesanan menjadi: ${dbStatus}`);
+      
+      // Langsung hapus dari state lokal agar card langsung hilang tanpa menunggu reload
       setPendingPayments((prev) => prev.filter((p) => p.id !== item.id));
-      Alert.alert("Berhasil", `Status pesanan diperbarui menjadi: ${currentStatus}`);
+    } catch (error: any) {
+      Alert.alert("Gagal", error?.message || "Terjadi kesalahan saat memperbarui status.");
     }
   };
 
@@ -181,16 +204,16 @@ export default function VerifikasiPembayaranScreen() {
                     <View style={styles.proofSection}>
                       <Image source={{ uri: item.proofPhoto }} style={styles.proofThumbnail} />
                       <View style={styles.proofMeta}>
-                        <Text style={styles.transferTimeLabel}>Waktu Transfer / Pesan</Text>
+                        <Text style={styles.transferTimeLabel}>Waktu Pesan / Transfer</Text>
                         <Text style={styles.transferTimeValue}>{item.transferTime}</Text>
                         <TouchableOpacity style={styles.viewProofBtn}>
                           <Ionicons name="eye-outline" size={14} color={COLORS.primary} />
-                          <Text style={styles.viewProofText}>Lihat bukti transfer</Text>
+                          <Text style={styles.viewProofText}>Lihat bukti pembayaran</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
 
-                    {/* FITUR DROPDOWN / PILIHAN STATUS FEEDBACK DOSEN */}
+                    {/* PILIHAN STATUS (Valid, Diperbaiki, Ditolak) */}
                     <View style={styles.statusChoiceContainer}>
                       <Text style={styles.choiceLabel}>Status Verifikasi:</Text>
                       <View style={styles.statusButtonsRow}>
@@ -240,29 +263,24 @@ export default function VerifikasiPembayaranScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bgApp,
-  },
-  headerContainer: {
-    width: "100%",
-    backgroundColor: COLORS.bgApp,
-  },
+  container: { flex: 1, backgroundColor: COLORS.bgApp },
+  headerContainer: { width: "100%", backgroundColor: COLORS.bgApp },
   brandAndAccount: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    height: 68,
+    height: 72,
   },
   appTitle: {
-    fontWeight: "600",
+    fontFamily: "Playfair Display",
+    fontWeight: "700",
     fontSize: 26,
     color: COLORS.primary,
   },
   adminProfile: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     backgroundColor: COLORS.white,
     borderRadius: 100,
     justifyContent: "center",
@@ -273,63 +291,49 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
   },
-  headerDivider: {
-    width: "100%",
-    height: 1,
-    backgroundColor: COLORS.border,
-  },
-  scrollContent: {
-    paddingBottom: 30,
-  },
-  pageIntro: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 3,
-  },
+  headerDivider: { width: "100%", height: 1, backgroundColor: COLORS.border },
+  scrollContent: { paddingBottom: 35 },
+  pageIntro: { paddingHorizontal: 20, paddingVertical: 12, gap: 4 },
   pageTitle: {
-    fontWeight: "600",
+    fontFamily: "Playfair Display",
+    fontWeight: "700",
     fontSize: 28,
-    lineHeight: 35,
     color: COLORS.primary,
   },
   pageSubtitle: {
+    fontFamily: "Poppins",
     fontWeight: "400",
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 12,
     color: COLORS.textMuted,
   },
-  workspace: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 12,
-  },
+  workspace: { paddingHorizontal: 20, paddingTop: 18, gap: 14 },
   sectionHeading: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    height: 28,
   },
   sectionTitle: {
-    fontWeight: "500",
+    fontFamily: "Playfair Display",
+    fontWeight: "600",
     fontSize: 20,
     color: COLORS.primary,
   },
   sectionContext: {
+    fontFamily: "Poppins",
     fontWeight: "400",
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textMuted,
   },
   emptyText: {
     textAlign: "center",
     color: COLORS.textMuted,
     marginTop: 30,
+    fontFamily: "Poppins",
   },
-  verificationList: {
-    gap: 12,
-  },
+  verificationList: { gap: 14 },
   verificationCard: {
     backgroundColor: COLORS.white,
-    padding: 14,
+    padding: 16,
     borderRadius: 18,
     gap: 12,
     shadowColor: "#7E3E55",
@@ -343,20 +347,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  customerDetails: {
-    gap: 1,
-  },
+  customerDetails: { gap: 2 },
   orderRef: {
+    fontFamily: "Poppins",
     fontWeight: "400",
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.textMuted,
   },
   customerName: {
+    fontFamily: "Poppins",
     fontWeight: "600",
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.textDark,
   },
   transferAmount: {
+    fontFamily: "Poppins",
     fontWeight: "600",
     fontSize: 14,
     color: COLORS.primary,
@@ -369,23 +374,18 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 12,
   },
-  proofThumbnail: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-  },
-  proofMeta: {
-    flex: 1,
-    gap: 2,
-  },
+  proofThumbnail: { width: 56, height: 56, borderRadius: 10 },
+  proofMeta: { flex: 1, gap: 2 },
   transferTimeLabel: {
+    fontFamily: "Poppins",
     fontWeight: "400",
-    fontSize: 9,
+    fontSize: 10,
     color: COLORS.textMuted,
   },
   transferTimeValue: {
+    fontFamily: "Poppins",
     fontWeight: "500",
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textDark,
   },
   viewProofBtn: {
@@ -395,26 +395,22 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   viewProofText: {
+    fontFamily: "Poppins",
     fontWeight: "500",
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.primary,
   },
-  statusChoiceContainer: {
-    gap: 6,
-    marginTop: 4,
-  },
+  statusChoiceContainer: { gap: 6, marginTop: 4 },
   choiceLabel: {
-    fontSize: 11,
+    fontFamily: "Poppins",
+    fontSize: 12,
     fontWeight: "600",
     color: COLORS.textDark,
   },
-  statusButtonsRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
+  statusButtonsRow: { flexDirection: "row", gap: 8 },
   statusChip: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -426,18 +422,16 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   statusChipText: {
+    fontFamily: "Poppins",
     fontSize: 11,
     fontWeight: "600",
     color: COLORS.textMuted,
   },
-  statusChipTextActive: {
-    color: COLORS.white,
-  },
-  noteInputContainer: {
-    gap: 4,
-  },
+  statusChipTextActive: { color: COLORS.white },
+  noteInputContainer: { gap: 4 },
   noteLabel: {
-    fontSize: 10,
+    fontFamily: "Poppins",
+    fontSize: 11,
     fontWeight: "600",
     color: COLORS.primary,
   },
@@ -445,23 +439,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 12,
     color: COLORS.textDark,
     backgroundColor: COLORS.bgApp,
-    minHeight: 50,
+    minHeight: 60,
     textAlignVertical: "top",
+    fontFamily: "Poppins",
   },
   submitActionBtn: {
-    height: 40,
+    height: 44,
     backgroundColor: COLORS.accentPink,
-    borderRadius: 10,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 4,
   },
   submitActionText: {
+    fontFamily: "Poppins",
     fontWeight: "600",
     fontSize: 12,
     color: COLORS.white,

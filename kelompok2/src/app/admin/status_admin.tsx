@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -27,58 +27,98 @@ interface OrderStatusItem {
   photo: string;
 }
 
+const DEFAULT_PHOTO = 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=300';
+
 export default function UpdateStatusScreen() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderStatusItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Ambil data pesanan dari Supabase saat halaman dibuka
-  useEffect(() => {
-    fetchActiveOrders();
-  }, []);
-
-  const fetchActiveOrders = async () => {
+  // Ambil data pesanan dari Supabase yang sudah diverifikasi (menggunakan created_at agar aman dari error kolom)
+  const fetchActiveOrders = useCallback(async () => {
     try {
       setLoading(true);
-      // Mengambil pesanan yang sedang diproses atau siap diambil
       const { data, error } = await supabase
         .from("orders")
-        .select("*")
+        .select(`
+          id,
+          order_number,
+          recipient_name,
+          status,
+          payment_proof,
+          created_at,
+          order_items (
+            product_title,
+            size_name,
+            product_photo,
+            quantity
+          )
+        `)
         .in("status", ["Sedang Dibuat", "Siap Diambil", "Selesai"])
         .order("id", { ascending: false });
 
       if (error) throw error;
 
       if (data) {
-        const formatted = data.map((item: any) => ({
-          id: item.id,
-          customerName: item.recipient_name || "Pelanggan",
-          orderDescription: `${item.bouquet_name || "Buket"} - 1 buket`,
-          orderReference: item.order_number || `#RS-${item.id}`,
-          pickupTime: `${item.delivery_date || ""} - ${item.delivery_time || ""}`,
-          selectedStatus: item.status || "Sedang Dibuat",
-          photo: item.photo || "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=300",
-        }));
+        const formatted: OrderStatusItem[] = data.map((item: any) => {
+          const products = item.order_items ?? [];
+          const firstPhoto = products.find((p: any) => p.product_photo)?.product_photo || item.payment_proof || DEFAULT_PHOTO;
+          
+          // Menggabungkan nama produk dari tabel order_items
+          const bouquetInfo = products
+            .map((p: any) => `${p.product_title || 'Buket'} (${p.size_name || 'S'}) x${p.quantity || 1}`)
+            .join(", ") || "Buket Bunga";
+
+          // Format tanggal pesanan menggunakan created_at
+          const formattedDate = item.created_at 
+            ? new Date(item.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) 
+            : "-";
+
+          return {
+            id: item.id,
+            customerName: item.recipient_name || "Pelanggan",
+            orderDescription: bouquetInfo,
+            orderReference: item.order_number || `#RA-${item.id}`,
+            pickupTime: `Dipesan: ${formattedDate}`,
+            selectedStatus: item.status || "Sedang Dibuat",
+            photo: firstPhoto,
+          };
+        });
         setOrders(formatted);
       }
     } catch (error: any) {
       console.error("Gagal memuat status pesanan:", error);
+      Alert.alert("Gagal", error?.message || "Gagal memuat daftar pesanan aktif.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchActiveOrders();
+
+    const channel = supabase
+      .channel("admin-status-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        fetchActiveOrders();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchActiveOrders]);
 
   // Fungsi untuk mengubah status pesanan langsung di database Supabase
   const handleStatusChange = async (id: number | string, newStatus: 'Sedang Dibuat' | 'Siap Diambil' | 'Selesai') => {
     try {
       const { error } = await supabase
         .from("orders")
-        .update({ status: newStatus })
+        .update({ status: newStatus } as any)
         .eq("id", id);
 
       if (error) throw error;
 
-      // Update state lokal agar UI berubah instan
       setOrders((prev) => prev.map((ord) => (ord.id === id ? { ...ord, selectedStatus: newStatus } : ord)));
     } catch (error: any) {
       Alert.alert("Gagal", error?.message || "Gagal memperbarui status pesanan.");
@@ -103,7 +143,6 @@ export default function UpdateStatusScreen() {
           <Text style={styles.pageSubtitle}>Kelola Produk & Pesanan</Text>
         </View>
 
-        {/* MENGGUNAKAN KOMPONEN ADMIN SUB-NAV */}
         <AdminSubNav />
 
         <View style={styles.workspace}>
@@ -122,7 +161,7 @@ export default function UpdateStatusScreen() {
           {loading ? (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
           ) : orders.length === 0 ? (
-            <Text style={styles.emptyText}>Belum ada pesanan aktif untuk diperbarui.</Text>
+            <Text style={styles.emptyText}>Belum ada pesanan yang diterima/aktif.</Text>
           ) : (
             <View style={styles.cardList}>
               {orders.map((order) => (
@@ -131,7 +170,7 @@ export default function UpdateStatusScreen() {
                     <Image source={{ uri: order.photo }} style={styles.bouquetPhotograph} />
                     <View style={styles.customerAndBouquet}>
                       <Text style={styles.customerName}>{order.customerName}</Text>
-                      <Text style={styles.orderDescription}>{order.orderDescription}</Text>
+                      <Text style={styles.orderDescription} numberOfLines={2}>{order.orderDescription}</Text>
                     </View>
                     <Text style={styles.orderReference}>{order.orderReference}</Text>
                   </View>
