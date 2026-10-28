@@ -364,6 +364,7 @@ export default function CheckoutPage() {
               )}
             </Section>
           )}
+          
 
           <Section title="Rincian Pembayaran">
             <View style={styles.priceRow}>
