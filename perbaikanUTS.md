@@ -18,5 +18,6 @@
 4. Pastikan aplikasi menggunakan emulator HP, bukan berbasis web — Belum. Masih ada kode khusus web di halaman keranjang dan checkout yang perlu diganti dengan cara bawaan mobile, misalnya memakai expoimage-picker untuk mengunggah bukti
    ![kode checkout](image-24.png)
    ![kode keranjang](image-25.png)
-<video controls src="perbaikanuser.mp4" title="Title"></video>
-<video controls src="perbaikanadmin.mp4" title="Title"></video>
+
+![alt text](admin_pemob.gif)
+![alt text](user_pemob.gif)
