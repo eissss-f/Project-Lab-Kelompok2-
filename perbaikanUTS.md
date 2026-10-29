@@ -19,5 +19,6 @@
    ![kode checkout](image-24.png)
    ![kode keranjang](image-25.png)
 
-![alt text](admin_pemob.gif)
-![alt text](user_pemob.gif)
+![alt text](atmin.gif)
+![alt text](user.gif)
+
