@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
@@ -12,7 +11,6 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ArrowLeft,
   ShoppingCart,
@@ -22,8 +20,7 @@ import {
 
 import { supabase } from '../../../lib/supabase';
 import CustomButton from '../../components/CustomButton';
-
-const CART_STORAGE_KEY = '@ra_scrafts_cart';
+import { cartActions } from './keranjang';
 
 type ProductVariant = {
   id: string | number;
@@ -43,7 +40,6 @@ export default function DetailProduk() {
     imageUrl?: string;
   }>();
 
-  // ID produk dipertahankan sebagai string karena dapat berupa UUID.
   const productId = Array.isArray(params.id)
     ? params.id[0]
     : params.id;
@@ -68,7 +64,6 @@ export default function DetailProduk() {
     imageUrl ||
     'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80';
 
-  // Mengambil deskripsi dan varian langsung dari Supabase.
   useEffect(() => {
     let isMounted = true;
 
@@ -80,7 +75,6 @@ export default function DetailProduk() {
           throw new Error('ID produk tidak ditemukan.');
         }
 
-        // Ambil deskripsi produk.
         const { data: product, error: productError } = await supabase
           .from('products')
           .select('description')
@@ -89,7 +83,6 @@ export default function DetailProduk() {
 
         if (productError) throw productError;
 
-        // Ambil harga dan stok untuk setiap ukuran.
         const { data: variants, error: variantsError } = await supabase
           .from('product_variants')
           .select('id, product_id, size_name, price, stock')
@@ -119,7 +112,6 @@ export default function DetailProduk() {
         setProductDescription(product?.description ?? '');
         setProductVariants(availableVariants);
 
-        // Pilih S jika tersedia, jika tidak pilih varian pertama.
         const initialVariant =
           availableVariants.find(
             (variant) =>
@@ -154,14 +146,12 @@ export default function DetailProduk() {
     };
   }, [productId]);
 
-  // Mencari harga dan stok berdasarkan ukuran yang dipilih.
   const selectedVariant = productVariants.find(
     (variant) =>
       String(variant.size_name).trim().toUpperCase() ===
       selectedSize.trim().toUpperCase()
   );
 
-  // Hanya gunakan harga dari varian database, bukan harga dari parameter katalog.
   const numericPrice = Number(selectedVariant?.price ?? 0);
   const selectedStock = Math.max(
     0,
@@ -194,88 +184,53 @@ export default function DetailProduk() {
     selectedStock > 0 &&
     numericPrice >= 0;
 
-  const handleAddToCart = async () => {
-    if (!canOrder || !selectedVariant) {
-      Alert.alert(
-        'Produk Tidak Tersedia',
-        'Ukuran ini belum tersedia atau stoknya habis.'
-      );
-      return;
-    }
-
-    if (quantity > selectedStock) {
-      Alert.alert(
-        'Stok Tidak Cukup',
-        `Stok ukuran ${selectedSize} hanya ${selectedStock}.`
-      );
-      return;
-    }
-
-    try {
-      const newItem = {
-        id: productId,
-        variantId: selectedVariant.id,
-        name: displayName,
-        variant: `${selectedSize} · ra_scrafts`,
-        price: numericPrice,
-        quantity,
-        image: displayImage,
-        selected: true,
-      };
-
-      const existingCart = await AsyncStorage.getItem(CART_STORAGE_KEY);
-      const cartArray = existingCart ? JSON.parse(existingCart) : [];
-
-      const existingIndex = cartArray.findIndex(
-        (item: any) =>
-          String(item.id) === String(newItem.id) &&
-          String(item.variant).toUpperCase() ===
-            newItem.variant.toUpperCase()
-      );
-
-      if (existingIndex > -1) {
-        const nextQuantity =
-          Number(cartArray[existingIndex].quantity) + quantity;
-
-        if (nextQuantity > selectedStock) {
-          Alert.alert(
-            'Stok Tidak Cukup',
-            `Total stok ukuran ${selectedSize} yang tersedia adalah ${selectedStock}.`
-          );
-          return;
-        }
-
-        cartArray[existingIndex].quantity = nextQuantity;
-        cartArray[existingIndex].price = numericPrice;
-        cartArray[existingIndex].variantId = selectedVariant.id;
-      } else {
-        cartArray.push(newItem);
+    const handleAddToCart = () => {
+      if (!canOrder || !selectedVariant) {
+        Alert.alert(
+          'Produk Tidak Tersedia',
+          'Ukuran ini belum tersedia atau stoknya habis.'
+        );
+        return;
       }
-
-      await AsyncStorage.setItem(
-        CART_STORAGE_KEY,
-        JSON.stringify(cartArray)
-      );
-
-      Alert.alert(
-        'Berhasil',
-        'Produk berhasil dimasukkan ke keranjang!',
-        [
-          {
-            text: 'Lihat Keranjang',
-            onPress: () => router.push('/user/keranjang'),
-          },
-          { text: 'Lanjut Belanja', style: 'cancel' },
-        ]
-      );
-    } catch (error) {
-      console.error('Gagal tambah ke keranjang:', error);
-      Alert.alert(
-        'Kesalahan',
-        'Gagal menyimpan produk ke keranjang.'
-      );
-    }
-  };
+  
+      if (quantity > selectedStock) {
+        Alert.alert(
+          'Stok Tidak Cukup',
+          `Stok ukuran ${selectedSize} hanya ${selectedStock}.`
+        );
+        return;
+      }
+  
+      try {
+        cartActions.addItem({
+          name: displayName,
+          price: numericPrice,
+          variant: `${selectedSize} · ra_scrafts`,
+          image: displayImage,
+          quantity: quantity,
+        });
+  
+        // Validasi berhasil dimasukkan ke keranjang
+        Alert.alert(
+          'Berhasil',
+          'Produk berhasil dimasukkan ke keranjang!',
+          [
+            {
+              text: 'Lihat Keranjang',
+              onPress: () => router.push('/user/keranjang'),
+            },
+            { text: 'Lanjut Belanja', style: 'cancel' },
+          ],
+          { cancelable: true }
+        );
+      } catch (error) {
+        console.error('Gagal tambah ke keranjang:', error);
+        Alert.alert(
+          'Kesalahan',
+          'Gagal menyimpan produk ke keranjang.'
+        );
+      }
+    };
 
   const handleBuyNow = () => {
     if (!canOrder || !selectedVariant) {
@@ -294,23 +249,14 @@ export default function DetailProduk() {
       return;
     }
 
-    const singleCheckoutItem = [
-      {
-        id: productId,
-        variantId: selectedVariant.id,
-        name: displayName,
-        variant: `${selectedSize} · ra_scrafts`,
-        price: numericPrice,
-        quantity,
-        image: displayImage,
-        selected: true,
-      },
-    ];
-
     router.push({
       pathname: '/user/checkout',
       params: {
-        cartItems: JSON.stringify(singleCheckoutItem),
+        name: displayName,
+        price: numericPrice.toString(),
+        variant: `${selectedSize} · ra_scrafts`,
+        imageUrl: displayImage,
+        quantity: quantity.toString(),
       },
     });
   };
@@ -322,7 +268,6 @@ export default function DetailProduk() {
         backgroundColor="#FFF8F0"
       />
 
-      {/* Header Detail Produk */}
       <View style={styles.detailHeader}>
         <TouchableOpacity
           style={styles.iconBtn}
@@ -345,14 +290,12 @@ export default function DetailProduk() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Foto Produk */}
         <Image
           source={{ uri: displayImage }}
           style={styles.largeProductImage}
           resizeMode="cover"
         />
 
-        {/* Nama dan Harga */}
         <Text style={styles.productTitle}>
           {displayName}
         </Text>
@@ -373,14 +316,12 @@ export default function DetailProduk() {
           </View>
         </View>
 
-        {/* Deskripsi dari database */}
         <Text style={styles.descriptionText}>
           {loadingProduct
             ? 'Memuat deskripsi produk...'
             : productDescription || 'Belum ada deskripsi produk.'}
         </Text>
 
-        {/* Pilihan Ukuran */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>Ukuran</Text>
 
@@ -423,7 +364,6 @@ export default function DetailProduk() {
           </View>
         </View>
 
-        {/* Jumlah Produk */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>Jumlah</Text>
 
@@ -456,7 +396,6 @@ export default function DetailProduk() {
           </View>
         </View>
 
-        {/* Total Harga */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>Total Harga</Text>
           <Text style={styles.productPrice}>
@@ -464,7 +403,6 @@ export default function DetailProduk() {
           </Text>
         </View>
 
-        {/* Tombol Masukkan ke Keranjang */}
         <View style={styles.buttonWrapper}>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -483,7 +421,6 @@ export default function DetailProduk() {
           </TouchableOpacity>
         </View>
 
-        {/* Tombol Pesan Sekarang */}
         <View style={styles.buttonWrapper}>
           <TouchableOpacity
             activeOpacity={0.8}
