@@ -44,56 +44,54 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
 
     const totalBouquets: number = cartSummary.reduce((sum: number, item: CartItem) => sum + (item.quantity ?? item.qty ?? 1), 0);
     const totalPrice: number = cartSummary.reduce((sum: number, item: CartItem) => sum + item.price * (item.quantity ?? item.qty ?? 1), 0);
+useEffect(() => {
+    const fetchUserProfile = async () => {
+        try {
+            const { data: { user }, error: authError } =
+                await supabase.auth.getUser();
 
-    // Mengambil data pengguna yang login dan mencocokkannya dengan tabel profiles
-    useEffect(() => {
-        const fetchUserProfile = async () => {
-            try {
-                const { data: { user }, error: authError } = await supabase.auth.getUser();
-                if (authError || !user) {
-                    setCustomerName('Tamu / Belum Login');
-                    setCustomerPhone('-');
-                    return;
-                }
+            if (authError) throw authError;
 
-                // Mengambil data full_name dan phone dari tabel profiles berdasarkan id user
-                const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('full_name, phone')
-                    .eq('id', user.id)
-                    .single();
-
-                if (profileError) {
-                    console.error('Gagal mengambil profil:', profileError.message);
-                    setCustomerName(user.email || 'Pengguna');
-                    setCustomerPhone('Belum diatur');
-                    return;
-                }
-
-                if (profile) {
-                    setCustomerName(profile.full_name || user.email || 'Tanpa Nama');
-                    setCustomerPhone(profile.phone || 'No. HP belum diisi');
-                }
-            } catch (err) {
-                console.error('Terjadi kesalahan:', err);
-                setCustomerName('Gagal memuat');
+            if (!user) {
+                setCustomerName('Tamu / Belum Login');
                 setCustomerPhone('-');
+                return;
             }
-        };
 
-        fetchUserProfile();
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('full_name, phone')
+                .eq('id', user.id)
+                .maybeSingle();
 
-        if (typeof document !== 'undefined') {
-            const linkId = 'google-fonts-ra-scrafts';
-            if (!document.getElementById(linkId)) {
-                const link = document.createElement('link');
-                link.id = linkId;
-                link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@300;400;500;600;700&display=swap';
-                link.rel = 'stylesheet';
-                document.head.appendChild(link);
+            if (profileError) throw profileError;
+
+            if (!profile) {
+                setCustomerName(user.email || 'Pengguna');
+                setCustomerPhone('Nomor HP belum tersedia');
+                return;
             }
+
+            setCustomerName(
+                profile.full_name || user.email || 'Tanpa Nama'
+            );
+
+            setCustomerPhone(
+                profile.phone || 'Nomor HP belum diisi'
+            );
+
+            console.log('Data profil checkout:', profile);
+
+        } catch (error: any) {
+            console.error('Gagal mengambil profil checkout:', error);
+
+            setCustomerName('Gagal memuat');
+            setCustomerPhone('Gagal memuat nomor HP');
         }
-    }, []);
+    };
+
+    fetchUserProfile();
+}, []);
 
     const [isCardActive, setIsCardActive] = useState<boolean>(false);
     const [recipientName, setRecipientName] = useState<string>('');
@@ -105,6 +103,7 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
     const [orderNumber, setOrderNumber] = useState<string>('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -138,24 +137,180 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
         }
     };
 
-    const handleSubmitOrder = () => {
-        if (cartSummary.length === 0) {
-            alert('Tidak ada produk yang dipilih untuk dipesan. Silakan kembali ke keranjang.');
+    
+const handleSubmitOrder = async () => {
+    if (cartSummary.length === 0) {
+        alert('Tidak ada produk yang dipilih untuk dipesan.');
+        return;
+    }
+
+    if (!paymentMethod) {
+        alert('Mohon pilih metode pembayaran terlebih dahulu.');
+        return;
+    }
+
+    if (!selectedFile) {
+        alert('Mohon unggah bukti pembayaran terlebih dahulu!');
+        return;
+    }
+
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    let uploadedFilePath: string | null = null;
+    let createdOrderId: string | null = null;
+
+    try {
+        // 1. Ambil pengguna yang sedang login
+        const {
+            data: { user },
+            error: authError
+        } = await supabase.auth.getUser();
+
+        if (authError) throw authError;
+
+        if (!user) {
+            alert('Silakan login terlebih dahulu sebelum membuat pesanan.');
             return;
         }
-        if (!paymentMethod) {
-            alert('Mohon pilih metode pembayaran terlebih dahulu.');
+
+        // 2. Ambil data profil terbaru
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name, phone')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (profileError) throw profileError;
+
+        const finalName = profile?.full_name?.trim() || user.email || '';
+        const finalPhone = profile?.phone?.trim() || '';
+
+        if (!finalName || !finalPhone) {
+            alert('Nama atau nomor HP belum tersedia. Silakan lengkapi profil terlebih dahulu.');
             return;
         }
-        if (!selectedFile) {
-            alert('Mohon unggah bukti pembayaran terlebih dahulu!');
-            return;
+
+        // 3. Upload bukti pembayaran ke Supabase Storage
+        const fileExtension =
+            selectedFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+
+        const filePath =
+            `${user.id}/${Date.now()}.${fileExtension}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('payment-proofs')
+            .upload(filePath, selectedFile, {
+                contentType: selectedFile.type || 'image/jpeg',
+                upsert: false
+            });
+
+        if (uploadError) throw uploadError;
+
+        uploadedFilePath = filePath;
+
+        // 4. Simpan data utama pesanan
+        const pickupInformation =
+            `Pengambilan: ${pickupDate || 'Belum ditentukan'} ${pickupTime || ''}`;
+
+        const cardInformation = isCardActive
+            ? `Nama penerima kartu: ${recipientName || '-'}\nPesan kartu: ${cardMessage || '-'}`
+            : '';
+
+        const notes = [pickupInformation, cardInformation]
+            .filter(Boolean)
+            .join('\n');
+
+        const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .insert({
+                user_id: user.id,
+                total_price: totalPrice,
+                shipping_address: 'Pengambilan langsung di toko',
+                recipient_name: finalName,
+                recipient_phone: finalPhone,
+                payment_method: paymentMethod,
+                payment_proof: uploadedFilePath,
+                status: 'menunggu_verifikasi',
+                notes: notes
+            })
+            .select('id, order_number')
+            .single();
+
+        if (orderError) throw orderError;
+
+        createdOrderId = order.id;
+
+        // 5. Simpan rincian produk ke order_items
+        const orderItems = cartSummary.map((item) => {
+            const variant = String(item.variant || '');
+
+            // Ambil ukuran S, M, atau XL sesuai batasan database
+            const sizeMatch = variant.match(
+                /(^|[^A-Z])(XL|S|M)(?=$|[^A-Z])/i
+            );
+
+            if (!sizeMatch) {
+                throw new Error(
+                    `Ukuran produk "${item.name}" tidak sesuai. Ukuran harus S, M, atau XL.`
+                );
+            }
+
+            return {
+                order_id: order.id,
+                product_id: null,
+                product_title: item.name,
+                product_photo: item.image || null,
+                size_name: sizeMatch[2].toUpperCase(),
+                quantity: Number(item.quantity || item.qty || 1),
+                price: Number(item.price)
+            };
+        });
+
+        const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(orderItems);
+
+        if (itemsError) throw itemsError;
+
+        // 6. Berhasil: tampilkan nomor pesanan
+        setOrderNumber(order.order_number);
+
+        // Kosongkan keranjang hanya setelah semua data berhasil tersimpan
+        if (!directItem) {
+            clearSelectedItems();
         }
-        const randomCode = Math.floor(1000 + Math.random() * 9000);
-        setOrderNumber(`#RS-${randomCode}`);
-        clearSelectedItems();
+
         setShowSuccessModal(true);
-    };
+
+    } catch (error: any) {
+        console.error('Gagal membuat pesanan:', error);
+
+        // Bersihkan data yang sempat dibuat jika proses gagal
+        if (createdOrderId) {
+            await supabase
+                .from('orders')
+                .delete()
+                .eq('id', createdOrderId);
+        }
+
+        if (uploadedFilePath) {
+            await supabase.storage
+                .from('payment-proofs')
+                .remove([uploadedFilePath]);
+        }
+
+        alert(
+            error?.message ||
+            'Pesanan gagal disimpan. Silakan coba kembali.'
+        );
+
+    } finally {
+        setIsSubmitting(false);
+    }
+};
+
 
     return (
         <div style={{
@@ -760,22 +915,24 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                 </div>
 
                 <button
-                    onClick={handleSubmitOrder}
-                    style={{
-                        backgroundColor: '#A83F68',
-                        color: '#FFF8F0',
-                        border: 'none',
-                        padding: '12px 26px',
-                        borderRadius: '14px',
-                        fontWeight: 600,
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(168, 63, 104, 0.3)',
-                        transition: 'transform 0.1s ease'
-                    }}
-                >
-                    Buat Pesanan
-                </button>
+    onClick={handleSubmitOrder}
+    disabled={isSubmitting}
+    style={{
+        backgroundColor: '#A83F68',
+        color: '#FFF8F0',
+        border: 'none',
+        padding: '12px 26px',
+        borderRadius: '14px',
+        fontWeight: 600,
+        fontSize: '13px',
+        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+        opacity: isSubmitting ? 0.7 : 1,
+        boxShadow: '0 4px 12px rgba(168, 63, 104, 0.3)',
+        transition: 'transform 0.1s ease'
+    }}
+>
+    {isSubmitting ? 'Menyimpan Pesanan...' : 'Buat Pesanan'}
+</button>
             </div>
 
             {/* Success Popup Modal */}

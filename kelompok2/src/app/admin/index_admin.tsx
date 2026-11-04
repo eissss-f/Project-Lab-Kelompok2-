@@ -38,68 +38,156 @@ export default function AdminDashboardScreen() {
   const [readyToPickup, setReadyToPickup] = useState(0);
   const [recentOrders, setRecentOrders] = useState<OrderItem[]>([]);
 
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
+const fetchDashboardData = useCallback(async () => {
+  try {
+    setLoading(true);
 
-      // 1. Ambil jumlah total produk
-      const { count: productCount, error: productError } = await supabase
-        .from("products")
-        .select("*", { count: "exact", head: true });
+    // 1. Mengambil jumlah produk
+    const { count: productCount, error: productError } = await supabase
+      .from("products")
+      .select("*", { count: "exact", head: true });
 
-      if (!productError && productCount !== null) {
-        setTotalProducts(productCount);
-      }
+    if (productError) throw productError;
 
-      // 2. Ambil semua data pesanan untuk statistik & daftar terbaru
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders")
-        .select("*")
-        .order("id", { ascending: false });
+    setTotalProducts(productCount || 0);
 
-      if (ordersError) throw ordersError;
+    // 2. Mengambil data pesanan beserta detail produknya
+    const { data: ordersData, error: ordersError } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        order_number,
+        recipient_name,
+        total_price,
+        status,
+        created_at,
+        order_items (
+          product_title,
+          product_photo,
+          size_name,
+          quantity,
+          price
+        )
+      `)
+      .order("created_at", { ascending: false });
 
-      if (ordersData) {
-        setTotalOrders(ordersData.length);
+    if (ordersError) throw ordersError;
 
-        // Hitung jumlah berdasarkan status
-        const pending = ordersData.filter((o: any) => o.status === "Verifikasi" || !o.status).length;
-        const ready = ordersData.filter((o: any) => o.status === "Siap Diambil").length;
+    const allOrders = ordersData || [];
 
-        setPendingVerification(pending);
-        setReadyToPickup(ready);
+    // 3. Menghitung total pesanan
+    setTotalOrders(allOrders.length);
 
-        // Format daftar pesanan terbaru
-        const formattedOrders = ordersData.map((item: any) => ({
-          id: item.id,
-          customer: item.recipient_name || "Pelanggan",
-          product: `${item.bouquet_name || "Buket"} - 1 buket`,
-          date: item.delivery_date ? `${item.delivery_date}` : "Baru saja",
-          status: item.status || "Verifikasi",
-          statusBg: item.status === "Siap Diambil" ? "#EAF1E8" : "#FFF2DD",
-          statusColor: item.status === "Siap Diambil" ? "#557153" : "#986E2F",
-          photo: item.photo || "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
-        }));
+    // 4. Menghitung pesanan menunggu verifikasi
+    const pending = allOrders.filter(
+      (order: any) => order.status === "menunggu_verifikasi"
+    ).length;
 
-        setRecentOrders(formattedOrders);
-      }
-    } catch (error) {
-      console.error("Gagal memuat data dashboard admin:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    setPendingVerification(pending);
+
+    // 5. Menghitung pesanan yang sedang diproses
+    const processing = allOrders.filter(
+      (order: any) => order.status === "diproses"
+    ).length;
+
+    setReadyToPickup(processing);
+
+    // 6. Mengubah status database menjadi tulisan yang ditampilkan
+    const statusMap: Record<string, string> = {
+      menunggu_pembayaran: "Menunggu Pembayaran",
+      menunggu_verifikasi: "Menunggu Verifikasi",
+      diproses: "Sedang Diproses",
+      dikirim: "Dikirim",
+      selesai: "Selesai",
+      dibatalkan: "Dibatalkan",
+    };
+
+    // 7. Mengubah data pesanan agar sesuai dengan tampilan
+    const formattedOrders: OrderItem[] = allOrders.map((item: any) => {
+      const firstProduct = item.order_items?.[0];
+
+      const statusLabel =
+        statusMap[item.status] || item.status || "Belum diketahui";
+
+      const isCompleted = item.status === "selesai";
+
+      return {
+        id: item.order_number || item.id,
+
+        customer: item.recipient_name || "Pelanggan",
+
+        product: firstProduct
+          ? `${firstProduct.product_title}${
+              item.order_items.length > 1
+                ? ` + ${item.order_items.length - 1} produk lainnya`
+                : ""
+            }`
+          : "Produk tidak ditemukan",
+
+        date: item.created_at
+          ? new Date(item.created_at).toLocaleDateString("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })
+          : "Tanggal tidak tersedia",
+
+        status: statusLabel,
+
+        statusBg: isCompleted ? "#EAF1E8" : "#FFF2DD",
+
+        statusColor: isCompleted ? "#557153" : "#986E2F",
+
+        photo:
+          firstProduct?.product_photo ||
+          "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
+      };
+    });
+
+    setRecentOrders(formattedOrders);
+
+  } catch (error: any) {
+    console.error("Gagal memuat data dashboard admin:", error);
+
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const summaryItems = [
-    { value: String(totalProducts), title: "Jumlah Produk", desc: "Buket & hadiah aktif", icon: "cube-outline" as const, route: "/admin/produk_admin" },
-    { value: String(totalOrders), title: "Pesanan Masuk", desc: "Total pesanan pelanggan", icon: "bag-outline" as const, route: "/admin/kelola_pesanan_admin" },
-    { value: String(pendingVerification), title: "Menunggu Verifikasi", desc: "Perlu cek pembayaran", icon: "receipt-outline" as const, route: "/admin/verifikasi_admin" },
-    { value: String(readyToPickup), title: "Siap Diambil", desc: "Siap membawa senyum", icon: "gift-outline" as const, route: "/admin/status_admin" },
-  ];
+const summaryItems = [
+  {
+    value: String(totalProducts),
+    title: "Jumlah Produk",
+    desc: "Buket & hadiah aktif",
+    icon: "cube-outline" as const,
+    route: "/admin/produk_admin",
+  },
+  {
+    value: String(totalOrders),
+    title: "Pesanan Masuk",
+    desc: "Total pesanan pelanggan",
+    icon: "bag-outline" as const,
+    route: "/admin/kelola_pesanan_admin",
+  },
+  {
+    value: String(pendingVerification),
+    title: "Menunggu Verifikasi",
+    desc: "Perlu cek pembayaran",
+    icon: "receipt-outline" as const,
+    route: "/admin/verifikasi_admin",
+  },
+  {
+    value: String(readyToPickup),
+    title: "Sedang Diproses",
+    desc: "Pesanan dalam pengerjaan",
+    icon: "gift-outline" as const,
+    route: "/admin/status_admin",
+  },
+];
 
   const visibleOrders = showAllOrders ? recentOrders : recentOrders.slice(0, 3);
 

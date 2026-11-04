@@ -109,6 +109,7 @@ export default function KelolaProdukScreen() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(CATEGORIES[1]);
   const [photo, setPhoto] = useState(DEFAULT_PHOTO);
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [sizes, setSizes] =
     useState<Record<SizeName, SizeDetail>>(EMPTY_SIZES);
@@ -230,16 +231,18 @@ export default function KelolaProdukScreen() {
         return;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
+const result = await ImagePicker.launchImageLibraryAsync({
+  mediaTypes: ["images"],
+  allowsEditing: true,
+  aspect: [1, 1],
+  quality: 0.8,
+  base64: true,
+});
 
       if (!result.canceled && result.assets[0]?.uri) {
-        setPhoto(result.assets[0].uri);
-      }
+  setPhoto(result.assets[0].uri);
+  setPhotoBase64(result.assets[0].base64 ?? null);
+}
     } catch (error: any) {
       Alert.alert("Gagal Memilih Foto", error?.message);
     }
@@ -343,14 +346,9 @@ export default function KelolaProdukScreen() {
       // TAMBAHAN: upload foto lokal ke Supabase Storage
       let photoUrl = photo;
 
-      const isLocalPhoto =
-        photo.startsWith("blob:") ||
-        photo.startsWith("file:") ||
-        photo.startsWith("content:");
-
-      if (isLocalPhoto) {
-        photoUrl = await uploadProductPhoto(photo);
-      }
+if (photoBase64) {
+  photoUrl = await uploadProductPhoto(photoBase64);
+}
 
       // Data produk tetap seperti sebelumnya
       const productPayload = {

@@ -35,64 +35,81 @@ export default function UpdateStatusScreen() {
   const [loading, setLoading] = useState(true);
 
   // Ambil data pesanan dari Supabase yang sudah diverifikasi (menggunakan created_at agar aman dari error kolom)
-  const fetchActiveOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("orders")
-        .select(`
-          id,
-          order_number,
-          recipient_name,
-          status,
-          payment_proof,
-          created_at,
-          order_items (
-            product_title,
-            size_name,
-            product_photo,
-            quantity
-          )
-        `)
-        .in("status", ["Sedang Dibuat", "Siap Diambil", "Selesai"])
-        .order("id", { ascending: false });
 
-      if (error) throw error;
+const fetchActiveOrders = useCallback(async () => {
+  try {
+    setLoading(true);
 
-      if (data) {
-        const formatted: OrderStatusItem[] = data.map((item: any) => {
-          const products = item.order_items ?? [];
-          const firstPhoto = products.find((p: any) => p.product_photo)?.product_photo || item.payment_proof || DEFAULT_PHOTO;
-          
-          // Menggabungkan nama produk dari tabel order_items
-          const bouquetInfo = products
-            .map((p: any) => `${p.product_title || 'Buket'} (${p.size_name || 'S'}) x${p.quantity || 1}`)
-            .join(", ") || "Buket Bunga";
+    const { data, error } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        order_number,
+        recipient_name,
+        status,
+        created_at,
+        order_items (
+          product_title,
+          size_name,
+          product_photo,
+          quantity
+        )
+      `)
+      .in("status", ["diproses", "siap_diambil", "selesai"])
+      .order("created_at", { ascending: false });
 
-          // Format tanggal pesanan menggunakan created_at
-          const formattedDate = item.created_at 
-            ? new Date(item.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) 
-            : "-";
+    if (error) throw error;
 
-          return {
-            id: item.id,
-            customerName: item.recipient_name || "Pelanggan",
-            orderDescription: bouquetInfo,
-            orderReference: item.order_number || `#RA-${item.id}`,
-            pickupTime: `Dipesan: ${formattedDate}`,
-            selectedStatus: item.status || "Sedang Dibuat",
-            photo: firstPhoto,
-          };
-        });
-        setOrders(formatted);
-      }
-    } catch (error: any) {
-      console.error("Gagal memuat status pesanan:", error);
-      Alert.alert("Gagal", error?.message || "Gagal memuat daftar pesanan aktif.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    const statusMap: Record<string, OrderStatusItem["selectedStatus"]> = {
+      diproses: "Sedang Dibuat",
+      siap_diambil: "Siap Diambil",
+      selesai: "Selesai",
+    };
+
+    const formatted: OrderStatusItem[] = (data || []).map((item: any) => {
+      const products = item.order_items ?? [];
+
+      const firstPhoto =
+        products.find((p: any) => p.product_photo)?.product_photo ||
+        DEFAULT_PHOTO;
+
+      const bouquetInfo = products
+        .map(
+          (p: any) =>
+            `${p.product_title || "Buket"} (${p.size_name || "S"}) x${p.quantity || 1}`
+        )
+        .join(", ") || "Buket Bunga";
+
+      const formattedDate = item.created_at
+        ? new Date(item.created_at).toLocaleString("id-ID", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })
+        : "-";
+
+      return {
+        id: item.id,
+        customerName: item.recipient_name || "Pelanggan",
+        orderDescription: bouquetInfo,
+        orderReference: item.order_number || `#RA-${item.id}`,
+        pickupTime: `Dipesan: ${formattedDate}`,
+        selectedStatus: statusMap[item.status] || "Sedang Dibuat",
+        photo: firstPhoto,
+      };
+    });
+
+    setOrders(formatted);
+  } catch (error: any) {
+    console.error("Gagal memuat status pesanan:", error);
+    Alert.alert(
+      "Gagal",
+      error?.message || "Gagal memuat daftar pesanan aktif."
+    );
+  } finally {
+    setLoading(false);
+  }
+}, []);
+
 
   useEffect(() => {
     fetchActiveOrders();
@@ -110,20 +127,41 @@ export default function UpdateStatusScreen() {
   }, [fetchActiveOrders]);
 
   // Fungsi untuk mengubah status pesanan langsung di database Supabase
-  const handleStatusChange = async (id: number | string, newStatus: 'Sedang Dibuat' | 'Siap Diambil' | 'Selesai') => {
-    try {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: newStatus } as any)
-        .eq("id", id);
 
-      if (error) throw error;
+const handleStatusChange = async (
+  id: number | string,
+  newStatus: "Sedang Dibuat" | "Siap Diambil" | "Selesai"
+) => {
+  try {
+    const statusMap = {
+      "Sedang Dibuat": "diproses",
+      "Siap Diambil": "siap_diambil",
+      "Selesai": "selesai",
+    };
 
-      setOrders((prev) => prev.map((ord) => (ord.id === id ? { ...ord, selectedStatus: newStatus } : ord)));
-    } catch (error: any) {
-      Alert.alert("Gagal", error?.message || "Gagal memperbarui status pesanan.");
-    }
-  };
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: statusMap[newStatus] })
+      .eq("id", id);
+
+    if (error) throw error;
+
+    setOrders((prev) =>
+      prev.map((ord) =>
+        ord.id === id
+          ? { ...ord, selectedStatus: newStatus }
+          : ord
+      )
+    );
+  } catch (error: any) {
+    console.error("Gagal memperbarui status:", error);
+    Alert.alert(
+      "Gagal",
+      error?.message || "Gagal memperbarui status pesanan."
+    );
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.container}>

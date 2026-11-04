@@ -1,5 +1,17 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, ActivityIndicator, Alert, TextInput } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  SafeAreaView,
+  ActivityIndicator,
+  Alert,
+  TextInput,
+  Linking,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from 'expo-router';
 import AdminSubNav from "../../components/AdminSubNav"; 
@@ -37,72 +49,87 @@ export default function VerifikasiPembayaranScreen() {
   const [selectedStatus, setSelectedStatus] = useState<{ [key: string]: "Valid" | "Diperbaiki" | "Ditolak" }>({});
   const [actionNotes, setActionNotes] = useState<{ [key: string]: string }>({});
 
-  const fetchPendingVerifications = useCallback(async () => {
-    try {
-      setLoading(true);
-      // Mengambil semua pesanan untuk memastikan data masuk, lalu difilter manual atau via query fleksibel
-      const { data, error } = await supabase
-        .from("orders")
-        .select(`
-          id,
-          order_number,
-          total_price,
-          recipient_name,
-          status,
-          notes,
-          payment_proof,
-          created_at,
-          order_items (
-            product_title,
-            size_name,
-            quantity,
-            product_photo
-          )
-        `)
-        .order("created_at", { ascending: false });
+const fetchPendingVerifications = useCallback(async () => {
+  try {
+    setLoading(true);
 
-      if (error) throw error;
+    const { data, error } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        order_number,
+        total_price,
+        recipient_name,
+        status,
+        notes,
+        payment_proof,
+        created_at
+      `)
+      .eq("status", "menunggu_verifikasi")
+      .order("created_at", { ascending: false });
 
-      if (data) {
-        // Filter fleksibel di sisi client agar tidak terlewat karena perbedaan format status
-        const filteredData = data.filter((item: any) => {
-          const st = (item.status || "").toLowerCase();
-          return st.includes("verifikasi") || st === "verifikasi" || st === "menunggu verifikasi";
-        });
+    if (error) throw error;
 
-        const formatted: VerificationItem[] = filteredData.map((item: any) => {
-          const products = item.order_items ?? [];
-          const totalPrice = Number(item.total_price || 0);
+    const formatted: VerificationItem[] = await Promise.all(
+      (data || []).map(async (item: any) => {
+        let proofPhoto = DEFAULT_PHOTO;
 
-          const formattedPrice = totalPrice.toLocaleString("id-ID", {
-            style: "currency",
-            currency: "IDR",
-            maximumFractionDigits: 0,
-          });
+        // Mengambil URL bukti pembayaran dari Storage
+        if (item.payment_proof) {
+          const { data: photoData, error: photoError } =
+            await supabase.storage
+              .from("payment-proofs")
+              .createSignedUrl(item.payment_proof, 3600);
 
-          const firstPhoto = products.find((p: any) => p.product_photo)?.product_photo || item.payment_proof || DEFAULT_PHOTO;
+          if (!photoError && photoData?.signedUrl) {
+    proofPhoto = photoData.signedUrl;
+} else {
+    console.warn(
+        `Bukti pembayaran tidak ditemukan untuk pesanan ${item.order_number}`
+    );
+}
+        }
 
-          return {
-            id: item.id,
-            orderReference: item.order_number || `#RA-${item.id}`,
-            customerName: item.recipient_name || "Pelanggan",
-            transferAmount: formattedPrice,
-            transferTime: item.created_at ? new Date(item.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "Baru saja",
-            proofPhoto: firstPhoto,
-            status: item.status || "Verifikasi",
-            notes: item.notes || "",
-          };
-        });
+        return {
+          id: item.id,
+          orderReference: item.order_number || `#${item.id}`,
+          customerName: item.recipient_name || "Pelanggan",
 
-        setPendingPayments(formatted);
-      }
-    } catch (error: any) {
-      console.error("Gagal memuat data verifikasi:", error);
-      Alert.alert("Gagal", error?.message ?? "Terjadi kesalahan saat memuat data verifikasi.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+          transferAmount: Number(item.total_price || 0).toLocaleString(
+            "id-ID",
+            {
+              style: "currency",
+              currency: "IDR",
+              maximumFractionDigits: 0,
+            }
+          ),
+
+          transferTime: item.created_at
+            ? new Date(item.created_at).toLocaleString("id-ID", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })
+            : "Waktu tidak tersedia",
+
+          proofPhoto,
+          status: item.status,
+          notes: item.notes || "",
+        };
+      })
+    );
+
+    setPendingPayments(formatted);
+  } catch (error: any) {
+    console.error("Gagal memuat data verifikasi:", error);
+
+    Alert.alert(
+      "Gagal",
+      error?.message || "Terjadi kesalahan saat memuat data verifikasi."
+    );
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchPendingVerifications();
@@ -119,39 +146,81 @@ export default function VerifikasiPembayaranScreen() {
     };
   }, [fetchPendingVerifications]);
 
-  const handleSubmitAction = async (item: VerificationItem) => {
-    const currentStatus = selectedStatus[item.id] || "Valid";
-    const currentNote = actionNotes[item.id] || "";
+const handleSubmitAction = async (item: VerificationItem) => {
+  const currentStatus = selectedStatus[item.id] || "Valid";
+  const currentNote = actionNotes[item.id] || "";
 
-    if ((currentStatus === "Ditolak" || currentStatus === "Diperbaiki") && !currentNote.trim()) {
-      Alert.alert("Perhatian", `Harap masukkan keterangan alasan ${currentStatus.toLowerCase()} pesanan.`);
-      return;
+  if (
+    (currentStatus === "Ditolak" || currentStatus === "Diperbaiki") &&
+    !currentNote.trim()
+  ) {
+    Alert.alert(
+      "Perhatian",
+      `Harap masukkan alasan ${currentStatus.toLowerCase()} pesanan.`
+    );
+    return;
+  }
+
+  try {
+    let dbStatus = "diproses";
+
+    if (currentStatus === "Diperbaiki") {
+      dbStatus = "menunggu_pembayaran";
     }
 
-    try {
-      // Pastikan string status sama persis dengan yang dipanggil di status_admin.tsx (yaitu "Sedang Dibuat")
-      let dbStatus = "Sedang Dibuat"; 
-      if (currentStatus === "Ditolak") dbStatus = "Dibatalkan";
-      if (currentStatus === "Diperbaiki") dbStatus = "Perbaikan Pembayaran";
-
-      const { error } = await supabase
-        .from("orders")
-        .update({ 
-          status: dbStatus, 
-          notes: currentNote ? `[${currentStatus}] ${currentNote}` : item.notes 
-        } as any)
-        .eq("id", item.id);
-
-      if (error) throw error;
-
-      Alert.alert("Berhasil", `Keputusan disimpan. Status pesanan menjadi: ${dbStatus}`);
-      
-      // Langsung hapus dari state lokal agar card langsung hilang tanpa menunggu reload
-      setPendingPayments((prev) => prev.filter((p) => p.id !== item.id));
-    } catch (error: any) {
-      Alert.alert("Gagal", error?.message || "Terjadi kesalahan saat memperbarui status.");
+    if (currentStatus === "Ditolak") {
+      dbStatus = "dibatalkan";
     }
-  };
+
+    const updatedNotes = currentNote.trim()
+      ? `${item.notes ? item.notes + "\n" : ""}[${currentStatus}] ${currentNote.trim()}`
+      : item.notes || null;
+
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        status: dbStatus,
+        notes: updatedNotes,
+      })
+      .eq("id", item.id);
+
+    if (error) throw error;
+
+    Alert.alert(
+      "Berhasil",
+      `Verifikasi berhasil disimpan. Status pesanan: ${
+        dbStatus === "diproses"
+          ? "Sedang Diproses"
+          : dbStatus === "menunggu_pembayaran"
+          ? "Menunggu Pembayaran"
+          : "Dibatalkan"
+      }`
+    );
+
+    setPendingPayments((prev) =>
+      prev.filter((p) => p.id !== item.id)
+    );
+
+    setSelectedStatus((prev) => {
+      const updated = { ...prev };
+      delete updated[item.id];
+      return updated;
+    });
+
+    setActionNotes((prev) => {
+      const updated = { ...prev };
+      delete updated[item.id];
+      return updated;
+    });
+  } catch (error: any) {
+    console.error("Gagal menyimpan verifikasi:", error);
+
+    Alert.alert(
+      "Gagal",
+      error?.message || "Terjadi kesalahan saat menyimpan verifikasi."
+    );
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>
@@ -206,7 +275,10 @@ export default function VerifikasiPembayaranScreen() {
                       <View style={styles.proofMeta}>
                         <Text style={styles.transferTimeLabel}>Waktu Pesan / Transfer</Text>
                         <Text style={styles.transferTimeValue}>{item.transferTime}</Text>
-                        <TouchableOpacity style={styles.viewProofBtn}>
+                        <TouchableOpacity
+  style={styles.viewProofBtn}
+  onPress={() => Linking.openURL(item.proofPhoto)}
+>
                           <Ionicons name="eye-outline" size={14} color={COLORS.primary} />
                           <Text style={styles.viewProofText}>Lihat bukti pembayaran</Text>
                         </TouchableOpacity>

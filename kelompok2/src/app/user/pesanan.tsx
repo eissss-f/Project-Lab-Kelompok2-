@@ -1,10 +1,20 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator } from "react-native";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import PageHeader from "@/components/PageHeader";
 import { supabase } from "../../../lib/supabase";
+
 
 const colors = {
   background: "#FFF8F0",
@@ -38,41 +48,112 @@ export default function PesananScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .order("id", { ascending: false });
+const fetchUserOrders = useCallback(async () => {
+  try {
+    setLoading(true);
 
-      if (error) throw error;
+    // Ambil pengguna yang sedang login
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-      if (data) {
-        const formattedOrders: Order[] = data.map((item: any) => {
-          const isCompleted = item.status === "Selesai" || item.work_status === "Selesai";
-          return {
-            id: item.order_number || `RA-${item.id}`,
-            product: item.bouquet_name || "Buket Bunga",
-            price: item.quantity_price || `Rp ${Number(item.total_price || 0).toLocaleString("id-ID")}`,
-            pickupDate: `${item.delivery_date || ""} (${item.delivery_time || ""})`,
-            paymentStatus: item.status === "Verifikasi" ? "Menunggu Verifikasi" : "Sudah Dibayar",
-            workStatus: item.status || "Belum diproses",
-            note: item.card_message ? `Pesan: "${item.card_message}"` : undefined,
-            completed: isCompleted,
-            highlightPaymentStatus: item.status !== "Verifikasi",
-            highlightWorkStatus: isCompleted,
-            image: item.photo || "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
-          };
-        });
-        setOrders(formattedOrders);
-      }
-    } catch (error) {
-      console.error("Gagal memuat pesanan user:", error);
-    } finally {
-      setLoading(false);
+    if (authError) throw authError;
+
+    if (!user) {
+      setOrders([]);
+      return;
     }
-  }, []);
+
+    // Ambil pesanan milik pengguna tersebut
+    const { data, error } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        order_number,
+        total_price,
+        status,
+        notes,
+        created_at,
+        order_items (
+          product_title,
+          product_photo,
+          size_name,
+          quantity,
+          price
+        )
+      `)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const formattedOrders: Order[] = (data || []).map((item: any) => {
+      const firstProduct = item.order_items?.[0];
+
+      const statusMap: Record<string, string> = {
+        menunggu_pembayaran: "Menunggu Pembayaran",
+        menunggu_verifikasi: "Menunggu Verifikasi",
+        diproses: "Sedang Diproses",
+        dikirim: "Dikirim",
+        selesai: "Selesai",
+        dibatalkan: "Dibatalkan",
+      };
+
+      const isCompleted = item.status === "selesai";
+
+      return {
+        id: item.order_number || item.id,
+        product: firstProduct
+          ? firstProduct.product_title +
+            (item.order_items.length > 1
+              ? ` + ${item.order_items.length - 1} produk lainnya`
+              : "")
+          : "Buket Bunga",
+
+        price: `Rp ${Number(item.total_price || 0).toLocaleString("id-ID")}`,
+
+        pickupDate: "Pengambilan langsung di toko",
+
+        paymentStatus:
+          item.status === "menunggu_pembayaran"
+            ? "Menunggu Pembayaran"
+            : item.status === "menunggu_verifikasi"
+            ? "Menunggu Verifikasi"
+            : item.status === "dibatalkan"
+            ? "Dibatalkan"
+            : "Pembayaran Terverifikasi",
+
+        workStatus: statusMap[item.status] || item.status,
+
+        note: item.notes || undefined,
+
+        completed: isCompleted,
+
+        highlightPaymentStatus:
+          item.status !== "menunggu_pembayaran",
+
+        highlightWorkStatus: isCompleted,
+
+        image:
+          firstProduct?.product_photo ||
+          "https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=300",
+      };
+    });
+
+        setOrders(formattedOrders);
+
+  } catch (error: any) {
+    console.error("Gagal memuat pesanan user:", error);
+
+    Alert.alert(
+      "Gagal Memuat Pesanan",
+      error?.message || "Terjadi kesalahan saat mengambil data pesanan."
+    );
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchUserOrders();

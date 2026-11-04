@@ -1,27 +1,32 @@
 
 import { supabase } from './supabase';
+import { decode } from 'base64-arraybuffer';
 
-export async function uploadProductPhoto(uri: string) {
-  const response = await fetch(uri);
-  const blob = await response.blob();
+export async function uploadProductPhoto(base64: string) {
+  if (!base64) {
+    throw new Error('Data foto kosong.');
+  }
 
-  const extension = uri.split('.').pop()?.split('?')[0] || 'jpg';
   const fileName = `${Date.now()}-${Math.random()
     .toString(36)
-    .slice(2)}.${extension}`;
+    .slice(2)}.jpg`;
 
-  const { error: uploadError } = await supabase.storage
+  const fileData = decode(base64);
+
+  const { data, error } = await supabase.storage
     .from('product-photos')
-    .upload(fileName, blob, {
-      contentType: blob.type || 'image/jpeg',
+    .upload(fileName, fileData, {
+      contentType: 'image/jpeg',
       upsert: false,
     });
 
-  if (uploadError) throw uploadError;
+  if (error) {
+    throw error;
+  }
 
-  const { data } = supabase.storage
+  const { data: publicData } = supabase.storage
     .from('product-photos')
-    .getPublicUrl(fileName);
+    .getPublicUrl(data.path);
 
-  return data.publicUrl;
+  return publicData.publicUrl;
 }
