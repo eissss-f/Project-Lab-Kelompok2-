@@ -20,5 +20,11 @@ Memungkinkan admin untuk mengubah informasi produk (seperti memperbarui harga, s
 - Delete (Menghapus Produk):
 Menambahkan fungsi penghapusan data produk beserta variannya dari database agar katalog tetap bersih dan akurat.
 
+**tabel supabase:**
+![alt text](supabase1.jpeg)
+
+
 
 ![bukti](<crud admin.gif>)
+![bukti](<crud profile.gif>)
+![alt text](crud.gif)
