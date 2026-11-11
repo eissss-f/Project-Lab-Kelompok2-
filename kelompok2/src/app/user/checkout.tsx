@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import keranjangDefault, { useCart, CartItem, parsePrice } from './keranjang';
-import { Pressable, Text } from "react-native";
+import { useCart, CartItem, parsePrice } from './keranjang';
 import { supabase } from '../../../lib/supabase';
 
 export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => void }) {
@@ -57,7 +56,6 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                     return;
                 }
 
-                // Mengambil data full_name dan phone dari tabel profiles berdasarkan id user
                 const { data: profile, error: profileError } = await supabase
                     .from('profiles')
                     .select('full_name, phone')
@@ -108,6 +106,17 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
     const [orderNumber, setOrderNumber] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Fungsi untuk mendapatkan nomor tujuan berdasarkan metode pembayaran
+    const getPaymentDestinationNumber = () => {
+        if (paymentMethod === 'DANA' || paymentMethod === 'GoPay') {
+            return '085703153539';
+        }
+        if (paymentMethod === 'SeaBank') {
+            return '901670182055';
+        }
+        return 'Pilih metode pembayaran terlebih dahulu';
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
@@ -140,197 +149,180 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
         }
     };
 
-    
-const handleSubmitOrder = async () => {
-    if (cartSummary.length === 0) {
-        alert('Tidak ada produk yang dipilih untuk dipesan.');
-        return;
-    }
-
-    if (!paymentMethod) {
-        alert('Mohon pilih metode pembayaran terlebih dahulu.');
-        return;
-    }
-
-    if (!selectedFile) {
-        alert('Mohon unggah bukti pembayaran terlebih dahulu!');
-        return;
-    }
-
-    if (isSubmitting) return;
-
-    setIsSubmitting(true);
-
-    let uploadedFilePath: string | null = null;
-    let createdOrderId: string | null = null;
-
-    try {
-        // 1. Ambil pengguna yang sedang login
-        const {
-            data: { user },
-            error: authError
-        } = await supabase.auth.getUser();
-
-        if (authError) throw authError;
-
-        if (!user) {
-            alert('Silakan login terlebih dahulu sebelum membuat pesanan.');
+    const handleSubmitOrder = async () => {
+        if (cartSummary.length === 0) {
+            alert('Tidak ada produk yang dipilih untuk dipesan.');
             return;
         }
 
-        // 2. Ambil data profil terbaru
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('full_name, phone')
-            .eq('id', user.id)
-            .maybeSingle();
-
-        if (profileError) throw profileError;
-
-        const finalName = profile?.full_name?.trim() || user.email || '';
-        const finalPhone = profile?.phone?.trim() || '';
-
-        if (!finalName || !finalPhone) {
-            alert('Nama atau nomor HP belum tersedia. Silakan lengkapi profil terlebih dahulu.');
+        if (!paymentMethod) {
+            alert('Mohon pilih metode pembayaran terlebih dahulu.');
             return;
         }
 
+        if (!selectedFile) {
+            alert('Mohon unggah bukti pembayaran terlebih dahulu!');
+            return;
+        }
 
-// 3. Upload bukti pembayaran ke Supabase Storage
-const fileExtension =
-    selectedFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+        if (isSubmitting) return;
 
-const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
+        setIsSubmitting(true);
 
-const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('payment-proofs')
-    .upload(filePath, selectedFile, {
-        contentType: selectedFile.type || 'image/jpeg',
-        upsert: false
-    });
+        let uploadedFilePath: string | null = null;
+        let createdOrderId: string | null = null;
 
-if (uploadError) throw uploadError;
+        try {
+            const {
+                data: { user },
+                error: authError
+            } = await supabase.auth.getUser();
 
-uploadedFilePath = uploadData.path;
+            if (authError) throw authError;
 
-// Pastikan file berhasil dibaca kembali dari Storage
-const { data: checkFile, error: checkError } = await supabase.storage
-    .from('payment-proofs')
-    .createSignedUrl(uploadData.path, 3600);
-
-if (checkError || !checkFile?.signedUrl) {
-    throw new Error('Bukti pembayaran berhasil diunggah, tetapi gagal dibaca dari Storage.');
-}
-
-console.log('Bukti pembayaran berhasil diunggah:', uploadData.path);
-
-
-        // 4. Simpan data utama pesanan
-        const pickupInformation =
-            `Pengambilan: ${pickupDate || 'Belum ditentukan'} ${pickupTime || ''}`;
-
-        const cardInformation = isCardActive
-            ? `Nama penerima kartu: ${recipientName || '-'}\nPesan kartu: ${cardMessage || '-'}`
-            : '';
-
-        const notes = [pickupInformation, cardInformation]
-            .filter(Boolean)
-            .join('\n');
-
-        const { data: order, error: orderError } = await supabase
-            .from('orders')
-            .insert({
-                user_id: user.id,
-                total_price: totalPrice,
-                shipping_address: 'Pengambilan langsung di toko',
-                recipient_name: finalName,
-                recipient_phone: finalPhone,
-                payment_method: paymentMethod,
-                payment_proof: uploadedFilePath,
-                status: 'menunggu_verifikasi',
-                notes: notes
-            })
-            .select('id, order_number')
-            .single();
-
-        if (orderError) throw orderError;
-
-        createdOrderId = order.id;
-
-        // 5. Simpan rincian produk ke order_items
-        const orderItems = cartSummary.map((item) => {
-            const variant = String(item.variant || '');
-
-            // Ambil ukuran S, M, atau XL sesuai batasan database
-            const sizeMatch = variant.match(
-                /(^|[^A-Z])(XL|S|M)(?=$|[^A-Z])/i
-            );
-
-            if (!sizeMatch) {
-                throw new Error(
-                    `Ukuran produk "${item.name}" tidak sesuai. Ukuran harus S, M, atau XL.`
-                );
+            if (!user) {
+                alert('Silakan login terlebih dahulu sebelum membuat pesanan.');
+                return;
             }
 
-            return {
-                order_id: order.id,
-                product_id: null,
-                product_title: item.name,
-                product_photo: item.image || null,
-                size_name: sizeMatch[2].toUpperCase(),
-                quantity: Number(item.quantity || item.qty || 1),
-                price: Number(item.price)
-            };
-        });
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('full_name, phone')
+                .eq('id', user.id)
+                .maybeSingle();
 
-        const { error: itemsError } = await supabase
-            .from('order_items')
-            .insert(orderItems);
+            if (profileError) throw profileError;
 
-        if (itemsError) throw itemsError;
+            const finalName = profile?.full_name?.trim() || user.email || '';
+            const finalPhone = profile?.phone?.trim() || '';
 
-        // 6. Berhasil: tampilkan nomor pesanan
-        setOrderNumber(order.order_number);
+            if (!finalName || !finalPhone) {
+                alert('Nama atau nomor HP belum tersedia. Silakan lengkapi profil terlebih dahulu.');
+                return;
+            }
 
-        // Kosongkan keranjang hanya setelah semua data berhasil tersimpan
-        if (!directItem) {
-            clearSelectedItems();
-        }
+            const fileExtension =
+                selectedFile.name.split('.').pop()?.toLowerCase() || 'jpg';
 
-        setShowSuccessModal(true);
+            const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
 
-    } catch (error: any) {
-        console.error('Gagal membuat pesanan:', error);
-
-        // Bersihkan data yang sempat dibuat jika proses gagal
-        if (createdOrderId) {
-            await supabase
-                .from('orders')
-                .delete()
-                .eq('id', createdOrderId);
-        }
-
-        if (uploadedFilePath) {
-            await supabase.storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('payment-proofs')
-                .remove([uploadedFilePath]);
+                .upload(filePath, selectedFile, {
+                    contentType: selectedFile.type || 'image/jpeg',
+                    upsert: false
+                });
+
+            if (uploadError) throw uploadError;
+
+            uploadedFilePath = uploadData.path;
+
+            const { data: checkFile, error: checkError } = await supabase.storage
+                .from('payment-proofs')
+                .createSignedUrl(uploadData.path, 3600);
+
+            if (checkError || !checkFile?.signedUrl) {
+                throw new Error('Bukti pembayaran berhasil diunggah, tetapi gagal dibaca dari Storage.');
+            }
+
+            const pickupInformation =
+                `Pengambilan: ${pickupDate || 'Belum ditentukan'} ${pickupTime || ''}`;
+
+            const cardInformation = isCardActive
+                ? `Nama penerima kartu: ${recipientName || '-'}\nPesan kartu: ${cardMessage || '-'}`
+                : '';
+
+            const notes = [pickupInformation, cardInformation]
+                .filter(Boolean)
+                .join('\n');
+
+            const { data: order, error: orderError } = await supabase
+                .from('orders')
+                .insert({
+                    user_id: user.id,
+                    total_price: totalPrice,
+                    shipping_address: 'Pengambilan langsung di toko',
+                    recipient_name: finalName,
+                    recipient_phone: finalPhone,
+                    payment_method: paymentMethod,
+                    payment_proof: uploadedFilePath,
+                    status: 'menunggu_verifikasi',
+                    notes: notes
+                })
+                .select('id, order_number')
+                .single();
+
+            if (orderError) throw orderError;
+
+            createdOrderId = order.id;
+
+            const orderItems = cartSummary.map((item) => {
+                const variant = String(item.variant || '');
+                const sizeMatch = variant.match(
+                    /(^|[^A-Z])(XL|S|M)(?=$|[^A-Z])/i
+                );
+
+                if (!sizeMatch) {
+                    throw new Error(
+                        `Ukuran produk "${item.name}" tidak sesuai. Ukuran harus S, M, atau XL.`
+                    );
+                }
+
+                return {
+                    order_id: order.id,
+                    product_id: null,
+                    product_title: item.name,
+                    product_photo: item.image || null,
+                    size_name: sizeMatch[2].toUpperCase(),
+                    quantity: Number(item.quantity || item.qty || 1),
+                    price: Number(item.price)
+                };
+            });
+
+            const { error: itemsError } = await supabase
+                .from('order_items')
+                .insert(orderItems);
+
+            if (itemsError) throw itemsError;
+
+            setOrderNumber(order.order_number);
+
+            if (!directItem) {
+                clearSelectedItems();
+            }
+
+            setShowSuccessModal(true);
+
+        } catch (error: any) {
+            console.error('Gagal membuat pesanan:', error);
+
+            if (createdOrderId) {
+                await supabase
+                    .from('orders')
+                    .delete()
+                    .eq('id', createdOrderId);
+            }
+
+            if (uploadedFilePath) {
+                await supabase.storage
+                    .from('payment-proofs')
+                    .remove([uploadedFilePath]);
+            }
+
+            alert(
+                error?.message ||
+                'Pesanan gagal disimpan. Silakan coba kembali.'
+            );
+
+        } finally {
+            setIsSubmitting(false);
         }
-
-        alert(
-            error?.message ||
-            'Pesanan gagal disimpan. Silakan coba kembali.'
-        );
-
-    } finally {
-        setIsSubmitting(false);
-    }
-};
-
+    };
 
     return (
         <div style={{
-            maxWidth: '430px',
-            margin: '0 auto',
+            width: '100%',
+            flex: 1,
             height: '100vh',
             display: 'flex',
             flexDirection: 'column',
@@ -338,8 +330,7 @@ console.log('Bukti pembayaran berhasil diunggah:', uploadData.path);
             fontFamily: "'Poppins', sans-serif",
             boxSizing: 'border-box',
             overflow: 'hidden',
-            position: 'relative',
-            boxShadow: '0 0 25px rgba(168, 63, 104, 0.08)'
+            position: 'relative'
         }}>
 
             {/* Header */}
@@ -402,7 +393,7 @@ console.log('Bukti pembayaran berhasil diunggah:', uploadData.path);
                 boxSizing: 'border-box'
             }}>
 
-                {/* 1. Data Pemesan (Otomatis dari tabel profiles Supabase) */}
+                {/* 1. Data Pemesan */}
                 <div style={{
                     backgroundColor: '#FFFFFF',
                     padding: '16px',
@@ -781,7 +772,7 @@ console.log('Bukti pembayaran berhasil diunggah:', uploadData.path);
 
                     <div style={{ marginTop: '12px' }}>
                         <span style={{ fontSize: '11px', color: '#A83F68', display: 'block', marginBottom: '4px', opacity: 0.8 }}>
-                            Nomor tujuan
+                            Nomor tujuan {paymentMethod ? `(${paymentMethod})` : ''}
                         </span>
                         <div style={{
                             border: '1px solid #E8A6BD',
@@ -790,7 +781,7 @@ console.log('Bukti pembayaran berhasil diunggah:', uploadData.path);
                             backgroundColor: '#FFF8F0'
                         }}>
                             <span style={{ fontWeight: 600, color: '#A83F68', fontSize: '13px', display: 'block' }}>
-                                {paymentMethod ? `(Nomor ${paymentMethod} akan tampil di sini)` : 'Pilih metode pembayaran terlebih dahulu'}
+                                {getPaymentDestinationNumber()}
                             </span>
                         </div>
                     </div>
@@ -930,24 +921,24 @@ console.log('Bukti pembayaran berhasil diunggah:', uploadData.path);
                 </div>
 
                 <button
-    onClick={handleSubmitOrder}
-    disabled={isSubmitting}
-    style={{
-        backgroundColor: '#A83F68',
-        color: '#FFF8F0',
-        border: 'none',
-        padding: '12px 26px',
-        borderRadius: '14px',
-        fontWeight: 600,
-        fontSize: '13px',
-        cursor: isSubmitting ? 'not-allowed' : 'pointer',
-        opacity: isSubmitting ? 0.7 : 1,
-        boxShadow: '0 4px 12px rgba(168, 63, 104, 0.3)',
-        transition: 'transform 0.1s ease'
-    }}
->
-    {isSubmitting ? 'Menyimpan Pesanan...' : 'Buat Pesanan'}
-</button>
+                    onClick={handleSubmitOrder}
+                    disabled={isSubmitting}
+                    style={{
+                        backgroundColor: '#A83F68',
+                        color: '#FFF8F0',
+                        border: 'none',
+                        padding: '12px 26px',
+                        borderRadius: '14px',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        opacity: isSubmitting ? 0.7 : 1,
+                        boxShadow: '0 4px 12px rgba(168, 63, 104, 0.3)',
+                        transition: 'transform 0.1s ease'
+                    }}
+                >
+                    {isSubmitting ? 'Menyimpan Pesanan...' : 'Buat Pesanan'}
+                </button>
             </div>
 
             {/* Success Popup Modal */}

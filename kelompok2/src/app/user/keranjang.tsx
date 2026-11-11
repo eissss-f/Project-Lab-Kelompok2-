@@ -13,7 +13,7 @@ export interface CartItem {
 }
 
 const CART_STORAGE_KEY = 'ra_scrafts_cart_v1';
-let inMemoryCart: CartItem[] = []; // Kosong tanpa item statis awal
+let inMemoryCart: CartItem[] = [];
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -259,16 +259,15 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
 
     return (
         <div style={{
-            maxWidth: '430px',
-            margin: '0 auto',
+            width: '100%',
+            flex: 1,
             height: '100vh',
             display: 'flex',
             flexDirection: 'column',
             backgroundColor: '#FFF8F0',
             fontFamily: "'Poppins', sans-serif",
             boxSizing: 'border-box',
-            overflow: 'hidden',
-            boxShadow: '0 0 25px rgba(168, 63, 104, 0.08)'
+            overflow: 'hidden'
         }}>
 
             {/* 1. Header (Top) */}
@@ -621,94 +620,6 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                 >
                     Checkout <span style={{ fontSize: '16px' }}>&rarr;</span>
                 </button>
-            </div>
-
-            {/* 5. Bottom Navigation */}
-            <div style={{
-                backgroundColor: '#FFF8F0',
-                borderTop: '1px solid #EED7D8',
-                padding: '6px 20px 8px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                flexShrink: 0
-            }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-around',
-                    alignItems: 'center',
-                    width: '100%'
-                }}>
-                    <button
-                        onClick={() => router.push('./Katalog')}
-                        style={{
-                            border: 'none',
-                            backgroundColor: '#FFF0F6',
-                            borderRadius: '16px',
-                            padding: '6px 22px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            cursor: 'pointer',
-                            gap: '2px'
-                        }}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A83F68" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                        </svg>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#A83F68' }}>Produk</span>
-                    </button>
-
-                    <button
-                        onClick={() => router.push('./pesanan')}
-                        style={{
-                            border: 'none',
-                            background: 'none',
-                            padding: '6px 16px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            cursor: 'pointer',
-                            gap: '2px'
-                        }}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999999" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <path d="M16 10a4 4 0 0 1-8 0"></path>
-                        </svg>
-                        <span style={{ fontSize: '11px', fontWeight: 400, color: '#999999' }}>Pesanan</span>
-                    </button>
-
-                    <button
-                        onClick={() => router.push('./profil')}
-                        style={{
-                            border: 'none',
-                            background: 'none',
-                            padding: '6px 16px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            cursor: 'pointer',
-                            gap: '2px'
-                        }}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999999" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="12" cy="7" r="4"></circle>
-                        </svg>
-                        <span style={{ fontSize: '11px', fontWeight: 400, color: '#999999' }}>Profil</span>
-                    </button>
-                </div>
-
-                <div style={{
-                    width: '124px',
-                    height: '4px',
-                    backgroundColor: '#A83F68',
-                    borderRadius: '100px',
-                    marginTop: '6px'
-                }}></div>
             </div>
 
         </div>
