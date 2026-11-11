@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import keranjangDefault, { useCart, CartItem, parsePrice } from './keranjang';
+import { Pressable, Text } from "react-native";
 import { supabase } from '../../../lib/supabase';
 
 export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => void }) {
@@ -44,54 +45,56 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
 
     const totalBouquets: number = cartSummary.reduce((sum: number, item: CartItem) => sum + (item.quantity ?? item.qty ?? 1), 0);
     const totalPrice: number = cartSummary.reduce((sum: number, item: CartItem) => sum + item.price * (item.quantity ?? item.qty ?? 1), 0);
-useEffect(() => {
-    const fetchUserProfile = async () => {
-        try {
-            const { data: { user }, error: authError } =
-                await supabase.auth.getUser();
 
-            if (authError) throw authError;
+    // Mengambil data pengguna yang login dan mencocokkannya dengan tabel profiles
+    useEffect(() => {
+        const fetchUserProfile = async () => {
+            try {
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                if (authError || !user) {
+                    setCustomerName('Tamu / Belum Login');
+                    setCustomerPhone('-');
+                    return;
+                }
 
-            if (!user) {
-                setCustomerName('Tamu / Belum Login');
+                // Mengambil data full_name dan phone dari tabel profiles berdasarkan id user
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('full_name, phone')
+                    .eq('id', user.id)
+                    .single();
+
+                if (profileError) {
+                    console.error('Gagal mengambil profil:', profileError.message);
+                    setCustomerName(user.email || 'Pengguna');
+                    setCustomerPhone('Belum diatur');
+                    return;
+                }
+
+                if (profile) {
+                    setCustomerName(profile.full_name || user.email || 'Tanpa Nama');
+                    setCustomerPhone(profile.phone || 'No. HP belum diisi');
+                }
+            } catch (err) {
+                console.error('Terjadi kesalahan:', err);
+                setCustomerName('Gagal memuat');
                 setCustomerPhone('-');
-                return;
             }
+        };
 
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('full_name, phone')
-                .eq('id', user.id)
-                .maybeSingle();
+        fetchUserProfile();
 
-            if (profileError) throw profileError;
-
-            if (!profile) {
-                setCustomerName(user.email || 'Pengguna');
-                setCustomerPhone('Nomor HP belum tersedia');
-                return;
+        if (typeof document !== 'undefined') {
+            const linkId = 'google-fonts-ra-scrafts';
+            if (!document.getElementById(linkId)) {
+                const link = document.createElement('link');
+                link.id = linkId;
+                link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Poppins:wght@300;400;500;600;700&display=swap';
+                link.rel = 'stylesheet';
+                document.head.appendChild(link);
             }
-
-            setCustomerName(
-                profile.full_name || user.email || 'Tanpa Nama'
-            );
-
-            setCustomerPhone(
-                profile.phone || 'Nomor HP belum diisi'
-            );
-
-            console.log('Data profil checkout:', profile);
-
-        } catch (error: any) {
-            console.error('Gagal mengambil profil checkout:', error);
-
-            setCustomerName('Gagal memuat');
-            setCustomerPhone('Gagal memuat nomor HP');
         }
-    };
-
-    fetchUserProfile();
-}, []);
+    }, []);
 
     const [isCardActive, setIsCardActive] = useState<boolean>(false);
     const [recipientName, setRecipientName] = useState<string>('');
@@ -192,23 +195,35 @@ const handleSubmitOrder = async () => {
             return;
         }
 
-        // 3. Upload bukti pembayaran ke Supabase Storage
-        const fileExtension =
-            selectedFile.name.split('.').pop()?.toLowerCase() || 'jpg';
 
-        const filePath =
-            `${user.id}/${Date.now()}.${fileExtension}`;
+// 3. Upload bukti pembayaran ke Supabase Storage
+const fileExtension =
+    selectedFile.name.split('.').pop()?.toLowerCase() || 'jpg';
 
-        const { error: uploadError } = await supabase.storage
-            .from('payment-proofs')
-            .upload(filePath, selectedFile, {
-                contentType: selectedFile.type || 'image/jpeg',
-                upsert: false
-            });
+const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
 
-        if (uploadError) throw uploadError;
+const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('payment-proofs')
+    .upload(filePath, selectedFile, {
+        contentType: selectedFile.type || 'image/jpeg',
+        upsert: false
+    });
 
-        uploadedFilePath = filePath;
+if (uploadError) throw uploadError;
+
+uploadedFilePath = uploadData.path;
+
+// Pastikan file berhasil dibaca kembali dari Storage
+const { data: checkFile, error: checkError } = await supabase.storage
+    .from('payment-proofs')
+    .createSignedUrl(uploadData.path, 3600);
+
+if (checkError || !checkFile?.signedUrl) {
+    throw new Error('Bukti pembayaran berhasil diunggah, tetapi gagal dibaca dari Storage.');
+}
+
+console.log('Bukti pembayaran berhasil diunggah:', uploadData.path);
+
 
         // 4. Simpan data utama pesanan
         const pickupInformation =
