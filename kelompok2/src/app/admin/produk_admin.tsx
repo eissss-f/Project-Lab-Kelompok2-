@@ -646,7 +646,11 @@ const deleteProduct = (product: ProductItem) => {
         visible={modalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => !saving && setModalVisible(false)}
+        onRequestClose={() => {
+  if (!saving) {
+    setModalVisible(false);
+  }
+}}
       >
         <View style={styles.overlay}>
           <View style={styles.modal}>

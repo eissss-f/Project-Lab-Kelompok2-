@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -13,6 +12,11 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+
+// Wajib untuk menangani redirect web/auth di Expo
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -22,6 +26,7 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Fungsi Login Manual (Email & Password)
   const handleLogin = async () => {
     setErrorMessage('');
     setSuccessMessage('');
@@ -105,7 +110,6 @@ export default function LoginScreen() {
         return;
       }
 
-
       // Arahkan pengguna sesuai role di Supabase
       if (profile.role === "admin") {
         setSuccessMessage("Login berhasil! Mengarahkan ke halaman admin...");
@@ -137,6 +141,36 @@ export default function LoginScreen() {
       setErrorMessage(
         'Terjadi kesalahan saat login. Periksa koneksi internet kamu.'
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fungsi Login dengan Google (OAuth)
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setErrorMessage('');
+      setSuccessMessage('');
+
+      const redirectTo = AuthSession.makeRedirectUri({
+        path: 'auth/callback',
+      });
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      setErrorMessage('Gagal login dengan Google: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -256,7 +290,7 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* Tombol login */}
+          {/* Tombol login manual */}
           <TouchableOpacity
             style={[
               styles.button,
@@ -269,6 +303,24 @@ export default function LoginScreen() {
             <Text style={styles.buttonText}>
               {loading ? 'Memproses...' : 'Masuk'}
             </Text>
+          </TouchableOpacity>
+
+          {/* Garis atau pemisah */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>Atau</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Tombol Login Google */}
+          <TouchableOpacity
+            style={[styles.googleButton, loading && styles.buttonDisabled]}
+            onPress={handleGoogleLogin}
+            activeOpacity={0.8}
+            disabled={loading}
+          >
+            <Ionicons name="logo-google" size={18} color="#EA4335" />
+            <Text style={styles.googleButtonText}>Masuk dengan Google</Text>
           </TouchableOpacity>
 
           {/* Link register */}
@@ -424,7 +476,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     marginTop: 0,
-    marginBottom: 20,
+    marginBottom: 16,
   },
 
   buttonDisabled: {
@@ -436,6 +488,48 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Poppins',
     fontWeight: '700',
+  },
+
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E8A6BD',
+    opacity: 0.5,
+  },
+
+  dividerText: {
+    marginHorizontal: 10,
+    fontSize: 12,
+    fontFamily: 'Poppins',
+    color: '#A83F68',
+    opacity: 0.7,
+  },
+
+  googleButton: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    minHeight: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E8A6BD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    gap: 8,
+  },
+
+  googleButtonText: {
+    color: '#49343C',
+    fontSize: 14,
+    fontFamily: 'Poppins',
+    fontWeight: '600',
   },
 
   footerRow: {
