@@ -8,7 +8,7 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
-  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
@@ -20,7 +20,7 @@ import {
 
 import { supabase } from '../../../lib/supabase';
 import CustomButton from '../../components/CustomButton';
-import { cartActions } from './keranjang';
+import { cartActions, loadCart } from './keranjang';
 
 type ProductVariant = {
   id: string | number;
@@ -58,11 +58,32 @@ export default function DetailProduk() {
   const [quantity, setQuantity] = useState(1);
   const [loadingProduct, setLoadingProduct] = useState(true);
 
+  const [notifModal, setNotifModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    isSuccess?: boolean;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    isSuccess: false,
+  });
+
   const displayName = name || 'Buket Mawar Premium';
 
   const displayImage =
     imageUrl ||
     'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80';
+
+  const showNotif = (title: string, message: string, isSuccess = false) => {
+    setNotifModal({
+      visible: true,
+      title,
+      message,
+      isSuccess,
+    });
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -127,7 +148,7 @@ export default function DetailProduk() {
         console.error('Gagal mengambil detail produk:', error);
 
         if (isMounted) {
-          Alert.alert(
+          showNotif(
             'Gagal Memuat Produk',
             'Data produk tidak berhasil diambil. Periksa ID produk dan koneksi Supabase.'
           );
@@ -184,65 +205,107 @@ export default function DetailProduk() {
     selectedStock > 0 &&
     numericPrice >= 0;
 
-    const handleAddToCart = () => {
-      if (!canOrder || !selectedVariant) {
-        Alert.alert(
-          'Produk Tidak Tersedia',
-          'Ukuran ini belum tersedia atau stoknya habis.'
-        );
-        return;
-      }
-  
-      if (quantity > selectedStock) {
-        Alert.alert(
-          'Stok Tidak Cukup',
-          `Stok ukuran ${selectedSize} hanya ${selectedStock}.`
-        );
-        return;
-      }
-  
-      try {
-        cartActions.addItem({
-          name: displayName,
-          price: numericPrice,
-          variant: `${selectedSize} · ra_scrafts`,
-          image: displayImage,
-          quantity: quantity,
-        });
-  
-        // Validasi berhasil dimasukkan ke keranjang
-        Alert.alert(
-          'Berhasil',
-          'Produk berhasil dimasukkan ke keranjang!',
-          [
-            {
-              text: 'Lihat Keranjang',
-              onPress: () => router.push('/user/keranjang'),
-            },
-            { text: 'Lanjut Belanja', style: 'cancel' },
-          ],
-          { cancelable: true }
-        );
-      } catch (error) {
-        console.error('Gagal tambah ke keranjang:', error);
-        Alert.alert(
-          'Kesalahan',
-          'Gagal menyimpan produk ke keranjang.'
-        );
-      }
-    };
-
-  const handleBuyNow = () => {
+  const handleAddToCart = () => {
     if (!canOrder || !selectedVariant) {
-      Alert.alert(
+      showNotif(
         'Produk Tidak Tersedia',
         'Ukuran ini belum tersedia atau stoknya habis.'
       );
       return;
     }
 
+    if (Number.isNaN(numericPrice) || numericPrice <= 0) {
+      showNotif(
+        'Harga Tidak Valid',
+        'Harga produk tidak valid untuk dipesan.'
+      );
+      return;
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      showNotif(
+        'Jumlah Tidak Valid',
+        'Minimal pembelian adalah 1 item.'
+      );
+      return;
+    }
+
     if (quantity > selectedStock) {
-      Alert.alert(
+      showNotif(
+        'Stok Tidak Cukup',
+        `Stok ukuran ${selectedSize} hanya ${selectedStock}.`
+      );
+      return;
+    }
+
+    const currentCart = loadCart();
+    const variantLabel = `${selectedSize} · ra_scrafts`;
+    const existingItem = currentCart.find(
+      (item) => item.name === displayName && item.variant === variantLabel
+    );
+    const existingQty = existingItem ? Number(existingItem.quantity || 0) : 0;
+
+    if (existingQty + quantity > selectedStock) {
+      const sisaBisaTambah = Math.max(0, selectedStock - existingQty);
+      showNotif(
+        'Stok Keranjang Terbatas',
+        sisaBisaTambah > 0
+          ? `Di keranjang sudah ada ${existingQty} item. Kamu hanya bisa menambah ${sisaBisaTambah} item lagi.`
+          : `Jumlah di keranjang sudah mencapai batas stok maksimal (${selectedStock}).`
+      );
+      return;
+    }
+
+    try {
+      cartActions.addItem({
+        name: displayName,
+        price: numericPrice,
+        variant: variantLabel,
+        image: displayImage,
+        quantity: quantity,
+      });
+
+      showNotif(
+        'Berhasil',
+        'Produk berhasil dimasukkan ke keranjang!',
+        true
+      );
+    } catch (error) {
+      console.error('Gagal tambah ke keranjang:', error);
+      showNotif(
+        'Kesalahan',
+        'Gagal menyimpan produk ke keranjang.'
+      );
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (!canOrder || !selectedVariant) {
+      showNotif(
+        'Produk Tidak Tersedia',
+        'Ukuran ini belum tersedia atau stoknya habis.'
+      );
+      return;
+    }
+
+    if (Number.isNaN(numericPrice) || numericPrice <= 0) {
+      showNotif(
+        'Harga Tidak Valid',
+        'Harga produk tidak valid untuk dipesan.'
+      );
+      return;
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      showNotif(
+        'Jumlah Tidak Valid',
+        'Minimal pembelian adalah 1 item.'
+      );
+      return;
+    }
+
+    if (quantity > selectedStock) {
+      showNotif(
         'Stok Tidak Cukup',
         `Stok ukuran ${selectedSize} hanya ${selectedStock}.`
       );
@@ -435,6 +498,55 @@ export default function DetailProduk() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Modal Notifikasi di Dalam Aplikasi */}
+      <Modal
+        visible={notifModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setNotifModal((prev) => ({ ...prev, visible: false }))
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{notifModal.title}</Text>
+            <Text style={styles.modalMessage}>{notifModal.message}</Text>
+
+            {notifModal.isSuccess ? (
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  style={styles.modalSecondaryBtn}
+                  onPress={() =>
+                    setNotifModal((prev) => ({ ...prev, visible: false }))
+                  }
+                >
+                  <Text style={styles.modalSecondaryText}>Lanjut Belanja</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalPrimaryBtn}
+                  onPress={() => {
+                    setNotifModal((prev) => ({ ...prev, visible: false }));
+                    router.push('/user/keranjang');
+                  }}
+                >
+                  <Text style={styles.modalPrimaryText}>Lihat Keranjang</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.modalSingleBtn}
+                onPress={() =>
+                  setNotifModal((prev) => ({ ...prev, visible: false }))
+                }
+              >
+                <Text style={styles.modalPrimaryText}>OK</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -563,5 +675,74 @@ const styles = StyleSheet.create({
   },
   buttonWrapper: {
     marginTop: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: '#FFF8F0',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E8A6BD',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#A83F68',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 12,
+    color: '#A83F68',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  modalPrimaryBtn: {
+    flex: 1,
+    backgroundColor: '#A83F68',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalSecondaryBtn: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E8A6BD',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalSingleBtn: {
+    width: '100%',
+    backgroundColor: '#A83F68',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalPrimaryText: {
+    color: '#FFF8F0',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalSecondaryText: {
+    color: '#A83F68',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

@@ -31,12 +31,19 @@ export function loadCart(): CartItem[] {
             if (data) {
                 const parsed = JSON.parse(data);
                 if (Array.isArray(parsed)) {
-                    return parsed.map((item) => ({
-                        ...item,
-                        quantity: Number(item.quantity ?? item.qty ?? 1),
-                        qty: Number(item.quantity ?? item.qty ?? 1),
-                        selected: item.selected !== false,
-                    }));
+                    return parsed
+                        .filter((item) => item && typeof item.name === 'string' && item.name.trim() !== '')
+                        .map((item) => {
+                            const safeQty = Math.max(1, Math.floor(Number(item.quantity ?? item.qty ?? 1)) || 1);
+                            const safePrice = Math.max(0, Number(item.price) || 0);
+                            return {
+                                ...item,
+                                price: safePrice,
+                                quantity: safeQty,
+                                qty: safeQty,
+                                selected: item.selected !== false,
+                            };
+                        });
                 }
             }
         } catch {}
@@ -57,7 +64,7 @@ export function saveCart(items: CartItem[]) {
 inMemoryCart = loadCart();
 
 export function parsePrice(price: string | number): number {
-    if (typeof price === 'number') return price;
+    if (typeof price === 'number') return Number.isFinite(price) && price >= 0 ? price : 0;
     if (!price) return 0;
     const cleaned = price.toString().replace(/[^0-9]/g, '');
     return parseInt(cleaned, 10) || 0;
@@ -71,11 +78,18 @@ export const cartActions = {
         image?: string;
         quantity?: number;
     }) {
+        if (!newItem.name || !String(newItem.name).trim()) return;
+
         const current = loadCart();
         const numPrice = parsePrice(newItem.price);
+        if (numPrice < 0 || Number.isNaN(numPrice)) return;
+
         const variant = newItem.variant || 'Standard';
         const image = newItem.image || '';
-        const qty = newItem.quantity && newItem.quantity > 0 ? Number(newItem.quantity) : 1;
+        const qty =
+            newItem.quantity && Number.isFinite(Number(newItem.quantity)) && Number(newItem.quantity) >= 1
+                ? Math.floor(Number(newItem.quantity))
+                : 1;
 
         const idx = current.findIndex((i) => i.name === newItem.name && i.variant === variant);
         let updated: CartItem[];
@@ -106,10 +120,12 @@ export const cartActions = {
     },
 
     updateQuantity(id: number | string, delta: number) {
+        if (typeof delta !== 'number' || Number.isNaN(delta)) return;
+
         const current = loadCart();
         const updated = current.map((i) => {
             if (i.id === id) {
-                const newQty = Math.max(1, i.quantity + delta);
+                const newQty = Math.max(1, Math.floor(i.quantity + delta));
                 return { ...i, quantity: newQty, qty: newQty };
             }
             return i;
@@ -191,14 +207,19 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
         quantity?: string;
     }>();
 
+    // State validasi konfirmasi hapus & notifikasi dalam aplikasi
+    const [itemToDelete, setItemToDelete] = useState<CartItem | null>(null);
+    const [alertMessage, setAlertMessage] = useState<string>('');
+
     useEffect(() => {
-        if (params.name) {
+        if (params.name && params.name.trim()) {
+            const parsedQty = params.quantity ? parseInt(params.quantity, 10) : 1;
             cartActions.addItem({
-                name: params.name,
+                name: params.name.trim(),
                 price: params.price || 0,
                 variant: params.variant || 'Standard',
                 image: params.imageUrl || params.image || '',
-                quantity: params.quantity ? parseInt(params.quantity, 10) : 1,
+                quantity: Number.isInteger(parsedQty) && parsedQty >= 1 ? parsedQty : 1,
             });
         }
     }, [params.name, params.price, params.variant, params.quantity]);
@@ -231,9 +252,24 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
 
     const handleCheckout = () => {
         if (selectedItems.length === 0) {
-            alert('Silakan pilih minimal 1 produk untuk checkout.');
+            setAlertMessage('Silakan pilih minimal 1 produk untuk checkout.');
             return;
         }
+
+        const hasInvalidItem = selectedItems.some(
+            (item) =>
+                !item.name ||
+                !item.name.trim() ||
+                item.quantity < 1 ||
+                Number.isNaN(item.price) ||
+                item.price <= 0
+        );
+
+        if (hasInvalidItem || totalPrice <= 0) {
+            setAlertMessage('Terdapat produk dengan harga atau jumlah yang tidak valid.');
+            return;
+        }
+
         if (onNavigateToCheckout) {
             onNavigateToCheckout();
         } else {
@@ -243,6 +279,12 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                 console.log('Navigating to checkout...', e);
             }
         }
+    };
+
+    const handleConfirmDelete = () => {
+        if (!itemToDelete) return;
+        removeItem(itemToDelete.id);
+        setItemToDelete(null);
     };
 
     const handleBack = () => {
@@ -267,7 +309,8 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
             backgroundColor: '#FFF8F0',
             fontFamily: "'Poppins', sans-serif",
             boxSizing: 'border-box',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            position: 'relative'
         }}>
 
             {/* 1. Header (Top) */}
@@ -546,7 +589,7 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                                     </div>
 
                                     <button
-                                        onClick={() => removeItem(item.id)}
+                                        onClick={() => setItemToDelete(item)}
                                         title="Hapus produk"
                                         style={{
                                             border: 'none',
@@ -621,6 +664,148 @@ export default function KeranjangPage({ onNavigateToCheckout }: { onNavigateToCh
                     Checkout <span style={{ fontSize: '16px' }}>&rarr;</span>
                 </button>
             </div>
+
+            {/* Popup Konfirmasi Hapus Produk */}
+            {itemToDelete && (
+                <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px',
+                    zIndex: 99,
+                    backdropFilter: 'blur(3px)'
+                }}>
+                    <div style={{
+                        backgroundColor: '#FFF8F0',
+                        borderRadius: '24px',
+                        padding: '24px 20px',
+                        width: '100%',
+                        maxWidth: '320px',
+                        textAlign: 'center',
+                        boxShadow: '0 10px 30px rgba(168, 63, 104, 0.25)',
+                        border: '1px solid #E8A6BD',
+                        boxSizing: 'border-box'
+                    }}>
+                        <h3 style={{
+                            fontFamily: "'Playfair Display', serif",
+                            fontSize: '18px',
+                            fontWeight: 700,
+                            color: '#A83F68',
+                            margin: '0 0 8px 0'
+                        }}>
+                            Hapus Produk?
+                        </h3>
+                        <p style={{
+                            fontSize: '12px',
+                            color: '#A83F68',
+                            lineHeight: 1.5,
+                            margin: '0 0 18px 0',
+                            opacity: 0.85
+                        }}>
+                            Apakah Anda yakin ingin menghapus <strong>{itemToDelete.name}</strong> ({itemToDelete.variant}) dari keranjang?
+                        </p>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                onClick={() => setItemToDelete(null)}
+                                style={{
+                                    flex: 1,
+                                    backgroundColor: 'transparent',
+                                    color: '#A83F68',
+                                    border: '1px solid #E8A6BD',
+                                    padding: '10px',
+                                    borderRadius: '12px',
+                                    fontWeight: 600,
+                                    fontSize: '12px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={handleConfirmDelete}
+                                style={{
+                                    flex: 1,
+                                    backgroundColor: '#A83F68',
+                                    color: '#FFF8F0',
+                                    border: 'none',
+                                    padding: '10px',
+                                    borderRadius: '12px',
+                                    fontWeight: 600,
+                                    fontSize: '12px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Hapus
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Popup Notifikasi Validasi Checkout */}
+            {alertMessage && (
+                <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px',
+                    zIndex: 99,
+                    backdropFilter: 'blur(3px)'
+                }}>
+                    <div style={{
+                        backgroundColor: '#FFF8F0',
+                        borderRadius: '24px',
+                        padding: '24px 20px',
+                        width: '100%',
+                        maxWidth: '320px',
+                        textAlign: 'center',
+                        boxShadow: '0 10px 30px rgba(168, 63, 104, 0.25)',
+                        border: '1px solid #E8A6BD',
+                        boxSizing: 'border-box'
+                    }}>
+                        <h3 style={{
+                            fontFamily: "'Playfair Display', serif",
+                            fontSize: '18px',
+                            fontWeight: 700,
+                            color: '#A83F68',
+                            margin: '0 0 8px 0'
+                        }}>
+                            Perhatian
+                        </h3>
+                        <p style={{
+                            fontSize: '12px',
+                            color: '#A83F68',
+                            lineHeight: 1.5,
+                            margin: '0 0 18px 0',
+                            opacity: 0.85
+                        }}>
+                            {alertMessage}
+                        </p>
+                        <button
+                            onClick={() => setAlertMessage('')}
+                            style={{
+                                width: '100%',
+                                backgroundColor: '#A83F68',
+                                color: '#FFF8F0',
+                                border: 'none',
+                                padding: '10px',
+                                borderRadius: '12px',
+                                fontWeight: 600,
+                                fontSize: '12px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

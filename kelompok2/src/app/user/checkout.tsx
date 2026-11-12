@@ -120,6 +120,20 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
+
+            // Validasi format dan ukuran file bukti pembayaran
+            if (!file.type.startsWith('image/')) {
+                alert('File harus berupa gambar (JPG, PNG, atau WEBP).');
+                e.target.value = '';
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Ukuran file bukti pembayaran maksimal 5 MB.');
+                e.target.value = '';
+                return;
+            }
+
             setSelectedFile(file);
             setPreviewUrl(URL.createObjectURL(file));
         }
@@ -152,6 +166,54 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
     const handleSubmitOrder = async () => {
         if (cartSummary.length === 0) {
             alert('Tidak ada produk yang dipilih untuk dipesan.');
+            return;
+        }
+
+        if (totalPrice <= 0) {
+            alert('Total pembayaran tidak valid.');
+            return;
+        }
+
+        const hasInvalidProduct = cartSummary.some(
+            (item) =>
+                !item.name ||
+                !item.name.trim() ||
+                Number.isNaN(item.price) ||
+                item.price <= 0 ||
+                (item.quantity ?? item.qty ?? 1) < 1
+        );
+        if (hasInvalidProduct) {
+            alert('Terdapat data produk yang tidak valid pada pesanan.');
+            return;
+        }
+
+        // Validasi kartu ucapan jika diaktifkan
+        if (isCardActive) {
+            if (!recipientName.trim()) {
+                alert('Mohon isi nama penerima kartu ucapan terlebih dahulu.');
+                return;
+            }
+            if (!cardMessage.trim()) {
+                alert('Mohon isi pesan kartu ucapan terlebih dahulu.');
+                return;
+            }
+        }
+
+        // Validasi jadwal pengambilan di toko
+        if (!pickupDate) {
+            alert('Mohon pilih tanggal pengambilan terlebih dahulu.');
+            return;
+        }
+
+        if (!pickupTime) {
+            alert('Mohon pilih jam pengambilan terlebih dahulu.');
+            return;
+        }
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        if (pickupDate < todayStr) {
+            alert('Tanggal pengambilan tidak boleh sebelum hari ini.');
             return;
         }
 
@@ -198,6 +260,12 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
 
             if (!finalName || !finalPhone) {
                 alert('Nama atau nomor HP belum tersedia. Silakan lengkapi profil terlebih dahulu.');
+                return;
+            }
+
+            const phoneDigits = finalPhone.replace(/\D/g, '');
+            if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+                alert('Nomor HP di profil tidak valid (harus 10–15 digit). Silakan perbarui profil terlebih dahulu.');
                 return;
             }
 
@@ -259,12 +327,12 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
             const orderItems = cartSummary.map((item) => {
                 const variant = String(item.variant || '');
                 const sizeMatch = variant.match(
-                    /(^|[^A-Z])(XL|S|M)(?=$|[^A-Z])/i
+                    /(^|[^A-Z])(XXL|XL|L|M|S)(?=$|[^A-Z])/i
                 );
 
                 if (!sizeMatch) {
                     throw new Error(
-                        `Ukuran produk "${item.name}" tidak sesuai. Ukuran harus S, M, atau XL.`
+                        `Ukuran produk "${item.name}" tidak sesuai. Ukuran harus S, M, L, XL, atau XXL.`
                     );
                 }
 
@@ -1048,7 +1116,8 @@ export default function CheckoutPage({ onBackToCart }: { onBackToCart?: () => vo
                                     fontWeight: 600,
                                     fontSize: '12px',
                                     cursor: 'pointer'
-                                }}>
+                                }}
+                            >
                                 Kembali ke Beranda
                             </button>
                         </div>
