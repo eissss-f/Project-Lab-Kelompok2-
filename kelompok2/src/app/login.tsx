@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -5,17 +6,18 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Image,
 } from 'react-native';
+import { Platform } from 'react-native';  
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
+import * as Linking from 'expo-linking';
 
-// Wajib untuk menangani redirect web/auth di Expo
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
@@ -26,23 +28,30 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Fungsi Login Manual (Email & Password)
+  // Arahkan berdasarkan role pengguna
+  const navigateByRole = (role: string) => {
+    if (role === 'admin') {
+      router.replace('/admin/index_admin');
+    } else if (role === 'user') {
+      router.replace('/user/Katalog');
+    } else {
+      throw new Error('Role akun tidak dikenali.');
+    }
+  };
+
+  // Login email dan password
   const handleLogin = async () => {
     setErrorMessage('');
     setSuccessMessage('');
 
     const emailTrim = email.trim().toLowerCase();
 
-    // Validasi input kosong
     if (!emailTrim || !password) {
       setErrorMessage('Email dan password wajib diisi.');
       return;
     }
 
-    // Validasi format email
-    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
-
-    if (!emailValid) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
       setErrorMessage('Masukkan format email yang valid.');
       return;
     }
@@ -50,131 +59,192 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
-      // Login menggunakan Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: emailTrim,
-        password,
-      });
+      const { data, error } =
+        await supabase.auth.signInWithPassword({
+          email: emailTrim,
+          password,
+        });
 
-      if (error) {
-        const message = error.message.toLowerCase();
+      if (error) throw error;
 
-        if (
-          message.includes('invalid login credentials') ||
-          message.includes('invalid credentials')
-        ) {
-          setErrorMessage(
-            'Email atau password salah. Periksa kembali data kamu.'
-          );
-        } else if (message.includes('email not confirmed')) {
-          setErrorMessage(
-            'Email belum dikonfirmasi. Silakan cek inbox email kamu.'
-          );
-        } else if (
-          message.includes('network') ||
-          message.includes('fetch')
-        ) {
-          setErrorMessage(
-            'Koneksi bermasalah. Periksa internet dan coba kembali.'
-          );
-        } else {
-          setErrorMessage(
-            'Login gagal. Silakan periksa data dan coba kembali.'
-          );
-        }
-
-        return;
+      if (!data.user || !data.session) {
+        throw new Error('Sesi login tidak berhasil dibuat.');
       }
 
-      // Pastikan sesi login tersedia
-      if (!data.session || !data.user) {
-        await supabase.auth.signOut();
-        setErrorMessage(
-          'Sesi login tidak berhasil dibuat. Silakan coba kembali.'
-        );
-        return;
-      }
-
-      // Ambil role pengguna dari tabel profiles
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
         .maybeSingle();
 
-      if (profileError || !profile) {
-        await supabase.auth.signOut();
-        setErrorMessage(
-          'Profil akun tidak ditemukan. Silakan hubungi admin.'
-        );
-        return;
+      if (profileError) throw profileError;
+
+      if (!profile) {
+        throw new Error('Profil akun tidak ditemukan.');
       }
 
-      // Arahkan pengguna sesuai role di Supabase
-      if (profile.role === "admin") {
-        setSuccessMessage("Login berhasil! Mengarahkan ke halaman admin...");
-
-        setTimeout(() => {
-          router.replace("/admin/index_admin");
-        }, 1000);
-
-        return;
-      }
-
-      if (profile.role === "user") {
-        setSuccessMessage("Login berhasil! Selamat datang di ra_scrafts.id.");
-
-        setTimeout(() => {
-          router.replace("/user/Katalog");
-        }, 1000);
-
-        return;
-      }
-
-      // Jika role tidak dikenal
-      await supabase.auth.signOut();
-      setErrorMessage("Role akun tidak dikenali. Silakan hubungi admin.");
+      setSuccessMessage('Login berhasil!');
+      navigateByRole(profile.role);
 
     } catch (error: unknown) {
-      console.error('Kesalahan login:', error);
+      console.error('Login error:', error);
 
-      setErrorMessage(
-        'Terjadi kesalahan saat login. Periksa koneksi internet kamu.'
-      );
+      const message =
+        error instanceof Error ? error.message : '';
+
+      if (message.toLowerCase().includes('invalid login')) {
+        setErrorMessage('Email atau password salah.');
+      } else if (message.toLowerCase().includes('email not confirmed')) {
+        setErrorMessage('Email belum dikonfirmasi.');
+      } else {
+        setErrorMessage(message || 'Login gagal. Silakan coba kembali.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Fungsi Login dengan Google (OAuth)
-  const handleGoogleLogin = async () => {
-    try {
-      setLoading(true);
-      setErrorMessage('');
-      setSuccessMessage('');
+  // Login Google
+  
 
-      const redirectTo = AuthSession.makeRedirectUri({
-        path: 'auth/callback',
-      });
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
+const handleGoogleLogin = async () => {
+  try {
+    setLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    console.log('GOOGLE LOGIN DIMULAI');
+
+    // Redirect berbeda untuk web dan Expo Go
+    const redirectTo =
+      Platform.OS === 'web'
+        ? `${window.location.origin}/auth/callback`
+        : AuthSession.makeRedirectUri({
+            path: 'auth/callback',
+          });
+
+    console.log('REDIRECT URL:', redirectTo);
+
+    const { data, error } =
+      await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
+          skipBrowserRedirect: true,
           queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'select_account',
           },
         },
       });
 
-      if (error) throw error;
-    } catch (error: any) {
-      setErrorMessage('Gagal login dengan Google: ' + error.message);
-    } finally {
-      setLoading(false);
+    if (error) throw error;
+    if (!data.url) {
+      throw new Error('URL Google tidak ditemukan');
     }
-  };
+
+    // WEB: biarkan browser menuju Google,
+    // kemudian kembali ke halaman callback.
+    if (Platform.OS === 'web') {
+      window.location.assign(data.url);
+      return;
+    }
+
+    // ANDROID: buka browser autentikasi.
+    const result = await WebBrowser.openAuthSessionAsync(
+      data.url,
+      redirectTo
+    );
+
+    console.log('HASIL AUTH:', JSON.stringify(result));
+
+    if (result.type !== 'success' || !result.url) {
+      throw new Error(
+        'Google belum mengembalikan pengguna ke aplikasi. ' +
+        'Coba periksa redirect Expo Go.'
+      );
+    }
+
+    // Ambil authorization code
+    const callbackUrl = new URL(result.url);
+    const code = callbackUrl.searchParams.get('code');
+
+    if (!code) {
+      throw new Error(
+        'Authorization code tidak ditemukan: ' + result.url
+      );
+    }
+
+    // Tukar code menjadi session SATU KALI.
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.exchangeCodeForSession(code);
+
+    if (sessionError) throw sessionError;
+
+    const user = sessionData.user;
+
+    if (!user) {
+      throw new Error('Pengguna tidak ditemukan');
+    }
+
+    // Ambil role pengguna
+    const { data: profile, error: profileError } =
+      await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (profileError) throw profileError;
+
+    let role = profile?.role;
+
+    // Buat profil jika belum tersedia
+    if (!profile) {
+      const fullName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split('@')[0] ||
+        'Pengguna';
+
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          full_name: fullName,
+          role: 'user',
+        });
+
+      if (insertError) throw insertError;
+
+      role = 'user';
+    }
+
+    setSuccessMessage('Login Google berhasil!');
+
+    if (role === 'admin') {
+      router.replace('/admin/index_admin');
+    } else if (role === 'user') {
+      router.replace('/user/Katalog');
+    } else {
+      throw new Error('Role pengguna tidak dikenal');
+    }
+
+  } catch (error: unknown) {
+    console.error('GOOGLE LOGIN ERROR:', error);
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Login Google gagal';
+
+    setErrorMessage(message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -198,7 +268,6 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.formContainer}>
-          {/* Input email */}
           <View style={styles.inputWrapper}>
             <Ionicons
               name="mail-outline"
@@ -224,7 +293,6 @@ export default function LoginScreen() {
             />
           </View>
 
-          {/* Input password */}
           <View style={styles.inputWrapper}>
             <Ionicons
               name="lock-closed-outline"
@@ -251,7 +319,6 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
-              activeOpacity={0.7}
               disabled={loading}
               style={styles.eyeButton}
             >
@@ -263,7 +330,6 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Pesan validasi di luar tombol */}
           {errorMessage !== '' && (
             <View style={styles.errorContainer}>
               <Ionicons
@@ -290,12 +356,8 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* Tombol login manual */}
           <TouchableOpacity
-            style={[
-              styles.button,
-              loading && styles.buttonDisabled,
-            ]}
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
             activeOpacity={0.8}
             disabled={loading}
@@ -305,25 +367,27 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Garis atau pemisah */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>Atau</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Tombol Login Google */}
           <TouchableOpacity
-            style={[styles.googleButton, loading && styles.buttonDisabled]}
+            style={[
+              styles.googleButton,
+              loading && styles.buttonDisabled,
+            ]}
             onPress={handleGoogleLogin}
             activeOpacity={0.8}
             disabled={loading}
           >
             <Ionicons name="logo-google" size={18} color="#EA4335" />
-            <Text style={styles.googleButtonText}>Masuk dengan Google</Text>
+            <Text style={styles.googleButtonText}>
+              {loading ? 'Menghubungkan...' : 'Masuk dengan Google'}
+            </Text>
           </TouchableOpacity>
 
-          {/* Link register */}
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>
               Belum punya akun?{' '}
@@ -331,7 +395,6 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               onPress={() => router.push('/register')}
-              activeOpacity={0.7}
               disabled={loading}
             >
               <Text style={styles.linkText}>Daftar</Text>
@@ -475,7 +538,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginTop: 0,
     marginBottom: 16,
   },
 
