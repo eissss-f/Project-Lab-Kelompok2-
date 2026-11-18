@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -32,6 +33,9 @@ export default function ProfilAdminScreen() {
   const [adminEmail, setAdminEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  // State tambahan khusus untuk mengontrol visibilitas Modal desain konfirmasi logout
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
   const loadAdminProfile = useCallback(async () => {
     setLoading(true);
@@ -131,18 +135,8 @@ export default function ProfilAdminScreen() {
 
       if (confirmed) await confirmLogout();
     } else {
-      Alert.alert(
-        'Konfirmasi Logout',
-        'Apakah kamu yakin ingin keluar dari akun admin?',
-        [
-          { text: 'Batal', style: 'cancel' },
-          {
-            text: 'Keluar',
-            style: 'destructive',
-            onPress: confirmLogout,
-          },
-        ]
-      );
+      // Menampilkan Modal Kustom UI yang selaras dengan tema aplikasi
+      setIsLogoutModalVisible(true);
     }
   };
 
@@ -312,6 +306,54 @@ export default function ProfilAdminScreen() {
           <Text style={styles.logoutText}>Keluar dari Mode Admin</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Modal Desain Konfirmasi Logout Admin */}
+      <Modal
+        visible={isLogoutModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsLogoutModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="log-out-outline" size={28} color={COLORS.primary} />
+            </View>
+            <Text style={styles.modalTitle}>Konfirmasi Logout</Text>
+            <Text style={styles.modalSubtitle}>
+              Apakah kamu yakin ingin keluar dari akun admin?
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelModalButton}
+                onPress={() => setIsLogoutModalVisible(false)}
+              >
+                <Text style={styles.cancelModalText}>Batal</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmModalButton}
+                onPress={async () => {
+                  setIsLogoutModalVisible(false);
+                  try {
+                    const { error } = await supabase.auth.signOut();
+                    if (error) throw error;
+                    setIsLoggedIn(false);
+                    router.replace('/login' as any);
+                  } catch (error: any) {
+                    const message =
+                      error?.message ?? 'Terjadi kesalahan saat keluar dari akun.';
+                    Alert.alert('Gagal Logout', message);
+                  }
+                }}
+              >
+                <Text style={styles.confirmModalText}>Keluar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -469,5 +511,84 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
     color: COLORS.primary,
+  },
+  // Style tambahan untuk Modal Konfirmasi Logout yang estetik
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(73, 52, 60, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 22,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+    shadowColor: '#7E3E55',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  modalIconContainer: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: COLORS.lightPink,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontFamily: 'Playfair Display',
+    fontWeight: '700',
+    fontSize: 20,
+    color: COLORS.textDark,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontFamily: 'Poppins',
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 22,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelModalButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: COLORS.lightPink,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelModalText: {
+    fontFamily: 'Poppins',
+    fontWeight: '600',
+    fontSize: 13,
+    color: COLORS.primary,
+  },
+  confirmModalButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmModalText: {
+    fontFamily: 'Poppins',
+    fontWeight: '600',
+    fontSize: 13,
+    color: COLORS.white,
   },
 });
