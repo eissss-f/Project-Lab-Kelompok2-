@@ -1,3 +1,4 @@
+import '@/global.css';
 import React, { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useCart, CartItem, parsePrice } from './keranjang';

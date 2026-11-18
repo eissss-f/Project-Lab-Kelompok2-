@@ -1,3 +1,4 @@
+import '@/global.css';
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
@@ -508,6 +509,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   textInputNote: {
+    outlineWidth: 0,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 10,

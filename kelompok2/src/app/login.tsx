@@ -1,4 +1,4 @@
-
+import '@/global.css';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { Platform } from 'react-native';  
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image as ExpoImage } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import { useGoogleButtonFont } from '../hooks/use-google-button-font';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import * as Linking from 'expo-linking';
@@ -27,6 +29,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const poppinsLoaded = useGoogleButtonFont();
 
   // Arahkan berdasarkan role pengguna
   const navigateByRole = (role: string) => {
@@ -255,7 +258,7 @@ const handleGoogleLogin = async () => {
       >
         <View style={styles.headerContainer}>
           <Image
-            source={require('../../assets/images/logo_racrafts.jpg.jpeg')}
+            source={require('../../assets/images/logo_racrafts.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -263,7 +266,7 @@ const handleGoogleLogin = async () => {
           <Text style={styles.brandTitle}>ra_scrafts.id</Text>
           <Text style={styles.welcomeTitle}>Selamat Datang</Text>
           <Text style={styles.welcomeSub}>
-            Login untuk melanjutkan
+            Masuk untuk melanjutkan
           </Text>
         </View>
 
@@ -382,9 +385,18 @@ const handleGoogleLogin = async () => {
             activeOpacity={0.8}
             disabled={loading}
           >
-            <Ionicons name="logo-google" size={18} color="#EA4335" />
-            <Text style={styles.googleButtonText}>
-              {loading ? 'Menghubungkan...' : 'Masuk dengan Google'}
+            <ExpoImage
+              source={require('../../assets/expo.icon/Assets/logo-google.svg')}
+              style={styles.googleIcon}
+              contentFit="contain"
+            />
+            <Text
+              style={[
+                styles.googleButtonText,
+                poppinsLoaded && styles.poppinsButtonFont,
+              ]}
+            >
+              Masuk dengan Google
             </Text>
           </TouchableOpacity>
 
@@ -432,7 +444,7 @@ const styles = StyleSheet.create({
 
   brandTitle: {
     fontSize: 16,
-    fontFamily: 'Poppins',
+    fontFamily: 'Times New Roman',
     fontWeight: '600',
     color: '#A83F68',
     marginBottom: 16,
@@ -440,7 +452,7 @@ const styles = StyleSheet.create({
 
   welcomeTitle: {
     fontSize: 24,
-    fontFamily: 'Playfair Display',
+    fontFamily: 'Times New Roman',
     fontWeight: '700',
     color: '#A83F68',
     marginBottom: 4,
@@ -448,7 +460,7 @@ const styles = StyleSheet.create({
 
   welcomeSub: {
     fontSize: 13,
-    fontFamily: 'Poppins',
+    fontFamily: 'Times New Roman',
     color: '#A83F68',
     opacity: 0.7,
   },
@@ -477,7 +489,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontSize: 14,
-    fontFamily: 'Poppins',
+    fontFamily: 'Times New Roman',
     color: '#A83F68',
     paddingVertical: 0,
   },
@@ -504,7 +516,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#A83250',
     fontSize: 12,
-    fontFamily: 'Poppins',
+    fontFamily: 'Times New Roman',
     lineHeight: 18,
     marginLeft: 8,
   },
@@ -526,7 +538,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#2E7D32',
     fontSize: 12,
-    fontFamily: 'Poppins',
+    fontFamily: 'Times New Roman',
     lineHeight: 18,
     marginLeft: 8,
   },
@@ -548,7 +560,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#FFF8F0',
     fontSize: 15,
-    fontFamily: 'Poppins',
+    fontFamily: 'Times New Roman',
     fontWeight: '700',
   },
 
@@ -568,7 +580,7 @@ const styles = StyleSheet.create({
   dividerText: {
     marginHorizontal: 10,
     fontSize: 12,
-    fontFamily: 'Poppins',
+    fontFamily: 'Times New Roman',
     color: '#A83F68',
     opacity: 0.7,
   },
@@ -577,21 +589,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     minHeight: 48,
+    alignSelf: 'center',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: '#E8A6BD',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 20,
     gap: 8,
+    marginBottom: 20,
+  },
+
+  googleIcon: {
+    width: 24,
+    height: 24,
   },
 
   googleButtonText: {
     color: '#49343C',
     fontSize: 14,
-    fontFamily: 'Poppins',
-    fontWeight: '600',
+    fontWeight: '500',
+  },
+
+  poppinsButtonFont: {
+    fontFamily: 'GoogleButtonPoppins',
   },
 
   footerRow: {
@@ -602,13 +623,13 @@ const styles = StyleSheet.create({
 
   footerText: {
     fontSize: 13,
-    fontFamily: 'Poppins',
+    fontFamily: 'Times New Roman',
     color: '#A83F68',
   },
 
   linkText: {
     fontSize: 13,
-    fontFamily: 'Poppins',
+    fontFamily: 'Times New Roman',
     fontWeight: '700',
     color: '#A83F68',
   },

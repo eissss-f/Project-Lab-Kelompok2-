@@ -21,7 +21,7 @@ export default function LandingPageScreen() {
         onPress={() => router.replace('/login')}
       >
         <Image
-          source={require('../../assets/images/logo_racrafts.jpg.jpeg')}
+          source={require('../../assets/images/logo_racrafts.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />

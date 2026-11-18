@@ -1,4 +1,4 @@
-
+import '@/global.css';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -172,7 +172,7 @@ export default function Katalog() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF8F0" />
+      <StatusBar barStyle="dark-content" />
 
       {/* Header Toko */}
       <View style={styles.storeHeader}>
@@ -322,6 +322,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandTitle: {
+    fontFamily: 'Times New Roman',
     fontWeight: '600',
     fontSize: 27,
     color: '#A83F68',

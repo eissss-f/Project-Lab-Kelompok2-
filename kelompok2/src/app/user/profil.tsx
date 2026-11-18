@@ -1,3 +1,4 @@
+import '@/global.css';
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -858,6 +859,7 @@ const styles = StyleSheet.create({
   },
 
   editInput: {
+    outlineWidth: 0,
     color: colors.berry,
     fontSize: 14,
     backgroundColor: colors.palePink,

@@ -1,3 +1,4 @@
+import '@/global.css';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -172,7 +173,7 @@ const handleRegister = async () => {
       >
         <View style={styles.headerContainer}>
           <Image
-            source={require('../../assets/images/logo_racrafts.jpg.jpeg')}
+            source={require('../../assets/images/logo_racrafts.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -355,7 +356,7 @@ const handleRegister = async () => {
             activeOpacity={0.7}
           >
             <Text style={styles.loginLinkText}>
-              Sudah punya akun? Masuk
+              Sudah punya akun? <Text style={styles.loginLinkBold}>Masuk</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -378,6 +379,7 @@ successContainer: {
 successText: {
   color: '#2E7D32',
   fontSize: 12,
+  fontFamily: 'Times New Roman',
   marginLeft: 6,
   flex: 1,
 },
@@ -402,12 +404,14 @@ successText: {
   },
   headerTitle: {
     fontSize: 22,
+    fontFamily: 'Times New Roman',
     fontWeight: '700',
     color: '#A83F68',
     marginBottom: 4,
   },
   headerSub: {
     fontSize: 12,
+    fontFamily: 'Times New Roman',
     color: '#A83F68',
     opacity: 0.7,
   },
@@ -425,11 +429,13 @@ successText: {
   errorText: {
     color: '#D9534F',
     fontSize: 11,
+    fontFamily: 'Times New Roman',
     marginLeft: 6,
     flex: 1,
   },
   label: {
     fontSize: 12,
+    fontFamily: 'Times New Roman',
     fontWeight: '600',
     color: '#A83F68',
     marginBottom: 4,
@@ -450,7 +456,9 @@ successText: {
   },
   input: {
     flex: 1,
+
     fontSize: 13,
+    fontFamily: 'Times New Roman',
     color: '#A83F68',
   },
   checkboxRow: {
@@ -461,10 +469,12 @@ successText: {
   },
   checkboxText: {
     fontSize: 11,
+    fontFamily: 'Times New Roman',
     color: '#A83F68',
     marginLeft: 8,
   },
   boldText: {
+    fontFamily: 'Times New Roman',
     fontWeight: '700',
   },
   button: {
@@ -481,6 +491,7 @@ successText: {
   buttonText: {
     color: '#FFF8F0',
     fontSize: 14,
+    fontFamily: 'Times New Roman',
     fontWeight: '700',
   },
   loginLink: {
@@ -488,7 +499,12 @@ successText: {
   },
   loginLinkText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Times New Roman',
+    fontWeight: '400',
     color: '#A83F68',
+  },
+  loginLinkBold: {
+    fontFamily: 'Times New Roman',
+    fontWeight: '700',
   },
 });

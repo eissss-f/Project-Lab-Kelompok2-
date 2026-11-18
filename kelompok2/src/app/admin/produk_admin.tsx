@@ -1,3 +1,4 @@
+import '@/global.css';
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
@@ -898,6 +899,7 @@ const styles = StyleSheet.create({
   pinkText: { color: COLORS.primary, fontWeight: "700", fontSize: 13 },
   input: {
     minHeight: 46,
+    outlineWidth: 0,
     backgroundColor: COLORS.white,
     borderColor: COLORS.border,
     borderWidth: 1,
@@ -935,6 +937,7 @@ const styles = StyleSheet.create({
   smallLabel: { fontSize: 11, color: COLORS.dark, marginBottom: 5 },
   smallInput: {
     height: 43,
+    outlineWidth: 0,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 9,
