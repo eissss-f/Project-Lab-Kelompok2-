@@ -1,0 +1,97 @@
+text,intent
+halo kak,salam
+hai min,salam
+selamat pagi,salam
+selamat siang,salam
+selamat sore,salam
+selamat malam,salam
+assalamualaikum,salam
+permisi kak,salam
+halo admin ra scrafts,salam
+hai selamat pagi kak,salam
+kamu siapa,identitas_bot
+kamu namanya siapa,identitas_bot
+siapa kamu ini,identitas_bot
+nama kamu siapa ya,identitas_bot
+kamu bot atau admin,identitas_bot
+ini asisten ai ya,identitas_bot
+kamu bisa bantu apa aja,identitas_bot
+perkenalkan dirimu dong,identitas_bot
+berapa harga buket disini,tanya_harga
+kisaran harga buket berapa ya,tanya_harga
+harga buket bunga berapa kak,tanya_harga
+buket budget 50 ribu ada gak,tanya_harga
+harga buket 100 ribu dapat apa,tanya_harga
+list harga buket budget 200 ribu,tanya_harga
+buket paling murah berapa harganya,tanya_harga
+buket paling mahal yang mana,tanya_harga
+daftar harga buket di katalog,tanya_harga
+budget 150rb bisa dapat buket apa,tanya_harga
+ada jenis buket apa saja kak,tanya_jenis
+katalog buketnya ada macam apa aja,tanya_jenis
+jual buket uang sama snack gak,tanya_jenis
+ada buket boneka gak disini,tanya_jenis
+pilihan ukuran buket ada apa saja,tanya_jenis
+varian buket bunga ada apa aja,tanya_jenis
+macam macam buket yang tersedia,tanya_jenis
+kategori buket di toko ini apa aja,tanya_jenis
+rekomendasi buket wisuda dong kak,rekomendasi
+buat ngasih kepacar bagusnya yang mana,rekomendasi
+saran buket untuk ulang tahun sahabat,rekomendasi
+buket yang cocok buat anniversary apa ya,rekomendasi
+pilihkan buket untuk lamaran dong,rekomendasi
+rekomendasi kado pernikahan yang bagus,rekomendasi
+buket buat hadiah kelahiran bayi ada gak,rekomendasi
+saran buket buat pacar budget 200 ribu,rekomendasi
+rekomendasi buket buat sidang skripsi,rekomendasi
+mau kasih hadiah ke doi bagusnya buket apa,rekomendasi
+kapan pesanan bisa diambil di toko,jadwal_ambil
+jadwal pengambilan buket jam berapa,jadwal_ambil
+ambil pesanan hari ini bisa gak,jadwal_ambil
+cara atur jadwal ambil di toko gimana,jadwal_ambil
+toko buka jam berapa untuk ambil buket,jadwal_ambil
+pengambilan pesanan dilakukan dimana,jadwal_ambil
+kapan waktu ambil buketnya kak,jadwal_ambil
+cara pembayaran apa saja kak,pembayaran
+bisa bayar pakai transfer bank gak,pembayaran
+nomor rekening pembayaran lihat dimana,pembayaran
+pembayarannya lewat apa ya kak,pembayaran
+apakah bisa bayar pakai qris atau ewallet,pembayaran
+upload bukti transfer pembayarannya dimana,pembayaran
+metode pembayaran saat checkout apa aja,pembayaran
+beli 2 apakah ada diskon kak,promo_diskon
+ada promo atau potongan harga gak,promo_diskon
+kalau beli banyak dapat diskon gak ya,promo_diskon
+ada harga grosir kalau pesan 3 buket,promo_diskon
+lagi ada promo buket bulan ini gak,promo_diskon
+beli dua buket dapat potongan gak kak,promo_diskon
+bisa custom warna kertas wrapping gak,custom_buket
+dapat kartu ucapan gratis gak kak,custom_buket
+bisa request tulisan di greeting card,custom_buket
+apakah bisa request warna pita buket,custom_buket
+bisa custom isi snack atau uangnya gak,custom_buket
+tulis ucapan buat pacar bisa dibantu gak,custom_buket
+berapa lama proses pengerjaan buketnya,estimasi_proses
+bisa pesan dadakan hari ini jadi gak,estimasi_proses
+sistemnya pre order atau ready stok kak,estimasi_proses
+estimasi pembuatan buket berapa hari,estimasi_proses
+kalau pesan sekarang besok bisa diambil gak,estimasi_proses
+apakah buketnya ready atau harus po dulu,estimasi_proses
+bisa dikirim lewat kurir atau ojol gak,pengiriman
+apakah melayani pengiriman ke rumah,pengiriman
+bisa kirim pakai gosend atau grab gak,pengiriman
+ongkir ke alamat saya berapa ya,pengiriman
+apakah bisa cod diantar ke rumah,pengiriman
+pengirimannya diantar atau ambil sendiri,pengiriman
+pesanan saya kok belum sesuai ya kak,keluhan
+buket yang diterima agak lecek nih,keluhan
+saya mau komplain pesanan saya,keluhan
+pesanan saya salah ukuran kak,keluhan
+ada masalah sama pesanan buket saya,keluhan
+bisa refund atau ganti kalau rusak gak,keluhan
+cuaca hari ini cerah gak ya,luar_konteks
+siapa presiden indonesia sekarang,luar_konteks
+ceritain dongeng sebelum tidur dong,luar_konteks
+rumus matematika luas lingkaran apa,luar_konteks
+rekomendasi film horor yang seru,luar_konteks
+lagi ngapain sekarang,luar_konteks

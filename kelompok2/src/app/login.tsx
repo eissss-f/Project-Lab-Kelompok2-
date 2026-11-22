@@ -82,12 +82,37 @@ export default function LoginScreen() {
 
       if (profileError) throw profileError;
 
+      let role = profile?.role;
+
+      // Jika akun sudah terdaftar di Auth tapi baris profiles belum terbentuk, buat otomatis
       if (!profile) {
-        throw new Error('Profil akun tidak ditemukan.');
+        const fullName =
+          data.user.user_metadata?.full_name ||
+          data.user.user_metadata?.name ||
+          data.user.email?.split('@')[0] ||
+          'Pengguna';
+
+        const { error: insertProfileError } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: data.user.id,
+              full_name: fullName,
+              phone: data.user.user_metadata?.phone || null,
+              role: 'user',
+            },
+            { onConflict: 'id' }
+          );
+
+        if (insertProfileError) {
+          throw new Error('Profil akun tidak ditemukan.');
+        }
+
+        role = 'user';
       }
 
       setSuccessMessage('Login berhasil!');
-      navigateByRole(profile.role);
+      navigateByRole(role);
 
     } catch (error: unknown) {
       console.error('Login error:', error);
@@ -108,146 +133,141 @@ export default function LoginScreen() {
   };
 
   // Login Google
-  
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setErrorMessage('');
+      setSuccessMessage('');
 
+      console.log('GOOGLE LOGIN DIMULAI');
 
-const handleGoogleLogin = async () => {
-  try {
-    setLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
+      // Redirect berbeda untuk web dan Expo Go
+      const redirectTo =
+        Platform.OS === 'web'
+          ? `${window.location.origin}/auth/callback`
+          : AuthSession.makeRedirectUri({
+              path: 'auth/callback',
+            });
 
-    console.log('GOOGLE LOGIN DIMULAI');
+      console.log('REDIRECT URL:', redirectTo);
 
-    // Redirect berbeda untuk web dan Expo Go
-    const redirectTo =
-      Platform.OS === 'web'
-        ? `${window.location.origin}/auth/callback`
-        : AuthSession.makeRedirectUri({
-            path: 'auth/callback',
-          });
-
-    console.log('REDIRECT URL:', redirectTo);
-
-    const { data, error } =
-      await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-          queryParams: {
-            prompt: 'select_account',
+      const { data, error } =
+        await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo,
+            skipBrowserRedirect: true,
+            queryParams: {
+              prompt: 'select_account',
+            },
           },
-        },
-      });
-
-    if (error) throw error;
-    if (!data.url) {
-      throw new Error('URL Google tidak ditemukan');
-    }
-
-    // WEB: biarkan browser menuju Google,
-    // kemudian kembali ke halaman callback.
-    if (Platform.OS === 'web') {
-      window.location.assign(data.url);
-      return;
-    }
-
-    // ANDROID: buka browser autentikasi.
-    const result = await WebBrowser.openAuthSessionAsync(
-      data.url,
-      redirectTo
-    );
-
-    console.log('HASIL AUTH:', JSON.stringify(result));
-
-    if (result.type !== 'success' || !result.url) {
-      throw new Error(
-        'Google belum mengembalikan pengguna ke aplikasi. ' +
-        'Coba periksa redirect Expo Go.'
-      );
-    }
-
-    // Ambil authorization code
-    const callbackUrl = new URL(result.url);
-    const code = callbackUrl.searchParams.get('code');
-
-    if (!code) {
-      throw new Error(
-        'Authorization code tidak ditemukan: ' + result.url
-      );
-    }
-
-    // Tukar code menjadi session SATU KALI.
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.exchangeCodeForSession(code);
-
-    if (sessionError) throw sessionError;
-
-    const user = sessionData.user;
-
-    if (!user) {
-      throw new Error('Pengguna tidak ditemukan');
-    }
-
-    // Ambil role pengguna
-    const { data: profile, error: profileError } =
-      await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-    if (profileError) throw profileError;
-
-    let role = profile?.role;
-
-    // Buat profil jika belum tersedia
-    if (!profile) {
-      const fullName =
-        user.user_metadata?.full_name ||
-        user.user_metadata?.name ||
-        user.email?.split('@')[0] ||
-        'Pengguna';
-
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          id: user.id,
-          full_name: fullName,
-          role: 'user',
         });
 
-      if (insertError) throw insertError;
+      if (error) throw error;
+      if (!data.url) {
+        throw new Error('URL Google tidak ditemukan');
+      }
 
-      role = 'user';
+      // WEB: biarkan browser menuju Google,
+      // kemudian kembali ke halaman callback.
+      if (Platform.OS === 'web') {
+        window.location.assign(data.url);
+        return;
+      }
+
+      // ANDROID: buka browser autentikasi.
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectTo
+      );
+
+      console.log('HASIL AUTH:', JSON.stringify(result));
+
+      if (result.type !== 'success' || !result.url) {
+        throw new Error(
+          'Google belum mengembalikan pengguna ke aplikasi. ' +
+          'Coba periksa redirect Expo Go.'
+        );
+      }
+
+      // Ambil authorization code
+      const callbackUrl = new URL(result.url);
+      const code = callbackUrl.searchParams.get('code');
+
+      if (!code) {
+        throw new Error(
+          'Authorization code tidak ditemukan: ' + result.url
+        );
+      }
+
+      // Tukar code menjadi session SATU KALI.
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.exchangeCodeForSession(code);
+
+      if (sessionError) throw sessionError;
+
+      const user = sessionData.user;
+
+      if (!user) {
+        throw new Error('Pengguna tidak ditemukan');
+      }
+
+      // Ambil role pengguna
+      const { data: profile, error: profileError } =
+        await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      let role = profile?.role;
+
+      // Buat profil jika belum tersedia
+      if (!profile) {
+        const fullName =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email?.split('@')[0] ||
+          'Pengguna';
+
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: fullName,
+            role: 'user',
+          });
+
+        if (insertError) throw insertError;
+
+        role = 'user';
+      }
+
+      setSuccessMessage('Login Google berhasil!');
+
+      if (role === 'admin') {
+        router.replace('/admin/index_admin');
+      } else if (role === 'user') {
+        router.replace('/user/Katalog');
+      } else {
+        throw new Error('Role pengguna tidak dikenal');
+      }
+
+    } catch (error: unknown) {
+      console.error('GOOGLE LOGIN ERROR:', error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Login Google gagal';
+
+      setErrorMessage(message);
+    } finally {
+      setLoading(false);
     }
-
-    setSuccessMessage('Login Google berhasil!');
-
-    if (role === 'admin') {
-      router.replace('/admin/index_admin');
-    } else if (role === 'user') {
-      router.replace('/user/Katalog');
-    } else {
-      throw new Error('Role pengguna tidak dikenal');
-    }
-
-  } catch (error: unknown) {
-    console.error('GOOGLE LOGIN ERROR:', error);
-
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Login Google gagal';
-
-    setErrorMessage(message);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
+  };
 
   return (
     <SafeAreaView style={styles.container}>

@@ -29,140 +29,155 @@ export default function RegisterScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  
-const handleRegister = async () => {
-  setErrorMessage('');
-  setSuccessMessage('');
+  const handleRegister = async () => {
+    setErrorMessage('');
+    setSuccessMessage('');
 
-  const namaTrim = namaLengkap.trim();
-  const emailTrim = email.trim().toLowerCase();
-  const nomorHpTrim = nomorHp.trim();
+    const namaTrim = namaLengkap.trim();
+    const emailTrim = email.trim().toLowerCase();
+    const nomorHpTrim = nomorHp.trim();
 
-  // Validasi nama
-  if (!namaTrim) {
-    setErrorMessage('Nama lengkap wajib diisi.');
-    return;
-  }
+    // Validasi nama
+    if (!namaTrim) {
+      setErrorMessage('Nama lengkap wajib diisi.');
+      return;
+    }
 
-  // Validasi email
-  if (!emailTrim) {
-    setErrorMessage('Email wajib diisi.');
-    return;
-  }
+    // Validasi email
+    if (!emailTrim) {
+      setErrorMessage('Email wajib diisi.');
+      return;
+    }
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
 
-  if (!emailValid) {
-    setErrorMessage('Format email tidak valid. Contoh: nama@email.com');
-    return;
-  }
+    if (!emailValid) {
+      setErrorMessage('Format email tidak valid. Contoh: nama@email.com');
+      return;
+    }
 
-  // Validasi password
-  if (!password) {
-    setErrorMessage('Password wajib diisi.');
-    return;
-  }
+    // Validasi password
+    if (!password) {
+      setErrorMessage('Password wajib diisi.');
+      return;
+    }
 
-  if (password.length < 8) {
-    setErrorMessage('Password minimal harus 8 karakter.');
-    return;
-  }
+    if (password.length < 8) {
+      setErrorMessage('Password minimal harus 8 karakter.');
+      return;
+    }
 
-  if (!confirmPassword) {
-    setErrorMessage('Konfirmasi password wajib diisi.');
-    return;
-  }
+    if (!confirmPassword) {
+      setErrorMessage('Konfirmasi password wajib diisi.');
+      return;
+    }
 
-  if (password !== confirmPassword) {
-    setErrorMessage('Password dan konfirmasi password tidak sama.');
-    return;
-  }
+    if (password !== confirmPassword) {
+      setErrorMessage('Password dan konfirmasi password tidak sama.');
+      return;
+    }
 
-  if (!agree) {
-    setErrorMessage('Silakan setujui Syarat & Ketentuan terlebih dahulu.');
-    return;
-  }
+    if (!agree) {
+      setErrorMessage('Silakan setujui Syarat & Ketentuan terlebih dahulu.');
+      return;
+    }
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
-      email: emailTrim,
-      password,
-      options: {
-        data: {
-          full_name: namaTrim,
-          phone: nomorHpTrim,
+      const { data, error } = await supabase.auth.signUp({
+        email: emailTrim,
+        password,
+        options: {
+          data: {
+            full_name: namaTrim,
+            phone: nomorHpTrim,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      console.error('Register gagal:', error.message);
+      if (error) {
+        console.error('Register gagal:', error.message);
 
-      const message = error.message.toLowerCase();
+        const message = error.message.toLowerCase();
 
-      if (
-        message.includes('already registered') ||
-        message.includes('already been registered') ||
-        message.includes('already exists')
-      ) {
-        setErrorMessage(
-          'Email ini sudah terdaftar. Silakan masuk menggunakan akun kamu.'
-        );
-      } else if (message.includes('password')) {
-        setErrorMessage(
-          'Password tidak memenuhi ketentuan. Periksa kembali password kamu.'
-        );
-      } else if (
-        message.includes('network') ||
-        message.includes('fetch')
-      ) {
-        setErrorMessage(
-          'Tidak dapat terhubung ke server. Periksa koneksi internet kamu.'
-        );
-      } else {
-        setErrorMessage(
-          'Pendaftaran gagal. ' + error.message
-        );
+        if (
+          message.includes('already registered') ||
+          message.includes('already been registered') ||
+          message.includes('already exists')
+        ) {
+          setErrorMessage(
+            'Email ini sudah terdaftar. Silakan masuk menggunakan akun kamu.'
+          );
+        } else if (message.includes('password')) {
+          setErrorMessage(
+            'Password tidak memenuhi ketentuan. Periksa kembali password kamu.'
+          );
+        } else if (
+          message.includes('network') ||
+          message.includes('fetch')
+        ) {
+          setErrorMessage(
+            'Tidak dapat terhubung ke server. Periksa koneksi internet kamu.'
+          );
+        } else {
+          setErrorMessage(
+            'Pendaftaran gagal. ' + error.message
+          );
+        }
+
+        return;
       }
 
-      return;
-    }
+      if (!data.user) {
+        setErrorMessage(
+          'Pendaftaran belum berhasil. Silakan coba kembali.'
+        );
+        return;
+      }
 
-    if (!data.user) {
-      setErrorMessage(
-        'Pendaftaran belum berhasil. Silakan coba kembali.'
+      // Pastikan data profil tersimpan di tabel profiles agar login tidak gagal
+      const { error: profileUpsertError } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: data.user.id,
+            full_name: namaTrim,
+            phone: nomorHpTrim || null,
+            role: 'user',
+          },
+          { onConflict: 'id' }
+        );
+
+      if (profileUpsertError) {
+        console.warn('Peringatan upsert profil saat register:', profileUpsertError.message);
+      }
+
+      // Jika sesi tersedia, pengguna langsung login.
+      if (data.session) {
+        setSuccessMessage('Pendaftaran berhasil! Mengarahkan ke katalog...');
+
+        setTimeout(() => {
+          router.replace('/user/Katalog');
+        }, 1000);
+
+        return;
+      }
+
+      // Jika belum ada sesi, kemungkinan perlu konfirmasi email.
+      setSuccessMessage(
+        'Pendaftaran berhasil! Silakan cek email kamu untuk konfirmasi akun sebelum login.'
       );
-      return;
+    } catch (error: any) {
+      console.error('Kesalahan register:', error);
+
+      setErrorMessage(
+        'Terjadi kesalahan saat mendaftar. Periksa koneksi internet dan coba lagi.'
+      );
+    } finally {
+      setLoading(false);
     }
-
-    // Jika sesi tersedia, pengguna langsung login.
-    if (data.session) {
-      setSuccessMessage('Pendaftaran berhasil! Mengarahkan ke katalog...');
-
-      setTimeout(() => {
-        router.replace('/user/Katalog');
-      }, 1000);
-
-      return;
-    }
-
-    // Jika belum ada sesi, kemungkinan perlu konfirmasi email.
-    setSuccessMessage(
-      'Pendaftaran berhasil! Silakan cek email kamu untuk konfirmasi akun sebelum login.'
-    );
-  } catch (error: any) {
-    console.error('Kesalahan register:', error);
-
-    setErrorMessage(
-      'Terjadi kesalahan saat mendaftar. Periksa koneksi internet dan coba lagi.'
-    );
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -202,7 +217,6 @@ const handleRegister = async () => {
               <Text style={styles.successText}>{successMessage}</Text>
             </View>
           ) : null}
-
 
           <Text style={styles.label}>Nama Lengkap</Text>
           <View style={styles.inputWrapper}>
@@ -277,7 +291,6 @@ const handleRegister = async () => {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
-    
             />
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
@@ -366,24 +379,21 @@ const handleRegister = async () => {
 }
 
 const styles = StyleSheet.create({
-  
-successContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#E8F5E9',
-  padding: 10,
-  borderRadius: 8,
-  marginBottom: 12,
-},
-
-successText: {
-  color: '#2E7D32',
-  fontSize: 12,
-  fontFamily: 'Times New Roman',
-  marginLeft: 6,
-  flex: 1,
-},
-
+  successContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  successText: {
+    color: '#2E7D32',
+    fontSize: 12,
+    fontFamily: 'Times New Roman',
+    marginLeft: 6,
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFF8F0',
@@ -456,7 +466,6 @@ successText: {
   },
   input: {
     flex: 1,
-
     fontSize: 13,
     fontFamily: 'Times New Roman',
     color: '#A83F68',

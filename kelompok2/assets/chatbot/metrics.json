@@ -1,0 +1,22 @@
+{
+  "accuracy": 0.6,
+  "macro_f1": 0.4923,
+  "seq_len": 16,
+  "vocab_size": 193,
+  "num_classes": 13,
+  "labels": {
+    "custom_buket": 0,
+    "estimasi_proses": 1,
+    "identitas_bot": 2,
+    "jadwal_ambil": 3,
+    "keluhan": 4,
+    "luar_konteks": 5,
+    "pembayaran": 6,
+    "pengiriman": 7,
+    "promo_diskon": 8,
+    "rekomendasi": 9,
+    "salam": 10,
+    "tanya_harga": 11,
+    "tanya_jenis": 12
+  }
+}

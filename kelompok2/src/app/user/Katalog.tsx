@@ -13,7 +13,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Search, ShoppingCart, X } from 'lucide-react-native';
+import { MessageCircle, Search, ShoppingCart, X } from 'lucide-react-native';
 import ProductCard from '../../components/ProductCard';
 import { supabase } from '../../../lib/supabase';
 
@@ -305,6 +305,15 @@ export default function Katalog() {
           Dirangkai dengan hati, diberikan dengan cinta.
         </Text>
       </ScrollView>
+
+      {/* Tombol Floating Chatbot AI */}
+      <TouchableOpacity
+        style={styles.chatbotFab}
+        activeOpacity={0.85}
+        onPress={() => router.push('/user/chatbot' as any)}
+      >
+        <MessageCircle size={22} color="#FFF8F0" strokeWidth={2} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -338,7 +347,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 90,
   },
   introContainer: {
     marginTop: 4,
@@ -426,5 +435,23 @@ const styles = StyleSheet.create({
     color: '#A83F68',
     textAlign: 'center',
     marginTop: 20,
+  },
+  chatbotFab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#A83F68',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFF8F0',
+    elevation: 4,
+    shadowColor: '#49343C',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
 });
