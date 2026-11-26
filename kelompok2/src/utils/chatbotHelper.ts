@@ -667,7 +667,7 @@ export async function askGeminiForBuket(
     );
 
     if (error || !data) {
-      console.error('Supabase Edge Function Gemini error:', error);
+      console.warn("Supabase Edge Function Gemini fallback:", error);
       return null;
     }
 

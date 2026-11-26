@@ -1,4 +1,3 @@
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -6,8 +5,117 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Ganti model lama dengan model yang tersedia
-const GEMINI_MODEL = "gemini-3.8-flash";
+const GEMINI_MODELS = ["gemini-3.8-flash"];
+const GEMINI_TIMEOUT_MS = 22000;
+const RETRY_DELAYS_MS = [1500, 3000];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function callGeminiWithRetry(
+  apiKey: string,
+  systemInstruction: string,
+  contents: Array<{ role: string; parts: Array<{ text: string }> }>
+): Promise<{ ok: boolean; status: number; data?: any; errorText?: string }> {
+  let lastStatus = 502;
+  let lastErrorText = "Gemini gagal memberikan jawaban";
+
+  for (const model of GEMINI_MODELS) {
+    const maxAttempts = RETRY_DELAYS_MS.length + 1;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: systemInstruction }],
+              },
+              contents,
+              generationConfig: {
+                temperature: 0.4,
+                responseMimeType: "application/json",
+              },
+            }),
+          }
+        );
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          return { ok: true, status: 200, data };
+        }
+
+        lastStatus = response.status;
+        lastErrorText = await response.text();
+        console.warn(
+          `Gemini API warning (${model}, attempt ${attempt + 1}/${maxAttempts}):`,
+          response.status,
+          lastErrorText
+        );
+
+        const isRetryable = response.status === 503 || response.status === 429;
+        if (!isRetryable || attempt >= RETRY_DELAYS_MS.length) {
+          return {
+            ok: false,
+            status: response.status,
+            errorText: lastErrorText,
+          };
+        }
+
+        await sleep(RETRY_DELAYS_MS[attempt]);
+      } catch (err) {
+        clearTimeout(timeoutId);
+        const isAbort = err instanceof Error && err.name === "AbortError";
+        lastStatus = isAbort ? 504 : 502;
+        lastErrorText = err instanceof Error ? err.message : "Network error";
+        console.warn(
+          `Gemini fetch warning (${model}, attempt ${attempt + 1}/${maxAttempts}):`,
+          lastErrorText
+        );
+
+        if (attempt >= RETRY_DELAYS_MS.length) {
+          return {
+            ok: false,
+            status: lastStatus,
+            errorText: lastErrorText,
+          };
+        }
+
+        await sleep(RETRY_DELAYS_MS[attempt]);
+      }
+    }
+  }
+
+  return {
+    ok: false,
+    status: lastStatus,
+    errorText: lastErrorText,
+  };
+}
+
+function parseGeminiJson(rawText: string): {
+  text?: unknown;
+  recommendedIds?: unknown;
+} {
+  const cleaned = rawText
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  return JSON.parse(cleaned);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,14 +144,12 @@ Deno.serve(async (req) => {
     }
 
     const apiKey = Deno.env.get("GEMINI_API_KEY");
-
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY belum dikonfigurasi");
     }
 
-    // Mengamankan data katalog
     const safeCatalog = Array.isArray(catalog)
-      ? catalog.slice(0, 50).map((item: any) => ({
+      ? catalog.slice(0, 30).map((item: any) => ({
           id: String(item.id),
           title: String(item.title),
           category: String(item.category),
@@ -75,7 +181,6 @@ Aturan toko:
 - Jika tidak ada produk yang cocok, jelaskan dengan jujur.
 - Jika pertanyaan di luar toko, arahkan kembali ke topik buket.
 
-
 Aturan tambahan percakapan:
 1. Pahami konteks percakapan sebelumnya, jangan hanya membaca pesan terakhir.
 2. Jika pelanggan menjawab "oke", "okey", "baik", "makasih", "terima kasih", atau "siap", berikan respons ramah dan natural.
@@ -84,7 +189,6 @@ Aturan tambahan percakapan:
 5. Jika pelanggan mengatakan terima kasih, ucapkan kembali dengan ramah.
 6. Jangan mengulang rekomendasi produk kecuali pelanggan memintanya.
 7. Selalu gunakan riwayat percakapan untuk memahami maksud pelanggan.
-
 
 Data katalog:
 ${JSON.stringify(safeCatalog)}
@@ -96,13 +200,10 @@ Balas hanya menggunakan JSON valid dengan format:
 }
 `;
 
-    // Membatasi riwayat percakapan
     const safeHistory = Array.isArray(history)
-      ? history.slice(-10).map((item: any) => ({
+      ? history.slice(-8).map((item: any) => ({
           role: item.sender === "user" ? "user" : "model",
-          parts: [
-            { text: String(item.text).slice(0, 2000) },
-          ],
+          parts: [{ text: String(item.text || "").slice(0, 1500) }],
         }))
       : [];
 
@@ -110,65 +211,40 @@ Balas hanya menggunakan JSON valid dengan format:
       ...safeHistory,
       {
         role: "user",
-        parts: [{ text: message }],
+        parts: [{ text: message.trim() }],
       },
     ];
 
-    // Memanggil Gemini API
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemInstruction }],
-          },
-          contents,
-          generationConfig: {
-            temperature: 0.4,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
+    const geminiResult = await callGeminiWithRetry(
+      apiKey,
+      systemInstruction,
+      contents
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-
-      console.error("Gemini API error:", response.status, errorText);
-
+    if (!geminiResult.ok || !geminiResult.data) {
       return Response.json(
         {
-          error: "Gemini gagal memberikan jawaban",
-          details: errorText,
+          error: "Gemini sedang sibuk atau gagal memberikan jawaban",
+          details: geminiResult.errorText,
         },
         {
-          status: 502,
+          status: geminiResult.status >= 400 ? geminiResult.status : 502,
           headers: corsHeaders,
         }
       );
     }
 
-    const data = await response.json();
-
     const rawText =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      geminiResult.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawText) {
-      console.error("Gemini response kosong:", data);
+      console.warn("Gemini response kosong:", geminiResult.data);
       throw new Error("Jawaban Gemini kosong");
     }
 
-    const parsed = JSON.parse(rawText);
+    const parsed = parseGeminiJson(rawText);
 
-    // Memastikan rekomendasi hanya berasal dari katalog
-    const allowedIds = new Set(
-      safeCatalog.map((item: any) => item.id)
-    );
-
+    const allowedIds = new Set(safeCatalog.map((item: any) => item.id));
     const recommendedIds = Array.isArray(parsed.recommendedIds)
       ? parsed.recommendedIds
           .map(String)
@@ -187,9 +263,8 @@ Balas hanya menggunakan JSON valid dengan format:
         headers: corsHeaders,
       }
     );
-
   } catch (error) {
-    console.error("Chatbot error:", error);
+    console.warn("Chatbot fallback trigger:", error);
 
     return Response.json(
       {
