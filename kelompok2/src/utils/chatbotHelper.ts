@@ -29,7 +29,15 @@ export interface CatalogItem {
 export interface BotReplyPayload {
   text: string;
   recommendations: CatalogItem[];
+  shouldUseGemini?: boolean;
 }
+
+export interface GeminiReplyResult {
+  text: string;
+  recommendedIds: string[];
+}
+
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export const id2label: Record<number, string> = Object.entries(
   parsedMetrics.labels || {}
@@ -124,12 +132,69 @@ export function extractContext(text: string) {
   }
 
   const wantsMostExpensive =
-    /\b(paling mahal|termahal|mahal sendiri|harga tertinggi)\b/.test(lower);
+    /\b(paling mahal|termahal|mahal sendiri|harga tertinggi|yang mahal|buket mahal)\b/.test(
+      lower
+    );
   const wantsCheapest =
-    /\b(paling murah|termurah|murah sendiri|harga terendah)\b/.test(lower);
+    /\b(paling murah|termurah|murah sendiri|harga terendah|yang murah|buket murah)\b/.test(
+      lower
+    );
 
   const categories = ['bunga', 'uang', 'snack', 'boneka'];
   const foundCategory = categories.find((cat) => wordSet.has(cat));
+
+  const buketMatch = lower.match(/\bbuket\s+([a-z0-9_]+)\b/);
+  const requestedSubject = buketMatch?.[1];
+  const knownNonItemWords = new Set([
+    'yang',
+    'paling',
+    'termahal',
+    'termurah',
+    'mahal',
+    'murah',
+    'bagus',
+    'bagusnya',
+    'cocok',
+    'keren',
+    'cantik',
+    'lucu',
+    'mini',
+    'besar',
+    'jumbo',
+    'sedang',
+    'baru',
+    'lain',
+    'apa',
+    'aja',
+    'saja',
+    'untuk',
+    'buat',
+    'wisuda',
+    'ultah',
+    'ulang',
+    'anniversary',
+    'lamaran',
+    'nikah',
+    'pernikahan',
+    'pacar',
+    'custom',
+    'kado',
+    'hadiah',
+  ]);
+
+  const hasClearShoppingIntent =
+    Boolean(foundOccasion) ||
+    Boolean(foundCategory) ||
+    budgetAmount !== null ||
+    wantsMostExpensive ||
+    wantsCheapest;
+
+  const hasUnknownItemRequest = Boolean(
+    !hasClearShoppingIntent &&
+      requestedSubject &&
+      !categories.includes(requestedSubject) &&
+      !knownNonItemWords.has(requestedSubject)
+  );
 
   return {
     occasion: foundOccasion,
@@ -137,6 +202,8 @@ export function extractContext(text: string) {
     wantsMostExpensive,
     wantsCheapest,
     category: foundCategory,
+    requestedSubject,
+    hasUnknownItemRequest,
   };
 }
 
@@ -191,8 +258,14 @@ export function predictIntentFallback(text: string): string {
     return 'pengiriman';
   }
 
-  const { occasion, budgetAmount, wantsMostExpensive, wantsCheapest } =
-    extractContext(cleaned);
+  const {
+    occasion,
+    budgetAmount,
+    wantsMostExpensive,
+    wantsCheapest,
+    hasUnknownItemRequest,
+  } = extractContext(cleaned);
+
   if (
     budgetAmount !== null ||
     occasion ||
@@ -200,6 +273,10 @@ export function predictIntentFallback(text: string): string {
     wantsCheapest
   ) {
     return 'rekomendasi';
+  }
+
+  if (hasUnknownItemRequest) {
+    return 'luar_konteks';
   }
 
   const scores: Record<string, number> = {
@@ -273,7 +350,6 @@ export function predictIntentFallback(text: string): string {
       { word: 'cocok', weight: 5 },
       { word: 'bagusnya', weight: 5 },
       { word: 'bagus', weight: 3 },
-      { word: 'buket', weight: 3 },
       { word: 'hadiah', weight: 4 },
       { word: 'kado', weight: 4 },
       { word: 'ngasih', weight: 4 },
@@ -407,6 +483,14 @@ export function getBotReplyPayloadFromIntent(
 ): BotReplyPayload {
   const ctx = extractContext(userMessage);
 
+  if (ctx.hasUnknownItemRequest && ctx.requestedSubject) {
+    return {
+      text: `Maaf kak, untuk saat ini buket ${ctx.requestedSubject} belum tersedia di katalog ra_scrafts.id 🌸 Kategori buket yang tersedia adalah Bunga, Uang, Snack, dan Boneka.`,
+      recommendations: [],
+      shouldUseGemini: true,
+    };
+  }
+
   switch (intent) {
     case 'identitas_bot':
       return {
@@ -466,6 +550,7 @@ export function getBotReplyPayloadFromIntent(
       return {
         text: 'Maaf kak, aku khusus membantu seputar buket di ra_scrafts.id 🌸 Coba tanyakan rekomendasi buket untuk momen apa saja (pacar, wisuda, ulang tahun, anniversary, atau budget tertentu), daftar harga, cara custom buket, jadwal ambil, atau pembayaran ya.',
         recommendations: [],
+        shouldUseGemini: true,
       };
 
     case 'tanya_harga':
@@ -522,6 +607,7 @@ export function getBotReplyPayloadFromIntent(
       return {
         text: 'Maaf kak, aku khusus membantu seputar buket di ra_scrafts.id 🌸 Silakan tanya rekomendasi buket untuk momen apa saja, budget, cara custom buket, jadwal ambil, atau pembayaran ya.',
         recommendations: [],
+        shouldUseGemini: true,
       };
   }
 }
@@ -541,4 +627,102 @@ export function getBotResponse(
 ): string {
   const intent = id2label[predictedClassId] || predictIntentFallback(userMessage);
   return getBotResponseFromIntent(intent, userMessage, catalog);
+}
+
+export async function askGeminiForBuket(
+  userMessage: string,
+  catalog: CatalogItem[],
+  apiKey: string
+): Promise<GeminiReplyResult | null> {
+  if (!apiKey.trim()) return null;
+
+  const compactCatalog = catalog.slice(0, 20).map((item) => ({
+    id: item.id,
+    title: item.title,
+    category: item.category,
+    sizeName: item.sizeName ?? '-',
+    price: item.price,
+  }));
+
+  const systemInstruction = [
+    'Kamu adalah Asisten Buket AI untuk toko ra_scrafts.id.',
+    'Jawab dengan bahasa Indonesia yang ramah, ringkas, dan natural.',
+    'Aturan toko ra_scrafts.id:',
+    '- Kategori buket yang tersedia: Bunga, Uang, Snack, Boneka.',
+    '- Jika pengguna menanyakan jenis/barang buket yang tidak ada di katalog (misalnya buket sayur), jawab dengan jujur bahwa item tersebut tidak tersedia di katalog lalu sarankan kategori yang tersedia.',
+    '- Pembayaran: transfer manual saat Checkout lalu unggah bukti transfer.',
+    '- Pengambilan: ambil di toko sesuai tanggal & jam yang dipilih saat Checkout.',
+    '- Custom: bisa pilih varian ukuran di Detail Produk dan tulis request (warna wrapping/pita/kartu ucapan) di catatan saat Checkout.',
+    '- Jangan mengarang harga atau produk di luar data katalog berikut.',
+    'Balas HANYA dalam format JSON valid tanpa markdown backtick dengan struktur: {"text":"...","recommendedIds":["id1","id2"]}.',
+    `Data katalog: ${JSON.stringify(compactCatalog)}`,
+  ].join('\n');
+
+  try {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
+      apiKey
+    )}`;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        system_instruction: {
+          parts: [{ text: systemInstruction }],
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: userMessage }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.4,
+          responseMimeType: 'application/json',
+        },
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const rawText: string | undefined =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) return null;
+
+    const parsed = JSON.parse(rawText) as {
+      text?: string;
+      recommendedIds?: string[];
+    };
+
+    const allowedIds = new Set(catalog.map((c) => c.id));
+    const recommendedIds = Array.isArray(parsed.recommendedIds)
+      ? parsed.recommendedIds.filter((id) => allowedIds.has(id)).slice(0, 5)
+      : [];
+
+    return {
+      text:
+        parsed.text?.trim() ||
+        'Maaf kak, aku khusus membantu seputar buket di ra_scrafts.id 🌸',
+      recommendedIds,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function mapIdsToCatalogItems(
+  ids: string[],
+  catalog: CatalogItem[]
+): CatalogItem[] {
+  const byId = new Map(catalog.map((item) => [item.id, item]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((item): item is CatalogItem => Boolean(item))
+    .map((item) => ({
+      ...item,
+      imageUrl: item.imageUrl || FALLBACK_IMAGE,
+    }));
 }
