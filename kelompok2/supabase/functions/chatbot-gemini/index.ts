@@ -3,9 +3,11 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+// Ganti model lama dengan model yang tersedia
+const GEMINI_MODEL = "gemini-3.8-flash";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -20,8 +22,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { message, catalog, history = [] } =
-      await req.json();
+    const { message, catalog, history = [] } = await req.json();
 
     if (
       typeof message !== "string" ||
@@ -40,6 +41,7 @@ Deno.serve(async (req) => {
       throw new Error("GEMINI_API_KEY belum dikonfigurasi");
     }
 
+    // Mengamankan data katalog
     const safeCatalog = Array.isArray(catalog)
       ? catalog.slice(0, 50).map((item: any) => ({
           id: String(item.id),
@@ -73,6 +75,17 @@ Aturan toko:
 - Jika tidak ada produk yang cocok, jelaskan dengan jujur.
 - Jika pertanyaan di luar toko, arahkan kembali ke topik buket.
 
+
+Aturan tambahan percakapan:
+1. Pahami konteks percakapan sebelumnya, jangan hanya membaca pesan terakhir.
+2. Jika pelanggan menjawab "oke", "okey", "baik", "makasih", "terima kasih", atau "siap", berikan respons ramah dan natural.
+3. Jangan menganggap pesan singkat seperti "oke", "iya", "boleh", dan "terima kasih" sebagai pertanyaan di luar topik.
+4. Jika pelanggan menyetujui rekomendasi, tawarkan bantuan untuk melihat detail produk atau melanjutkan pemesanan.
+5. Jika pelanggan mengatakan terima kasih, ucapkan kembali dengan ramah.
+6. Jangan mengulang rekomendasi produk kecuali pelanggan memintanya.
+7. Selalu gunakan riwayat percakapan untuk memahami maksud pelanggan.
+
+
 Data katalog:
 ${JSON.stringify(safeCatalog)}
 
@@ -83,10 +96,13 @@ Balas hanya menggunakan JSON valid dengan format:
 }
 `;
 
+    // Membatasi riwayat percakapan
     const safeHistory = Array.isArray(history)
       ? history.slice(-10).map((item: any) => ({
           role: item.sender === "user" ? "user" : "model",
-          parts: [{ text: String(item.text).slice(0, 2000) }],
+          parts: [
+            { text: String(item.text).slice(0, 2000) },
+          ],
         }))
       : [];
 
@@ -98,6 +114,7 @@ Balas hanya menggunakan JSON valid dengan format:
       },
     ];
 
+    // Memanggil Gemini API
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
@@ -120,11 +137,18 @@ Balas hanya menggunakan JSON valid dengan format:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Gemini error:", errorText);
+
+      console.error("Gemini API error:", response.status, errorText);
 
       return Response.json(
-        { error: "Gemini gagal memberikan jawaban" },
-        { status: 502, headers: corsHeaders }
+        {
+          error: "Gemini gagal memberikan jawaban",
+          details: errorText,
+        },
+        {
+          status: 502,
+          headers: corsHeaders,
+        }
       );
     }
 
@@ -134,11 +158,13 @@ Balas hanya menggunakan JSON valid dengan format:
       data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawText) {
+      console.error("Gemini response kosong:", data);
       throw new Error("Jawaban Gemini kosong");
     }
 
     const parsed = JSON.parse(rawText);
 
+    // Memastikan rekomendasi hanya berasal dari katalog
     const allowedIds = new Set(
       safeCatalog.map((item: any) => item.id)
     );
@@ -152,7 +178,9 @@ Balas hanya menggunakan JSON valid dengan format:
 
     return Response.json(
       {
-        text: String(parsed.text || "Maaf kak, coba tanyakan kembali ya 🌸"),
+        text: String(
+          parsed.text || "Maaf kak, coba tanyakan kembali ya 🌸"
+        ),
         recommendedIds,
       },
       {
@@ -164,7 +192,11 @@ Balas hanya menggunakan JSON valid dengan format:
     console.error("Chatbot error:", error);
 
     return Response.json(
-      { error: "Terjadi kesalahan pada chatbot" },
+      {
+        error: "Terjadi kesalahan pada chatbot",
+        details:
+          error instanceof Error ? error.message : "Unknown error",
+      },
       {
         status: 500,
         headers: corsHeaders,

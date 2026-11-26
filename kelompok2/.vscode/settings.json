@@ -5,7 +5,7 @@
     "source.sortMembers": "explicit"
   },
   "deno.enablePaths": [
-    "supabase/functions"
+  "kelompok2/supabase/functions"
   ],
   "deno.lint": true,
   "deno.unstable": [
