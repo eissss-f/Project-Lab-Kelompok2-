@@ -9,16 +9,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
 import {
+  askGeminiForBuket,
   CatalogItem,
   FALLBACK_IMAGE,
   formatRupiah,
   getBotReplyPayloadFromIntent,
+  mapIdsToCatalogItems,
   predictIntentFallback,
   tokenizeText,
 } from '../../utils/chatbotHelper';
@@ -41,6 +44,7 @@ export default function ChatbotScreen() {
   const router = useRouter();
   const [inputText, setInputText] = useState('');
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -115,6 +119,14 @@ export default function ChatbotScreen() {
     loadCatalog();
   }, []);
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/user' as any);
+    }
+  };
+
   const handleOpenDetail = (item: CatalogItem) => {
     router.push({
       pathname: '/user/DetailProduk',
@@ -128,9 +140,9 @@ export default function ChatbotScreen() {
     } as any);
   };
 
-  const handleSend = (customText?: string) => {
+  const handleSend = async (customText?: string) => {
     const query = (customText ?? inputText).trim();
-    if (!query) return;
+    if (!query || isSending) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -151,22 +163,41 @@ export default function ChatbotScreen() {
       catalog
     );
 
+    let finalText = replyPayload.text;
+    let finalRecs = replyPayload.recommendations;
+
+    if (replyPayload.shouldUseGemini) {
+      setIsSending(true);
+      try {
+        const geminiRes = await askGeminiForBuket(query, catalog);
+        if (geminiRes) {
+          finalText = geminiRes.text;
+          finalRecs = mapIdsToCatalogItems(geminiRes.recommendedIds, catalog);
+        }
+      } finally {
+        setIsSending(false);
+      }
+    }
+
     const botMsg: Message = {
       id: (Date.now() + 1).toString(),
-      text: replyPayload.text,
+      text: finalText,
       sender: 'bot',
-      recommendations: replyPayload.recommendations,
+      recommendations: finalRecs,
     };
 
-    setTimeout(() => {
-      setMessages((prev) => [...prev, botMsg]);
-    }, 200);
+    setMessages((prev) => [...prev, botMsg]);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.backBtn}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <Ionicons name="chevron-back" size={22} color="#A83F68" />
         </TouchableOpacity>
         <View>
@@ -235,6 +266,13 @@ export default function ChatbotScreen() {
         )}
       />
 
+      {isSending ? (
+        <View style={styles.typingRow}>
+          <ActivityIndicator size="small" color="#A83F68" />
+          <Text style={styles.typingText}>Asisten sedang mengetik...</Text>
+        </View>
+      ) : null}
+
       <View style={styles.quickContainer}>
         <FlatList
           horizontal
@@ -264,7 +302,11 @@ export default function ChatbotScreen() {
             onChangeText={setInputText}
             onSubmitEditing={() => handleSend()}
           />
-          <TouchableOpacity style={styles.sendBtn} onPress={() => handleSend()}>
+          <TouchableOpacity
+            style={styles.sendBtn}
+            onPress={() => handleSend()}
+            disabled={isSending}
+          >
             <Ionicons name="send" size={18} color="#FFF8F0" />
           </TouchableOpacity>
         </View>
@@ -323,6 +365,14 @@ const styles = StyleSheet.create({
   bubbleText: { fontSize: 13, lineHeight: 19 },
   userText: { color: '#FFF8F0' },
   botText: { color: '#49343C' },
+  typingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  typingText: { fontSize: 11, color: '#A17B84', fontStyle: 'italic' },
   recsContainer: {
     maxWidth: '90%',
     gap: 8,

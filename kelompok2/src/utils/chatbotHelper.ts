@@ -1,5 +1,6 @@
 import vocabData from '../../assets/chatbot/vocab.json';
 import metricsData from '../../assets/chatbot/metrics.json';
+import { supabase } from '../../lib/supabase';
 
 interface MetricsJson {
   seq_len?: number;
@@ -14,6 +15,9 @@ export const vocab: Record<string, number> = parsedVocab;
 
 export const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80';
+
+// Ganti sesuai nama Edge Function yang kamu deploy di Supabase
+const GEMINI_EDGE_FUNCTION = 'chatbot-gemini';
 
 export interface CatalogItem {
   id: string;
@@ -36,8 +40,6 @@ export interface GeminiReplyResult {
   text: string;
   recommendedIds: string[];
 }
-
-const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export const id2label: Record<number, string> = Object.entries(
   parsedMetrics.labels || {}
@@ -256,6 +258,18 @@ export function predictIntentFallback(text: string): string {
     )
   ) {
     return 'pengiriman';
+  }
+
+  const isComparisonOrStoryQuestion =
+    /\b(ceritain|cerita|bedanya|beda|bandingkan|dibanding|menurut|menurutmu|kenapa|mengapa|lebih cocok|lebih seru|kesannya|kesan)\b/.test(
+      cleaned
+    ) &&
+    !/\b(harga|berapa|budget|rb|ribu|rp|paling mahal|paling murah|termahal|termurah)\b/.test(
+      cleaned
+    );
+
+  if (isComparisonOrStoryQuestion) {
+    return 'luar_konteks';
   }
 
   const {
@@ -631,11 +645,8 @@ export function getBotResponse(
 
 export async function askGeminiForBuket(
   userMessage: string,
-  catalog: CatalogItem[],
-  apiKey: string
+  catalog: CatalogItem[]
 ): Promise<GeminiReplyResult | null> {
-  if (!apiKey.trim()) return null;
-
   const compactCatalog = catalog.slice(0, 20).map((item) => ({
     id: item.id,
     title: item.title,
@@ -644,71 +655,46 @@ export async function askGeminiForBuket(
     price: item.price,
   }));
 
-  const systemInstruction = [
-    'Kamu adalah Asisten Buket AI untuk toko ra_scrafts.id.',
-    'Jawab dengan bahasa Indonesia yang ramah, ringkas, dan natural.',
-    'Aturan toko ra_scrafts.id:',
-    '- Kategori buket yang tersedia: Bunga, Uang, Snack, Boneka.',
-    '- Jika pengguna menanyakan jenis/barang buket yang tidak ada di katalog (misalnya buket sayur), jawab dengan jujur bahwa item tersebut tidak tersedia di katalog lalu sarankan kategori yang tersedia.',
-    '- Pembayaran: transfer manual saat Checkout lalu unggah bukti transfer.',
-    '- Pengambilan: ambil di toko sesuai tanggal & jam yang dipilih saat Checkout.',
-    '- Custom: bisa pilih varian ukuran di Detail Produk dan tulis request (warna wrapping/pita/kartu ucapan) di catatan saat Checkout.',
-    '- Jangan mengarang harga atau produk di luar data katalog berikut.',
-    'Balas HANYA dalam format JSON valid tanpa markdown backtick dengan struktur: {"text":"...","recommendedIds":["id1","id2"]}.',
-    `Data katalog: ${JSON.stringify(compactCatalog)}`,
-  ].join('\n');
-
   try {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(
-      apiKey
-    )}`;
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemInstruction }],
+    const { data, error } = await supabase.functions.invoke(
+      GEMINI_EDGE_FUNCTION,
+      {
+        body: {
+          message: userMessage,
+          catalog: compactCatalog,
         },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: userMessage }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.4,
-          responseMimeType: 'application/json',
-        },
-      }),
-    });
+      }
+    );
 
-    if (!response.ok) return null;
+    if (error || !data) {
+      console.error('Supabase Edge Function Gemini error:', error);
+      return null;
+    }
 
-    const data = await response.json();
-    const rawText: string | undefined =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) return null;
-
-    const parsed = JSON.parse(rawText) as {
-      text?: string;
-      recommendedIds?: string[];
-    };
+    // Mendukung format { text, recommendedIds } maupun { reply, recommendedIds }
+    const rawText: string =
+      typeof data.text === 'string'
+        ? data.text
+        : typeof data.reply === 'string'
+          ? data.reply
+          : '';
 
     const allowedIds = new Set(catalog.map((c) => c.id));
-    const recommendedIds = Array.isArray(parsed.recommendedIds)
-      ? parsed.recommendedIds.filter((id) => allowedIds.has(id)).slice(0, 5)
+    const recommendedIds = Array.isArray(data.recommendedIds)
+      ? data.recommendedIds
+          .map((id: unknown) => String(id))
+          .filter((id: string) => allowedIds.has(id))
+          .slice(0, 5)
       : [];
 
     return {
       text:
-        parsed.text?.trim() ||
+        rawText.trim() ||
         'Maaf kak, aku khusus membantu seputar buket di ra_scrafts.id 🌸',
       recommendedIds,
     };
-  } catch {
+  } catch (err) {
+    console.error('Gagal memanggil Supabase Edge Function Gemini:', err);
     return null;
   }
 }
