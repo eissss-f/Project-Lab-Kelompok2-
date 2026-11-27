@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
 import {
-  askGeminiForBuket,
   CatalogItem,
   FALLBACK_IMAGE,
   formatRupiah,
   getBotReplyPayloadFromIntent,
-  mapIdsToCatalogItems,
   predictIntentFallback,
   tokenizeText,
 } from '../../utils/chatbotHelper';
@@ -42,9 +39,9 @@ const QUICK_REPLIES = [
 
 export default function ChatbotScreen() {
   const router = useRouter();
+  const flatListRef = useRef<FlatList<Message>>(null);
   const [inputText, setInputText] = useState('');
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
-  const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -53,6 +50,16 @@ export default function ChatbotScreen() {
       recommendations: [],
     },
   ]);
+
+  const scrollToBottom = (animated = true) => {
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToEnd({ animated });
+    });
+  };
+
+  useEffect(() => {
+    scrollToBottom(true);
+  }, [messages]);
 
   useEffect(() => {
     const loadCatalog = async () => {
@@ -112,7 +119,7 @@ export default function ChatbotScreen() {
 
         setCatalog(items);
       } catch (err) {
-        console.error('Gagal memuat data katalog untuk chatbot:', err);
+        console.warn('Gagal memuat data katalog untuk chatbot:', err);
       }
     };
 
@@ -140,9 +147,9 @@ export default function ChatbotScreen() {
     } as any);
   };
 
-  const handleSend = async (customText?: string) => {
+  const handleSend = (customText?: string) => {
     const query = (customText ?? inputText).trim();
-    if (!query || isSending) return;
+    if (!query) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -163,27 +170,11 @@ export default function ChatbotScreen() {
       catalog
     );
 
-    let finalText = replyPayload.text;
-    let finalRecs = replyPayload.recommendations;
-
-    if (replyPayload.shouldUseGemini) {
-      setIsSending(true);
-      try {
-        const geminiRes = await askGeminiForBuket(query, catalog);
-        if (geminiRes) {
-          finalText = geminiRes.text;
-          finalRecs = mapIdsToCatalogItems(geminiRes.recommendedIds, catalog);
-        }
-      } finally {
-        setIsSending(false);
-      }
-    }
-
     const botMsg: Message = {
       id: (Date.now() + 1).toString(),
-      text: finalText,
+      text: replyPayload.text,
       sender: 'bot',
-      recommendations: finalRecs,
+      recommendations: replyPayload.recommendations,
     };
 
     setMessages((prev) => [...prev, botMsg]);
@@ -201,15 +192,17 @@ export default function ChatbotScreen() {
           <Ionicons name="chevron-back" size={22} color="#A83F68" />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>Asisten Buket AI</Text>
+          <Text style={styles.headerTitle}>Asisten Buket</Text>
           <Text style={styles.headerSub}>ra_scrafts.id • Konsultasi Cepat</Text>
         </View>
       </View>
 
       <FlatList
+        ref={flatListRef}
         data={messages}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.chatList}
+        onContentSizeChange={() => scrollToBottom(true)}
         renderItem={({ item }) => (
           <View style={styles.messageGroup}>
             <View
@@ -266,13 +259,6 @@ export default function ChatbotScreen() {
         )}
       />
 
-      {isSending ? (
-        <View style={styles.typingRow}>
-          <ActivityIndicator size="small" color="#A83F68" />
-          <Text style={styles.typingText}>Asisten sedang mengetik...</Text>
-        </View>
-      ) : null}
-
       <View style={styles.quickContainer}>
         <FlatList
           horizontal
@@ -301,11 +287,11 @@ export default function ChatbotScreen() {
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={() => handleSend()}
+            underlineColorAndroid="transparent"
           />
           <TouchableOpacity
             style={styles.sendBtn}
             onPress={() => handleSend()}
-            disabled={isSending}
           >
             <Ionicons name="send" size={18} color="#FFF8F0" />
           </TouchableOpacity>
@@ -365,14 +351,6 @@ const styles = StyleSheet.create({
   bubbleText: { fontSize: 13, lineHeight: 19 },
   userText: { color: '#FFF8F0' },
   botText: { color: '#49343C' },
-  typingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingBottom: 4,
-  },
-  typingText: { fontSize: 11, color: '#A17B84', fontStyle: 'italic' },
   recsContainer: {
     maxWidth: '90%',
     gap: 8,
@@ -440,6 +418,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 13,
     color: '#49343C',
+    outlineStyle: 'none' as any,
+    outlineWidth: 0 as any,
   },
   sendBtn: {
     width: 42,

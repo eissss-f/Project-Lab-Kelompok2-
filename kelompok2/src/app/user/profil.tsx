@@ -76,26 +76,26 @@ export default function ProfilScreen() {
         setIsLoading(true);
 
         const {
-  data: { session },
-  error: sessionError,
-} = await supabase.auth.getSession();
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
 
-if (sessionError) {
-  throw sessionError;
-}
+        if (sessionError) {
+          throw sessionError;
+        }
 
-if (!session?.user) {
-  if (isMounted) {
-    setUserId(null);
-    setEmail("");
-    setName("");
-    setPhone("");
-    router.replace("/login");
-  }
-  return;
-}
+        if (!session?.user) {
+          if (isMounted) {
+            setUserId(null);
+            setEmail("");
+            setName("");
+            setPhone("");
+            router.replace("/login");
+          }
+          return;
+        }
 
-const user = session.user;
+        const user = session.user;
         // Email selalu berasal dari akun Supabase Auth aktif.
         const accountEmail = user.email ?? "";
 
@@ -296,9 +296,6 @@ const user = session.user;
               <View style={styles.accountText}>
                 <Text style={styles.name}>
                   {name || "Nama pengguna"}
-                </Text>
-                <Text style={styles.customerLabel}>
-                  TES PROFIL PELANGGAN 123
                 </Text>
               </View>
             </View>
@@ -659,12 +656,6 @@ const styles = StyleSheet.create({
     fontFamily: "serif",
     fontSize: 21,
     fontWeight: "700",
-  },
-
-  customerLabel: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 4,
   },
 
   sectionTitle: {

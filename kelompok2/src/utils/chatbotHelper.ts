@@ -1,6 +1,5 @@
 import vocabData from '../../assets/chatbot/vocab.json';
 import metricsData from '../../assets/chatbot/metrics.json';
-import { supabase } from '../../lib/supabase';
 
 interface MetricsJson {
   seq_len?: number;
@@ -16,9 +15,6 @@ export const vocab: Record<string, number> = parsedVocab;
 export const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=600&q=80';
 
-// Ganti sesuai nama Edge Function yang kamu deploy di Supabase
-const GEMINI_EDGE_FUNCTION = 'chatbot-gemini';
-
 export interface CatalogItem {
   id: string;
   productId: string;
@@ -33,12 +29,6 @@ export interface CatalogItem {
 export interface BotReplyPayload {
   text: string;
   recommendations: CatalogItem[];
-  shouldUseGemini?: boolean;
-}
-
-export interface GeminiReplyResult {
-  text: string;
-  recommendedIds: string[];
 }
 
 export const id2label: Record<number, string> = Object.entries(
@@ -66,6 +56,36 @@ export function tokenizeText(text: string): Int32Array {
   }
 
   return tokens;
+}
+
+export function extractBudgetAmount(text: string): number | null {
+  const lower = normalizeText(text);
+
+  // Format juta / jt, contoh: "1 juta", "1.5 juta", "1,5 jt"
+  const jutaMatch = lower.match(/\b(\d+(?:[.,]\d+)?)\s*(juta|jt)\b/i);
+  if (jutaMatch) {
+    const num = Number(jutaMatch[1].replace(',', '.'));
+    if (!Number.isNaN(num) && num > 0) {
+      return Math.round(num * 1_000_000);
+    }
+  }
+
+  // Format rb / ribu / k, contoh: "100 ribu", "200rb", "50k"
+  const shortMatch = lower.match(/\b(\d+(?:[.,]\d+)?)\s*(rb|ribu|k)\b/i);
+  if (shortMatch) {
+    const num = Number(shortMatch[1].replace(',', '.'));
+    if (!Number.isNaN(num) && num > 0) {
+      return Math.round(num * 1_000);
+    }
+  }
+
+  // Angka penuh 5-7 digit, contoh: "100000" atau "1000000"
+  const fullMatch = lower.match(/\b(\d{5,7})\b/);
+  if (fullMatch) {
+    return Number(fullMatch[1]);
+  }
+
+  return null;
 }
 
 export function extractContext(text: string) {
@@ -122,16 +142,7 @@ export function extractContext(text: string) {
     foundOccasion = 'hadiah spesial';
   }
 
-  let budgetAmount: number | null = null;
-  const shortMatch = lower.match(/\b(\d+)\s*(rb|ribu|k)\b/i);
-  if (shortMatch) {
-    budgetAmount = Number(shortMatch[1]) * 1000;
-  } else {
-    const fullMatch = lower.match(/\b(\d{5,7})\b/);
-    if (fullMatch) {
-      budgetAmount = Number(fullMatch[1]);
-    }
-  }
+  const budgetAmount = extractBudgetAmount(lower);
 
   const wantsMostExpensive =
     /\b(paling mahal|termahal|mahal sendiri|harga tertinggi|yang mahal|buket mahal)\b/.test(
@@ -143,7 +154,9 @@ export function extractContext(text: string) {
     );
 
   const categories = ['bunga', 'uang', 'snack', 'boneka'];
-  const foundCategory = categories.find((cat) => wordSet.has(cat));
+  const matchedCategories = categories.filter((cat) => wordSet.has(cat));
+  const foundCategory =
+    matchedCategories.length === 1 ? matchedCategories[0] : undefined;
 
   const buketMatch = lower.match(/\bbuket\s+([a-z0-9_]+)\b/);
   const requestedSubject = buketMatch?.[1];
@@ -154,6 +167,8 @@ export function extractContext(text: string) {
     'termurah',
     'mahal',
     'murah',
+    'harga',
+    'budget',
     'bagus',
     'bagusnya',
     'cocok',
@@ -186,7 +201,7 @@ export function extractContext(text: string) {
 
   const hasClearShoppingIntent =
     Boolean(foundOccasion) ||
-    Boolean(foundCategory) ||
+    matchedCategories.length > 0 ||
     budgetAmount !== null ||
     wantsMostExpensive ||
     wantsCheapest;
@@ -204,14 +219,50 @@ export function extractContext(text: string) {
     wantsMostExpensive,
     wantsCheapest,
     category: foundCategory,
+    comparedCategories:
+      matchedCategories.length > 1 ? matchedCategories : undefined,
     requestedSubject,
     hasUnknownItemRequest,
   };
 }
 
+export function isGratitudeOrClosing(text: string): boolean {
+  const cleaned = normalizeText(text);
+  if (!cleaned) return false;
+
+  const words = cleaned.split(' ').filter(Boolean);
+  const hasThanks = /\b(makasih|terimakasih|terima kasih|thx|thanks|tq)\b/.test(
+    cleaned
+  );
+
+  if (hasThanks) {
+    return true;
+  }
+
+  const shortAckWords = new Set([
+    'oke',
+    'ok',
+    'okey',
+    'sip',
+    'siap',
+    'baik',
+    'iya',
+    'ya',
+    'boleh',
+    'mantap',
+    'noted',
+  ]);
+
+  return words.length <= 3 && words.every((w) => shortAckWords.has(w));
+}
+
 export function predictIntentFallback(text: string): string {
   const cleaned = normalizeText(text);
   if (!cleaned) return 'salam';
+
+  if (isGratitudeOrClosing(cleaned)) {
+    return 'terima_kasih';
+  }
 
   const words = cleaned.split(' ');
 
@@ -245,7 +296,7 @@ export function predictIntentFallback(text: string): string {
   }
 
   if (
-    /\b(berapa lama|lama pengerjaan|estimasi|po|pre order|preorder|dadakan|hari ini jadi|sehari jadi|ready|stok)\b/.test(
+    /\b(berapa lama|lama pengerjaan|estimasi|po|pre order|preorder|dadakan|hari ini jadi|sehari jadi|besok bisa jadi|besok jadi|ready|stok|pesan hari ini)\b/.test(
       cleaned
     )
   ) {
@@ -260,23 +311,12 @@ export function predictIntentFallback(text: string): string {
     return 'pengiriman';
   }
 
-  const isComparisonOrStoryQuestion =
-    /\b(ceritain|cerita|bedanya|beda|bandingkan|dibanding|menurut|menurutmu|kenapa|mengapa|lebih cocok|lebih seru|kesannya|kesan)\b/.test(
-      cleaned
-    ) &&
-    !/\b(harga|berapa|budget|rb|ribu|rp|paling mahal|paling murah|termahal|termurah)\b/.test(
-      cleaned
-    );
-
-  if (isComparisonOrStoryQuestion) {
-    return 'luar_konteks';
-  }
-
   const {
     occasion,
     budgetAmount,
     wantsMostExpensive,
     wantsCheapest,
+    comparedCategories,
     hasUnknownItemRequest,
   } = extractContext(cleaned);
 
@@ -284,9 +324,22 @@ export function predictIntentFallback(text: string): string {
     budgetAmount !== null ||
     occasion ||
     wantsMostExpensive ||
-    wantsCheapest
+    wantsCheapest ||
+    comparedCategories
   ) {
     return 'rekomendasi';
+  }
+
+  const isComparisonOrStoryQuestion =
+    /\b(ceritain|cerita|bedanya|beda|bandingkan|dibanding|menurut|menurutmu|kenapa|mengapa|lebih cocok|lebih seru|kesannya|kesan|mending)\b/.test(
+      cleaned
+    ) &&
+    !/\b(harga|berapa|budget|rb|ribu|juta|jt|rp|paling mahal|paling murah|termahal|termurah|bunga|uang|snack|boneka)\b/.test(
+      cleaned
+    );
+
+  if (isComparisonOrStoryQuestion) {
+    return 'luar_konteks';
   }
 
   if (hasUnknownItemRequest) {
@@ -354,6 +407,8 @@ export function predictIntentFallback(text: string): string {
       { word: 'mahal', weight: 4 },
       { word: 'rb', weight: 4 },
       { word: 'ribu', weight: 4 },
+      { word: 'juta', weight: 5 },
+      { word: 'jt', weight: 5 },
       { word: 'rupiah', weight: 4 },
       { word: 'rp', weight: 4 },
     ],
@@ -421,12 +476,49 @@ function selectCatalogMatches(
   ctx: ReturnType<typeof extractContext>
 ): {
   items: CatalogItem[];
-  mode: 'expensive' | 'cheapest' | 'budget' | 'category' | 'default';
+  mode:
+    | 'expensive'
+    | 'cheapest'
+    | 'budget'
+    | 'category'
+    | 'compare'
+    | 'default';
   isExactBudgetMatch: boolean;
 } {
   let validItems = catalog.filter((item) => item.price > 0);
   if (validItems.length === 0) {
     return { items: [], mode: 'default', isExactBudgetMatch: false };
+  }
+
+  if (ctx.comparedCategories && ctx.comparedCategories.length > 0) {
+    const picked: CatalogItem[] = [];
+    const seenIds = new Set<string>();
+
+    for (const cat of ctx.comparedCategories) {
+      const catMatches = validItems
+        .filter(
+          (item) =>
+            item.category.toLowerCase().includes(cat) ||
+            item.title.toLowerCase().includes(cat)
+        )
+        .sort((a, b) => a.price - b.price)
+        .slice(0, 2);
+
+      for (const m of catMatches) {
+        if (!seenIds.has(m.id)) {
+          seenIds.add(m.id);
+          picked.push(m);
+        }
+      }
+    }
+
+    if (picked.length > 0) {
+      return {
+        items: picked.slice(0, 5),
+        mode: 'compare',
+        isExactBudgetMatch: true,
+      };
+    }
   }
 
   if (ctx.category) {
@@ -472,12 +564,13 @@ function selectCatalogMatches(
       };
     }
 
-    const cheapest = [...validItems]
-      .sort((a, b) => a.price - b.price)
+    // Jika budget lebih besar dari semua produk di katalog (misal 1 juta), tetap tampilkan pilihan terbaik katalog
+    const topOptions = [...validItems]
+      .sort((a, b) => b.price - a.price)
       .slice(0, 5);
 
     return {
-      items: cheapest,
+      items: topOptions,
       mode: 'budget',
       isExactBudgetMatch: false,
     };
@@ -497,74 +590,79 @@ export function getBotReplyPayloadFromIntent(
 ): BotReplyPayload {
   const ctx = extractContext(userMessage);
 
+  if (isGratitudeOrClosing(userMessage) || intent === 'terima_kasih') {
+    return {
+      text: 'Sama-sama kak 🌸 Senang bisa bantu pilihkan buket untuk kakak. Kalau masih butuh rekomendasi, info harga, atau cara custom, kabari saja ya!',
+      recommendations: [],
+    };
+  }
+
   if (ctx.hasUnknownItemRequest && ctx.requestedSubject) {
     return {
-      text: `Maaf kak, untuk saat ini buket ${ctx.requestedSubject} belum tersedia di katalog ra_scrafts.id 🌸 Kategori buket yang tersedia adalah Bunga, Uang, Snack, dan Boneka.`,
+      text: `Maaf ya kak, untuk buket ${ctx.requestedSubject} belum tersedia di katalog ra_scrafts.id 🌸 Saat ini kami menyediakan buket Bunga, Uang, Snack, dan Boneka. Kalau mau, kakak bisa sebutkan momen atau budget-nya biar aku bantu pilihkan.`,
       recommendations: [],
-      shouldUseGemini: true,
     };
   }
 
   switch (intent) {
     case 'identitas_bot':
       return {
-        text: 'Aku Asisten Buket AI dari ra_scrafts.id 🌸 Aku bisa bantu pilihkan buket untuk berbagai momen (pacar, wisuda, ulang tahun, anniversary, lamaran, pernikahan, atau budget tertentu), info harga, cara custom buket, jadwal ambil, maupun pembayaran.',
+        text: 'Aku Asisten Buket ra_scrafts.id 🌸 Aku bisa bantu merekomendasikan buket sesuai momen (wisuda, ulang tahun, pacar, anniversary, lamaran, pernikahan) atau budget kakak, sekalian info harga, cara custom, jadwal ambil, dan pembayaran.',
         recommendations: [],
       };
 
     case 'salam':
       return {
-        text: 'Halo kak! Selamat datang di ra_scrafts.id 🌸 Mau cari buket untuk momen apa dan budget berapa kak?',
+        text: 'Halo kak! Selamat datang di ra_scrafts.id 🌸 Mau cari buket untuk momen apa dan kisaran budget berapa kak?',
         recommendations: [],
       };
 
     case 'promo_diskon':
       return {
-        text: 'Untuk saat ini harga buket mengikuti daftar harga resmi yang tampil di katalog & halaman Checkout ya kak 🌸 Kalau ada promo atau potongan pembelian jumlah banyak, infonya akan diumumkan langsung oleh admin toko.',
+        text: 'Untuk harga buket saat ini mengacu pada daftar harga resmi di katalog dan halaman Checkout ya kak 🌸 Kalau ada promo atau potongan khusus pembelian jumlah banyak, biasanya diinformasikan langsung oleh admin toko.',
         recommendations: [],
       };
 
     case 'custom_buket':
       return {
-        text: 'Iya, bisa kak! 🌸 Cara custom buketnya gampang banget:\n\n1. Pilih model/kategori buket yang kamu suka di Katalog (Bunga, Uang, Snack, atau Boneka).\n2. Di halaman Detail Produk, pilih ukuran varian yang diinginkan lalu masukkan ke Keranjang.\n3. Saat Checkout, tuliskan detail request custom kamu (seperti warna kertas wrapping, warna pita, atau isi kartu ucapan) pada kolom catatan sebelum menyelesaikan pesanan ya kak!',
+        text: 'Bisa banget kak! 🌸 Cara custom buket di ra_scrafts.id:\n\n1. Pilih kategori buket yang diinginkan di Katalog (Bunga, Uang, Snack, atau Boneka).\n2. Di halaman Detail Produk, pilih ukuran varian lalu masukkan ke Keranjang.\n3. Saat Checkout, tulis request custom kakak (warna wrapping, pita, atau isi kartu ucapan) di kolom catatan pesanan ya.',
         recommendations: [],
       };
 
     case 'estimasi_proses':
       return {
-        text: 'Untuk ketersediaan dan waktu pengerjaan buket, kamu bisa langsung memilih tanggal serta jam pengambilan yang tersedia pada halaman Checkout ya kak 🌸 Disarankan memesan lebih awal supaya rangkaian lebih maksimal.',
+        text: 'Untuk ketersediaan dan estimasi waktu pengerjaan, kakak bisa langsung cek serta pilih tanggal dan jam pengambilan di halaman Checkout ya kak 🌸 Sebaiknya pesan lebih awal supaya hasil rangkaian lebih maksimal.',
         recommendations: [],
       };
 
     case 'pengiriman':
       return {
-        text: 'Pemesanan di ra_scrafts.id menggunakan sistem pengambilan di toko sesuai tanggal dan jam yang dipilih saat Checkout ya kak, agar kondisi buket tetap rapi dan aman.',
+        text: 'Pemesanan di ra_scrafts.id dilakukan dengan pengambilan langsung di toko sesuai jadwal tanggal dan jam yang kakak pilih saat Checkout, supaya buket tetap terjaga kerapiannya.',
         recommendations: [],
       };
 
     case 'pembayaran':
       return {
-        text: 'Pembayaran menggunakan transfer manual ya kak. Nomor rekening / tujuan pembayaran akan tampil langsung di halaman saat kamu melakukan Checkout (CO), lalu tinggal unggah bukti transfernya.',
+        text: 'Pembayaran dilakukan lewat transfer manual ya kak. Detail rekening/tujuan pembayaran akan muncul di halaman Checkout, lalu kakak tinggal unggah bukti transfernya.',
         recommendations: [],
       };
 
     case 'jadwal_ambil':
       return {
-        text: 'Untuk jadwal pengambilan pesanan di toko, kamu bisa memilih tanggal dan jam pengambilan langsung pada halaman Checkout ya kak.',
+        text: 'Jadwal pengambilan pesanan bisa kakak tentukan langsung (tanggal dan jam yang tersedia) saat proses Checkout di aplikasi ya kak.',
         recommendations: [],
       };
 
     case 'keluhan':
       return {
-        text: 'Mohon maaf atas kendala yang dialami kak 🙏 Silakan sampaikan detail pesanan atau kendalanya agar dapat segera dibantu.',
+        text: 'Mohon maaf atas ketidaknyamanan yang dialami kak 🙏 Boleh ceritakan detail pesanan atau kendalanya agar bisa segera ditindaklanjuti.',
         recommendations: [],
       };
 
     case 'luar_konteks':
       return {
-        text: 'Maaf kak, aku khusus membantu seputar buket di ra_scrafts.id 🌸 Coba tanyakan rekomendasi buket untuk momen apa saja (pacar, wisuda, ulang tahun, anniversary, atau budget tertentu), daftar harga, cara custom buket, jadwal ambil, atau pembayaran ya.',
+        text: 'Maaf ya kak, aku fokus membantu seputar buket di ra_scrafts.id 🌸 Kakak bisa tanya rekomendasi buket untuk momen tertentu, kisaran budget, cara custom, jadwal ambil, atau pembayaran.',
         recommendations: [],
-        shouldUseGemini: true,
       };
 
     case 'tanya_harga':
@@ -577,28 +675,45 @@ export function getBotReplyPayloadFromIntent(
 
       if (items.length === 0) {
         return {
-          text: 'Saat ini belum ada data produk katalog yang tersedia di database ya kak.',
+          text: 'Maaf kak, data produk di katalog belum tersedia saat ini. Coba muat ulang halaman atau cek kembali beberapa saat lagi ya.',
           recommendations: [],
+        };
+      }
+
+      if (mode === 'compare' && ctx.comparedCategories) {
+        const labelPair = ctx.comparedCategories.join(' maupun ');
+        const occasionText = ctx.occasion ? ` untuk ${ctx.occasion}` : '';
+        return {
+          text: `Keduanya cocok kok kak${occasionText}—buket bunga memberi kesan manis dan klasik, sedangkan buket boneka lebih awet dijadikan kenang-kenangan 🌸 Berikut beberapa pilihan buket ${labelPair} yang bisa kakak cek (ketuk kartu untuk lihat detail):`,
+          recommendations: items,
         };
       }
 
       if (mode === 'expensive') {
         return {
-          text: `Buket dengan harga tertinggi di katalog saat ini adalah ${items[0].title} (${formatRupiah(items[0].price)}). Berikut urutan buket dari harga tertinggi di katalog:`,
+          text: `Untuk pilihan dengan harga tertinggi di katalog saat ini ada ${items[0].title} (${formatRupiah(items[0].price)}) 🌸 Berikut urutan buket dari harga tertinggi:`,
           recommendations: items,
         };
       }
 
       if (mode === 'cheapest') {
         return {
-          text: `Buket dengan harga paling terjangkau di katalog saat ini adalah ${items[0].title} (${formatRupiah(items[0].price)}). Berikut daftar harga terendah di katalog:`,
+          text: `Untuk pilihan paling ramah di kantong saat ini ada ${items[0].title} (${formatRupiah(items[0].price)}) 🌸 Berikut buket dengan harga terendah di katalog:`,
           recommendations: items,
         };
       }
 
       if (ctx.budgetAmount !== null && !isExactBudgetMatch) {
+        const highestPrice = Math.max(...catalog.map((c) => c.price || 0));
+        if (ctx.budgetAmount > highestPrice) {
+          return {
+            text: `Dengan budget ${formatRupiah(ctx.budgetAmount)}, pilihan di katalog saat ini berada di bawah nominal tersebut dan bisa kakak sesuaikan atau request custom saat Checkout 🌸 Berikut rekomendasi buket terbaik di katalog:`,
+            recommendations: items,
+          };
+        }
+
         return {
-          text: `Belum ada buket dengan harga maksimal ${formatRupiah(ctx.budgetAmount)} kak. Berikut pilihan buket dengan harga paling terjangkau di katalog (ketuk kartu untuk melihat detail):`,
+          text: `Belum ada buket pas di bawah ${formatRupiah(ctx.budgetAmount)} kak, tapi ini pilihan buket terbaik yang tersedia di katalog (ketuk kartu untuk melihat detail):`,
           recommendations: items,
         };
       }
@@ -606,22 +721,21 @@ export function getBotReplyPayloadFromIntent(
       const prefix = ctx.occasion ? `Untuk ${ctx.occasion}, ` : '';
       const budgetNote =
         ctx.budgetAmount !== null
-          ? `yang masuk budget maksimal ${formatRupiah(ctx.budgetAmount)}`
+          ? `dengan budget maksimal ${formatRupiah(ctx.budgetAmount)}`
           : ctx.category
             ? `kategori ${ctx.category}`
-            : 'yang tersedia di katalog';
+            : 'di katalog';
 
       return {
-        text: `${prefix}berikut pilihan buket ${budgetNote} kak. Ketuk foto atau nama buket di bawah untuk membuka detail produk:`,
+        text: `${prefix}berikut rekomendasi buket ${budgetNote} yang bisa kakak pilih. Ketuk kartunya untuk melihat detail produk:`,
         recommendations: items,
       };
     }
 
     default:
       return {
-        text: 'Maaf kak, aku khusus membantu seputar buket di ra_scrafts.id 🌸 Silakan tanya rekomendasi buket untuk momen apa saja, budget, cara custom buket, jadwal ambil, atau pembayaran ya.',
+        text: 'Maaf ya kak, aku fokus membantu seputar buket di ra_scrafts.id 🌸 Silakan tanya rekomendasi buket sesuai momen atau budget, cara custom, jadwal ambil, atau pembayaran.',
         recommendations: [],
-        shouldUseGemini: true,
       };
   }
 }
@@ -641,62 +755,6 @@ export function getBotResponse(
 ): string {
   const intent = id2label[predictedClassId] || predictIntentFallback(userMessage);
   return getBotResponseFromIntent(intent, userMessage, catalog);
-}
-
-export async function askGeminiForBuket(
-  userMessage: string,
-  catalog: CatalogItem[]
-): Promise<GeminiReplyResult | null> {
-  const compactCatalog = catalog.slice(0, 20).map((item) => ({
-    id: item.id,
-    title: item.title,
-    category: item.category,
-    sizeName: item.sizeName ?? '-',
-    price: item.price,
-  }));
-
-  try {
-    const { data, error } = await supabase.functions.invoke(
-      GEMINI_EDGE_FUNCTION,
-      {
-        body: {
-          message: userMessage,
-          catalog: compactCatalog,
-        },
-      }
-    );
-
-    if (error || !data) {
-      console.warn("Supabase Edge Function Gemini fallback:", error);
-      return null;
-    }
-
-    // Mendukung format { text, recommendedIds } maupun { reply, recommendedIds }
-    const rawText: string =
-      typeof data.text === 'string'
-        ? data.text
-        : typeof data.reply === 'string'
-          ? data.reply
-          : '';
-
-    const allowedIds = new Set(catalog.map((c) => c.id));
-    const recommendedIds = Array.isArray(data.recommendedIds)
-      ? data.recommendedIds
-          .map((id: unknown) => String(id))
-          .filter((id: string) => allowedIds.has(id))
-          .slice(0, 5)
-      : [];
-
-    return {
-      text:
-        rawText.trim() ||
-        'Maaf kak, aku khusus membantu seputar buket di ra_scrafts.id 🌸',
-      recommendedIds,
-    };
-  } catch (err) {
-    console.error('Gagal memanggil Supabase Edge Function Gemini:', err);
-    return null;
-  }
 }
 
 export function mapIdsToCatalogItems(
